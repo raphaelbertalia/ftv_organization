@@ -480,14 +480,55 @@
             return `${p1}/${p2}`;
         };
 
-        wrap.innerHTML = matches.map((m, i) => `
-    <div class="player-item">
-      <b>Jogo ${i + 1}</b>
-      <span>${pairName(m.pairAId)}</span>
-      <b>${m.scoreA} x ${m.scoreB}</b>
-      <span>${pairName(m.pairBId)}</span>
+        const matchesOrdered = matches
+            .slice()
+            .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
+
+        wrap.innerHTML = matchesOrdered.map((m, i) => `
+    <div class="player-item" style="justify-content:space-between; gap:12px;">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+        <b>Jogo ${i + 1}</b>
+        <span>${pairName(m.pairAId)}</span>
+        <b>${m.scoreA} x ${m.scoreB}</b>
+        <span>${pairName(m.pairBId)}</span>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button class="secondary btnEditMatch" data-id="${m.id}">✏️</button>
+        <button class="secondary btnDelMatch" data-id="${m.id}">🗑️</button>
+      </div>
     </div>
   `).join("");
+    }
+
+    function getSessionMatches(sess) {
+        return (state.matches || [])
+            .filter(m => m.sessionId === sess.id)
+            .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
+    }
+
+    function recomputeNextIndex(sess) {
+        const matches = getSessionMatches(sess);
+        // se tem scheduleIndex, usa o maior + 1
+        const maxIdx = matches.reduce((acc, m) => {
+            return typeof m.scheduleIndex === "number" ? Math.max(acc, m.scheduleIndex) : acc;
+        }, -1);
+
+        if (maxIdx >= 0) {
+            sess.nextIndex = maxIdx + 1;
+        } else {
+            // fallback: quantidade de jogos da sessão
+            sess.nextIndex = matches.length;
+        }
+    }
+
+    function updateAllSessionUI() {
+        renderPairSelects();
+        updateNextGameUI();
+        updateTopStats();
+        window.renderRanking();
+        renderDataInfo();
+        renderMatchHistory();
     }
 
     function updateNextGameUI() {
@@ -532,6 +573,61 @@
     window.renderRanking();
     renderDataInfo();
     renderMatchHistory();
+
+    document.addEventListener("click", (ev) => {
+        const btnEdit = ev.target.closest?.(".btnEditMatch");
+        const btnDel = ev.target.closest?.(".btnDelMatch");
+        if (!btnEdit && !btnDel) return;
+
+        const sess = getCurrentSession();
+        if (!sess) return alert("Sem sessão ativa.");
+
+        const matchId = (btnEdit || btnDel).dataset.id;
+        const idx = (state.matches || []).findIndex(m => m.id === matchId);
+        if (idx < 0) return alert("Jogo não encontrado.");
+
+        // 🔒 senha (você já tem o requireAdmin() no app.js)
+        if (!requireAdmin()) return;
+
+        const match = state.matches[idx];
+
+        if (btnEdit) {
+            const a = prompt("Novo placar da Dupla A:", String(match.scoreA));
+            if (a === null) return;
+            const b = prompt("Novo placar da Dupla B:", String(match.scoreB));
+            if (b === null) return;
+
+            const scoreA = parseInt(a, 10);
+            const scoreB = parseInt(b, 10);
+
+            if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return alert("Placar inválido.");
+            if (scoreA < 0 || scoreB < 0 || scoreA > 18 || scoreB > 18) return alert("Placar deve ficar entre 0 e 18.");
+            if (scoreA !== 18 && scoreB !== 18) return alert("Alguém precisa fechar em 18 😅");
+
+            match.scoreA = scoreA;
+            match.scoreB = scoreB;
+            match.editedAt = Date.now();
+
+            saveState();
+            updateAllSessionUI();
+            alert("Placar atualizado ✅");
+            return;
+        }
+
+        if (btnDel) {
+            if (!confirm("Apagar esse jogo?")) return;
+
+            state.matches.splice(idx, 1);
+
+            // Ajusta rodízio pra não quebrar o “próximo jogo”
+            recomputeNextIndex(sess);
+
+            saveState();
+            updateAllSessionUI();
+            alert("Jogo apagado ✅");
+            return;
+        }
+    });
 
     // default tab
     showTab("jogos");
