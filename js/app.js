@@ -531,36 +531,110 @@
         renderMatchHistory();
     }
 
+    function getSessionMatches(sess) {
+        return (state.matches || [])
+            .filter(m => m.sessionId === sess.id)
+            .slice()
+            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    }
+
+    function getWinnerLoser(match) {
+        const aWin = Number(match.scoreA) > Number(match.scoreB);
+        return {
+            winnerPairId: aWin ? match.pairAId : match.pairBId,
+            loserPairId: aWin ? match.pairBId : match.pairAId,
+        };
+    }
+
+    // ranking POR DUPLA só pra decidir topo x topo / baixo x baixo depois do chaveamento
+    function computePairTableForSession(sess) {
+        const stats = new Map();
+        (sess.pairs || []).forEach(p => {
+            stats.set(p.id, { pairId: p.id, wins: 0, played: 0, diff: 0, pointsFor: 0 });
+        });
+
+        const matches = getSessionMatches(sess);
+
+        for (const m of matches) {
+            const a = stats.get(m.pairAId);
+            const b = stats.get(m.pairBId);
+            if (!a || !b) continue;
+
+            const sa = Number(m.scoreA), sb = Number(m.scoreB);
+            a.played++; b.played++;
+            a.pointsFor += sa; b.pointsFor += sb;
+            a.diff += (sa - sb);
+            b.diff += (sb - sa);
+
+            if (sa > sb) a.wins++;
+            else b.wins++;
+        }
+
+        const table = [...stats.values()];
+        table.sort((x, y) => (y.wins - x.wins) || (y.diff - x.diff) || (y.pointsFor - x.pointsFor));
+        return table;
+    }
+
+    function computeNextPlannedGame(sess) {
+        const pairs = sess.pairs || [];
+        const ms = getSessionMatches(sess);
+
+        // 1) Abertura fixa
+        if (ms.length === 0) return { pairAId: pairs[0]?.id, pairBId: pairs[1]?.id, label: "Jogo 1 (abertura)" };
+        if (ms.length === 1) return { pairAId: pairs[2]?.id, pairBId: pairs[3]?.id, label: "Jogo 2 (abertura)" };
+
+        // 2) Chaveamento (winner x winner / loser x loser)
+        if (ms.length === 2) {
+            const g1 = getWinnerLoser(ms[0]);
+            const g2 = getWinnerLoser(ms[1]);
+            return { pairAId: g1.winnerPairId, pairBId: g2.winnerPairId, label: "W x W" };
+        }
+        if (ms.length === 3) {
+            const g1 = getWinnerLoser(ms[0]);
+            const g2 = getWinnerLoser(ms[1]);
+            return { pairAId: g1.loserPairId, pairBId: g2.loserPairId, label: "L x L" };
+        }
+
+        // 3) Depois disso: topo x topo / baixo x baixo (alternando)
+        const table = computePairTableForSession(sess);
+        const topA = table[0]?.pairId, topB = table[1]?.pairId;
+        const botA = table[2]?.pairId, botB = table[3]?.pairId;
+
+        // alterna: jogo par = topo, jogo ímpar = baixo (ajuste se preferir)
+        const n = ms.length;
+        const chooseTop = (n % 2 === 0);
+
+        return chooseTop
+            ? { pairAId: topA, pairBId: topB, label: "Topo x Topo" }
+            : { pairAId: botA, pairBId: botB, label: "Baixo x Baixo" };
+    }
+
     function updateNextGameUI() {
         const sess = getCurrentSession();
         if (!sess) return;
 
-        const idx = Number(sess.nextIndex || 0);
-        const planned = (sess.schedule || [])[idx];
+        const planned = computeNextPlannedGame(sess);
 
-        // se você criar esses ids no HTML, isso aparece bonitinho
-        if ($("gameProgress")) $("gameProgress").textContent = `Jogo ${Math.min(idx + 1, 8)} de 8`;
+        if ($("gameProgress")) $("gameProgress").textContent = `Jogo ${getSessionMatches(sess).length + 1}`;
 
-        if (!planned) {
-            if ($("nextGameLabel")) $("nextGameLabel").textContent = "Rodízio finalizado ✅";
+        if (!planned?.pairAId || !planned?.pairBId) {
+            if ($("nextGameLabel")) $("nextGameLabel").textContent = "Sem próximo jogo definido.";
             return;
         }
 
-        const pairs = sess.pairs || [];
-        const a = pairs.find(p => p.id === planned.pairAId);
-        const b = pairs.find(p => p.id === planned.pairBId);
-
-        const namePair = (pr) => {
+        const namePair = (pairId) => {
+            const pr = (sess.pairs || []).find(p => p.id === pairId);
+            if (!pr) return "?/?";
             const p1 = (state.players || []).find(p => p.id === pr.p1)?.name || "?";
             const p2 = (state.players || []).find(p => p.id === pr.p2)?.name || "?";
             return `${p1} + ${p2}`;
         };
 
         if ($("nextGameLabel")) {
-            $("nextGameLabel").textContent = `${namePair(a)}  vs  ${namePair(b)}`;
+            $("nextGameLabel").textContent = `${planned.label}: ${namePair(planned.pairAId)}  vs  ${namePair(planned.pairBId)}`;
         }
 
-        // auto seleciona nos selects
+        // auto seleciona
         if ($("pairA")) $("pairA").value = planned.pairAId;
         if ($("pairB")) $("pairB").value = planned.pairBId;
     }
