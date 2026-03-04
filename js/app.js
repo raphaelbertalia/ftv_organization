@@ -513,7 +513,7 @@
         wrap.innerHTML = matchesOrdered.map((m, i) => `
     <div class="player-item" style="justify-content:space-between; gap:12px;">
       <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
-        <b>Jogo ${i + 1}</b>
+        <b>Jogo ${(m.scheduleIndex ?? i) + 1}</b>
         <span>${pairName(m.pairAId)}</span>
         <b>${m.scoreA} x ${m.scoreB}</b>
         <span>${pairName(m.pairBId)}</span>
