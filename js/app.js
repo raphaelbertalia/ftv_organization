@@ -28,6 +28,23 @@
         return (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now());
     }
 
+    function buildScheduleQuartaCH(pairs) {
+        if (!pairs || pairs.length !== 4) return null;
+
+        const [p1, p2, p3, p4] = pairs;
+
+        return [
+            { a: { type: "pair", id: p1.id }, b: { type: "pair", id: p2.id }, label: "Jogo 1" },
+            { a: { type: "pair", id: p3.id }, b: { type: "pair", id: p4.id }, label: "Jogo 2" },
+            { a: { type: "winner", match: 1 }, b: { type: "winner", match: 2 }, label: "Jogo 3 (W1 x W2)" },
+            { a: { type: "loser", match: 1 }, b: { type: "loser", match: 2 }, label: "Jogo 4 (L1 x L2)" },
+            { a: { type: "winner", match: 3 }, b: { type: "winner", match: 4 }, label: "Jogo 5 (W3 x W4)" },
+            { a: { type: "loser", match: 3 }, b: { type: "loser", match: 4 }, label: "Jogo 6 (L3 x L4)" },
+            { a: { type: "winner", match: 5 }, b: { type: "winner", match: 6 }, label: "Jogo 7 (W5 x W6)" },
+            { a: { type: "loser", match: 5 }, b: { type: "loser", match: 6 }, label: "Jogo 8 (L5 x L6)" },
+        ];
+    }
+
     // ---------- Tabs ----------
     function showTab(name) {
         document.querySelectorAll('[id^="tab-"]').forEach((el) => (el.style.display = "none"));
@@ -307,6 +324,10 @@
 
             // createSession (sessions.js) deve salvar: {id,name,dateISO,pairs,roster...} e setar currentSessionId
             createSession(name, pairs);
+            const sess = getCurrentSession();
+            sess.schedule = buildScheduleQuartaCH(sess.pairs);
+            sess.nextIndex = 0;
+            saveState();
             renderPairSelects();
             updateNextGameUI();
             updateTopStats();
@@ -331,7 +352,12 @@
             if (scoreA < 0 || scoreB < 0 || scoreA > 18 || scoreB > 18) return alert("Placar deve ficar entre 0 e 18.");
             if (scoreA !== 18 && scoreB !== 18) return alert("Alguém precisa fechar em 18 😅");
 
-            addMatch(pairAId, pairBId, scoreA, scoreB);
+            recomputeNextIndex(sess); // garante sess.nextIndex consistente
+
+            addMatch(pairAId, pairBId, scoreA, scoreB, sess.nextIndex);
+
+            sess.nextIndex = (sess.nextIndex || 0) + 1;
+            saveState();
 
             renderMatchHistory();
 
@@ -501,12 +527,6 @@
   `).join("");
     }
 
-    function getSessionMatches(sess) {
-        return (state.matches || [])
-            .filter(m => m.sessionId === sess.id)
-            .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
-    }
-
     function recomputeNextIndex(sess) {
         const matches = getSessionMatches(sess);
         // se tem scheduleIndex, usa o maior + 1
@@ -535,7 +555,7 @@
         return (state.matches || [])
             .filter(m => m.sessionId === sess.id)
             .slice()
-            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
     }
 
     function getWinnerLoser(match) {
@@ -575,38 +595,73 @@
         return table;
     }
 
+    function getMatchByScheduleIndex(sess, idx) {
+        return (state.matches || []).find(m => m.sessionId === sess.id && m.scheduleIndex === idx) || null;
+    }
+
+    function getWinnerLoserPairId(match, want) {
+        if (!match) return null;
+        if (Number(match.scoreA) === Number(match.scoreB)) return null;
+
+        const winnerId = Number(match.scoreA) > Number(match.scoreB) ? match.pairAId : match.pairBId;
+        const loserId = Number(match.scoreA) > Number(match.scoreB) ? match.pairBId : match.pairAId;
+
+        return want === "winner" ? winnerId : loserId;
+    }
+
+    function resolvePairId(sess, ref) {
+        if (!ref) return null;
+        if (ref.type === "pair") return ref.id;
+
+        const prevIdx = Number(ref.match) - 1; // 1..8 -> 0..7
+        const prev = getMatchByScheduleIndex(sess, prevIdx);
+        if (!prev) return null;
+
+        return getWinnerLoserPairId(prev, ref.type); // "winner" ou "loser"
+    }
+
+    function getMatchByScheduleIndex(sess, idx) {
+        return (state.matches || []).find(m => m.sessionId === sess.id && m.scheduleIndex === idx) || null;
+    }
+
+    function getWinnerLoserPairId(match, want) {
+        if (!match) return null;
+        if (Number(match.scoreA) === Number(match.scoreB)) return null;
+
+        const winnerId = Number(match.scoreA) > Number(match.scoreB) ? match.pairAId : match.pairBId;
+        const loserId = Number(match.scoreA) > Number(match.scoreB) ? match.pairBId : match.pairAId;
+
+        return want === "winner" ? winnerId : loserId;
+    }
+
+    function resolvePairId(sess, ref) {
+        if (!ref) return null;
+        if (ref.type === "pair") return ref.id;
+
+        const prevIdx = Number(ref.match) - 1;
+        const prev = getMatchByScheduleIndex(sess, prevIdx);
+        if (!prev) return null;
+
+        return getWinnerLoserPairId(prev, ref.type);
+    }
+
     function computeNextPlannedGame(sess) {
-        const pairs = sess.pairs || [];
-        const ms = getSessionMatches(sess);
+        if (!sess.schedule || !sess.schedule.length) return null;
 
-        // 1) Abertura fixa
-        if (ms.length === 0) return { pairAId: pairs[0]?.id, pairBId: pairs[1]?.id, label: "Jogo 1 (abertura)" };
-        if (ms.length === 1) return { pairAId: pairs[2]?.id, pairBId: pairs[3]?.id, label: "Jogo 2 (abertura)" };
+        recomputeNextIndex(sess);
+        const idx = sess.nextIndex || 0;
 
-        // 2) Chaveamento (winner x winner / loser x loser)
-        if (ms.length === 2) {
-            const g1 = getWinnerLoser(ms[0]);
-            const g2 = getWinnerLoser(ms[1]);
-            return { pairAId: g1.winnerPairId, pairBId: g2.winnerPairId, label: "W x W" };
-        }
-        if (ms.length === 3) {
-            const g1 = getWinnerLoser(ms[0]);
-            const g2 = getWinnerLoser(ms[1]);
-            return { pairAId: g1.loserPairId, pairBId: g2.loserPairId, label: "L x L" };
+        if (idx >= sess.schedule.length) return { done: true, label: "Sessão finalizada (8 jogos) ✅" };
+
+        const sch = sess.schedule[idx];
+        const aId = resolvePairId(sess, sch.a);
+        const bId = resolvePairId(sess, sch.b);
+
+        if (!aId || !bId || aId === bId) {
+            return { pending: true, label: `${sch.label}: aguardando jogos anteriores (sem empates)` };
         }
 
-        // 3) Depois disso: topo x topo / baixo x baixo (alternando)
-        const table = computePairTableForSession(sess);
-        const topA = table[0]?.pairId, topB = table[1]?.pairId;
-        const botA = table[2]?.pairId, botB = table[3]?.pairId;
-
-        // alterna: jogo par = topo, jogo ímpar = baixo (ajuste se preferir)
-        const n = ms.length;
-        const chooseTop = (n % 2 === 0);
-
-        return chooseTop
-            ? { pairAId: topA, pairBId: topB, label: "Topo x Topo" }
-            : { pairAId: botA, pairBId: botB, label: "Baixo x Baixo" };
+        return { pairAId: aId, pairBId: bId, label: sch.label };
     }
 
     function updateNextGameUI() {
@@ -615,10 +670,19 @@
 
         const planned = computeNextPlannedGame(sess);
 
-        if ($("gameProgress")) $("gameProgress").textContent = `Jogo ${getSessionMatches(sess).length + 1}`;
+        if ($("gameProgress")) $("gameProgress").textContent = `Jogo ${(sess.nextIndex || 0) + 1}`;
 
-        if (!planned?.pairAId || !planned?.pairBId) {
+        if (!planned) {
             if ($("nextGameLabel")) $("nextGameLabel").textContent = "Sem próximo jogo definido.";
+            return;
+        }
+
+        if (planned.done) {
+            $("nextGameLabel").textContent = planned.label;
+            return;
+        }
+        if (planned.pending) {
+            $("nextGameLabel").textContent = planned.label;
             return;
         }
 
@@ -634,7 +698,6 @@
             $("nextGameLabel").textContent = `${planned.label}: ${namePair(planned.pairAId)}  vs  ${namePair(planned.pairBId)}`;
         }
 
-        // auto seleciona
         if ($("pairA")) $("pairA").value = planned.pairAId;
         if ($("pairB")) $("pairB").value = planned.pairBId;
     }
