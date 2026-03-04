@@ -379,6 +379,9 @@
             if (!confirm("Desfazer o último jogo desta sessão?")) return;
 
             undoLastMatchOfCurrentSession();
+            recomputeNextIndex(sess);
+            saveState();
+            updateNextGameUI();
 
             renderMatchHistory();
 
@@ -618,31 +621,6 @@
         if (!prev) return null;
 
         return getWinnerLoserPairId(prev, ref.type); // "winner" ou "loser"
-    }
-
-    function getMatchByScheduleIndex(sess, idx) {
-        return (state.matches || []).find(m => m.sessionId === sess.id && m.scheduleIndex === idx) || null;
-    }
-
-    function getWinnerLoserPairId(match, want) {
-        if (!match) return null;
-        if (Number(match.scoreA) === Number(match.scoreB)) return null;
-
-        const winnerId = Number(match.scoreA) > Number(match.scoreB) ? match.pairAId : match.pairBId;
-        const loserId = Number(match.scoreA) > Number(match.scoreB) ? match.pairBId : match.pairAId;
-
-        return want === "winner" ? winnerId : loserId;
-    }
-
-    function resolvePairId(sess, ref) {
-        if (!ref) return null;
-        if (ref.type === "pair") return ref.id;
-
-        const prevIdx = Number(ref.match) - 1;
-        const prev = getMatchByScheduleIndex(sess, prevIdx);
-        if (!prev) return null;
-
-        return getWinnerLoserPairId(prev, ref.type);
     }
 
     function computeNextPlannedGame(sess) {
