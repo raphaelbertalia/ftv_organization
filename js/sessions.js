@@ -22,7 +22,7 @@ function generateSchedule(pairs) {
     { a: { type: "winner", match: 5 }, b: { type: "winner", match: 6 }, label: "Jogo 7 (W5 x W6)" },
     { a: { type: "loser",  match: 5 }, b: { type: "loser",  match: 6 }, label: "Jogo 8 (L5 x L6)" },
   ];
-}F
+}
 
 function createSession(name, pairs) {
   const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now());

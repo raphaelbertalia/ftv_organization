@@ -41,9 +41,22 @@ function resolvePairId(session, ref) {
   return getWinnerLoserPairId(prev, ref.type); // "winner" ou "loser"
 }
 
+// (mantida) versão "antiga" — ok deixar, mas não vamos usar ela no addMatch
 function getExpectedPairsForScheduleIndex(session, idx) {
   const sch = session.schedule?.[idx];
-  if (!sch) return null; // sessão sem schedule
+  if (!sch) return null;
+
+  const aId = resolvePairId(session, sch.a);
+  const bId = resolvePairId(session, sch.b);
+
+  if (!aId || !bId || aId === bId) return null;
+  return { aId, bId };
+}
+
+// ✅ versão usada pelo addMatch (nome diferente pra não dar conflito/loop)
+function computeExpectedPairsForScheduleIndex(session, idx) {
+  const sch = session.schedule?.[idx];
+  if (!sch) return null;
 
   const aId = resolvePairId(session, sch.a);
   const bId = resolvePairId(session, sch.b);
@@ -85,7 +98,8 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
       return alert("Esse jogo da sequência já foi registrado.");
     }
 
-    const expected = getExpectedPairsForScheduleIndex(session, scheduleIndex);
+    // ✅ usa a função com nome diferente (sem risco de recursão)
+    const expected = computeExpectedPairsForScheduleIndex(session, scheduleIndex);
     if (!expected) {
       return alert("Ainda não dá pra montar esse jogo. Termine os jogos anteriores primeiro (sem empates).");
     }
@@ -141,9 +155,9 @@ function undoLastMatchOfCurrentSession() {
 window.addMatch = addMatch;
 window.undoLastMatchOfCurrentSession = undoLastMatchOfCurrentSession;
 
-// (opcional) helper pro app.js montar “próximo jogo”
+// (opcional) expõe helper SEM loop (se você quiser usar no app.js)
 window.getExpectedPairsForScheduleIndex = function(idx) {
   const session = getCurrentSession();
   if (!session) return null;
-  return getExpectedPairsForScheduleIndex(session, idx);
+  return computeExpectedPairsForScheduleIndex(session, idx);
 };

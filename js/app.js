@@ -335,42 +335,44 @@
         });
     }
 
-    // ---------- Registrar jogo ----------
-    if ($("btnAddMatch")) {
-        $("btnAddMatch").addEventListener("click", () => {
-            const sess = getCurrentSession();
-            if (!sess) return alert("Inicia uma sessão do dia antes de registrar jogos.");
+    // ---------- Registrar jogo (delegado, funciona mesmo se o botão existir depois) ----------
+    document.addEventListener("click", (ev) => {
+        const btn = ev.target.closest?.("#btnAddMatch");
+        if (!btn) return;
 
-            const pairAId = $("pairA")?.value || "";
-            const pairBId = $("pairB")?.value || "";
-            if (!pairAId || !pairBId) return alert("Escolhe Dupla A e Dupla B.");
-            if (pairAId === pairBId) return alert("Não dá pra jogar contra a mesma dupla 😅");
+        const sess = getCurrentSession();
+        if (!sess) return alert("Inicia uma sessão do dia antes de registrar jogos.");
 
-            const scoreA = parseInt(($("scoreA")?.value || ""), 10);
-            const scoreB = parseInt(($("scoreB")?.value || ""), 10);
-            if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return alert("Coloca os dois placares (ex: 18 e 15).");
-            if (scoreA < 0 || scoreB < 0 || scoreA > 18 || scoreB > 18) return alert("Placar deve ficar entre 0 e 18.");
-            if (scoreA !== 18 && scoreB !== 18) return alert("Alguém precisa fechar em 18 😅");
+        const pairAId = $("pairA")?.value || "";
+        const pairBId = $("pairB")?.value || "";
+        if (!pairAId || !pairBId) return alert("Escolhe Dupla A e Dupla B.");
+        if (pairAId === pairBId) return alert("Não dá pra jogar contra a mesma dupla 😅");
 
-            recomputeNextIndex(sess); // garante sess.nextIndex consistente
+        const scoreA = parseInt(($("scoreA")?.value || ""), 10);
+        const scoreB = parseInt(($("scoreB")?.value || ""), 10);
+        if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return alert("Coloca os dois placares (ex: 18 e 15).");
+        if (scoreA < 0 || scoreB < 0 || scoreA > 18 || scoreB > 18) return alert("Placar deve ficar entre 0 e 18.");
+        if (scoreA !== 18 && scoreB !== 18) return alert("Alguém precisa fechar em 18 😅");
 
-            addMatch(pairAId, pairBId, scoreA, scoreB, sess.nextIndex);
+        recomputeNextIndex(sess); // garante sess.nextIndex consistente
 
-            sess.nextIndex = (sess.nextIndex || 0) + 1;
-            saveState();
+        //        alert("vai salvar"); // ✅ teste
 
-            renderMatchHistory();
+        addMatch(pairAId, pairBId, scoreA, scoreB, sess.nextIndex);
 
-            updateNextGameUI();
+        sess.nextIndex = (sess.nextIndex || 0) + 1;
+        saveState();
 
-            if ($("scoreA")) $("scoreA").value = "";
-            if ($("scoreB")) $("scoreB").value = "";
+        renderMatchHistory();
+        updateNextGameUI();
 
-            updateTopStats();
-            window.renderRanking();
-            alert("Jogo salvo ✅");
-        });
-    }
+        if ($("scoreA")) $("scoreA").value = "";
+        if ($("scoreB")) $("scoreB").value = "";
+
+        updateTopStats();
+        window.renderRanking();
+        alert("Jogo salvo ✅");
+    });
 
     if ($("btnUndo")) {
         $("btnUndo").addEventListener("click", () => {
@@ -470,6 +472,43 @@
             renderDataInfo();
             alert("Zerado.");
         });
+    }
+
+    if ($("btnResetKeepPlayers")) {
+        $("btnResetKeepPlayers").addEventListener("click", () => {
+            if (!requireAdmin()) return;
+            if (!confirm("Zerar TODOS os jogos e sessões, mas manter os jogadores?")) return;
+
+            resetKeepPlayers();
+            alert("Zerado ✅ (jogos e sessões apagados, jogadores mantidos)");
+        });
+    }
+
+    function resetKeepPlayers() {
+        // mantém players (com active e nomes)
+        const keepPlayers = (state.players || []).slice();
+
+        // zera sessões e jogos
+        state.sessions = [];
+        state.matches = [];
+        state.currentSessionId = null;
+
+        // mantém players
+        state.players = keepPlayers;
+
+        // atualiza metadados
+        state.updatedAt = new Date().toISOString();
+
+        saveState();
+
+        // atualiza UI
+        renderPlayers();
+        renderPairsEditor();
+        renderPairSelects();
+        updateTopStats();
+        window.renderRanking();
+        renderDataInfo();
+        renderMatchHistory();
     }
 
     function renderDataInfo() {
@@ -572,8 +611,16 @@
     // ranking POR DUPLA só pra decidir topo x topo / baixo x baixo depois do chaveamento
     function computePairTableForSession(sess) {
         const stats = new Map();
+
         (sess.pairs || []).forEach(p => {
-            stats.set(p.id, { pairId: p.id, wins: 0, played: 0, diff: 0, pointsFor: 0 });
+            stats.set(p.id, {
+                pairId: p.id,
+                wins: 0,
+                played: 0,
+                diff: 0,
+                pointsFor: 0,
+                points: 0, // ✅ pontuação da liga
+            });
         });
 
         const matches = getSessionMatches(sess);
@@ -584,17 +631,31 @@
             if (!a || !b) continue;
 
             const sa = Number(m.scoreA), sb = Number(m.scoreB);
+
             a.played++; b.played++;
             a.pointsFor += sa; b.pointsFor += sb;
             a.diff += (sa - sb);
             b.diff += (sb - sa);
 
-            if (sa > sb) a.wins++;
-            else b.wins++;
+            // ✅ pontuação: vitória=3, 18x0=4
+            if (sa > sb) {
+                a.wins++;
+                a.points += (sa === 18 && sb === 0) ? 4 : 3;
+            } else if (sb > sa) {
+                b.wins++;
+                b.points += (sb === 18 && sa === 0) ? 4 : 3;
+            }
         }
 
         const table = [...stats.values()];
-        table.sort((x, y) => (y.wins - x.wins) || (y.diff - x.diff) || (y.pointsFor - x.pointsFor));
+
+        // ✅ ordena por pontos primeiro
+        table.sort((a, b) =>
+            ((b.points || 0) - (a.points || 0)) ||
+            ((b.diff || 0) - (a.diff || 0)) ||
+            ((b.pointsFor || 0) - (a.pointsFor || 0))
+        );
+
         return table;
     }
 
