@@ -560,31 +560,11 @@
         });
     }
 
-    function resetKeepPlayers() {
-        // mantém players (com active e nomes)
-        const keepPlayers = (state.players || []).slice();
-
-        // zera sessões e jogos
-        state.sessions = [];
-        state.matches = [];
-        state.currentSessionId = null;
-
-        // mantém players
-        state.players = keepPlayers;
-
-        // atualiza metadados
-        state.updatedAt = new Date().toISOString();
-
-        saveState();
-
-        // atualiza UI
-        renderPlayers();
-        renderPairsEditor();
-        renderPairSelects();
-        updateTopStats();
-        window.renderRanking();
-        renderDataInfo();
-        renderMatchHistory();
+    if ($("btnCheckDb")) {
+        $("btnCheckDb").addEventListener("click", async () => {
+            await checkDbStatus();
+            alert(dbStatus.ok ? "Banco conectado ✅" : "Falha ao conectar no banco ❌");
+        });
     }
 
     function renderDataInfo() {
@@ -867,6 +847,7 @@
     window.renderRanking();
     renderDataInfo();
     renderMatchHistory();
+    checkDbStatus();
 
     document.addEventListener("click", async (ev) => {
         const btnEdit = ev.target.closest?.(".btnEditMatch");
