@@ -6,18 +6,6 @@
 (function () {
     const $ = (id) => document.getElementById(id);
 
-    const ADMIN_PASSWORD = "1303"; // <-- troca aqui
-
-    function requireAdmin() {
-        const pass = prompt("Senha admin:");
-        if (pass === null) return false; // cancelou
-        if (pass !== ADMIN_PASSWORD) {
-            alert("Senha errada 😅");
-            return false;
-        }
-        return true;
-    }
-
     // helpers locais
     function todayISO() {
         const d = new Date();
@@ -26,6 +14,39 @@
     }
     function uid() {
         return (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now());
+    }
+
+    function getCurrentUser() {
+        return state.auth?.user || null;
+    }
+
+    function isAdmin() {
+        return getCurrentUser()?.role === "admin";
+    }
+
+    function canOperate() {
+        const role = getCurrentUser()?.role;
+        return role === "admin" || role === "user";
+    }
+
+    function canView() {
+        return !!getCurrentUser();
+    }
+
+    function requireAdmin() {
+        if (!isAdmin()) {
+            alert("Sem permissão 😅");
+            return false;
+        }
+        return true;
+    }
+
+    function requireOperator() {
+        if (!canOperate()) {
+            alert("Sem permissão 😅");
+            return false;
+        }
+        return true;
     }
 
     async function apiJson(url, options = {}) {
@@ -72,6 +93,66 @@
         }
 
         renderDataInfo();
+    }
+
+    async function doLogin(username, password) {
+        const data = await apiJson("/api/login", {
+            method: "POST",
+            body: JSON.stringify({ username, password })
+        });
+
+        state.auth.user = data.user;
+        saveState();
+        updateAuthUI();
+    }
+
+    async function doLogout() {
+        try {
+            await apiJson("/api/logout", {
+                method: "POST",
+                body: JSON.stringify({})
+            });
+        } catch (err) {
+            console.error("Erro no logout:", err);
+        }
+
+        state.auth.user = null;
+        saveState();
+        updateAuthUI();
+    }
+
+    function updateAuthUI() {
+        const user = getCurrentUser();
+
+        if ($("authStatus")) {
+            $("authStatus").textContent = user
+                ? `Logado como: ${user.username} (${user.role})`
+                : "Não logado";
+        }
+
+        if ($("loginForm")) $("loginForm").style.display = user ? "none" : "flex";
+        if ($("logoutBox")) $("logoutBox").style.display = user ? "block" : "none";
+
+        if ($("btnLogin")) $("btnLogin").style.display = user ? "none" : "inline-block";
+        if ($("btnLogout")) $("btnLogout").style.display = user ? "inline-block" : "none";
+
+        const dadosTab = document.querySelector('.tab[data-tab="dados"]');
+        if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
+
+        const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
+        if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
+
+        if ($("btnStartSession")) $("btnStartSession").style.display = canOperate() ? "inline-block" : "none";
+        if ($("btnAddMatch")) $("btnAddMatch").style.display = canOperate() ? "inline-block" : "none";
+        if ($("btnUndo")) $("btnUndo").style.display = isAdmin() ? "inline-block" : "none";
+        if ($("btnAddPlayer")) $("btnAddPlayer").style.display = isAdmin() ? "inline-block" : "none";
+        if ($("btnActivateAll")) $("btnActivateAll").style.display = isAdmin() ? "inline-block" : "none";
+        if ($("btnDeactivateAll")) $("btnDeactivateAll").style.display = isAdmin() ? "inline-block" : "none";
+        if ($("btnReset")) $("btnReset").style.display = isAdmin() ? "inline-block" : "none";
+        if ($("btnResetKeepPlayers")) $("btnResetKeepPlayers").style.display = isAdmin() ? "inline-block" : "none";
+        if ($("btnCheckDb")) $("btnCheckDb").style.display = isAdmin() ? "inline-block" : "none";
+
+        renderMatchHistory();
     }
 
     function buildScheduleQuartaCH(pairs) {
@@ -194,7 +275,21 @@
             del.textContent = "remover";
             del.addEventListener("click", async () => {
                 if (!requireAdmin()) return;
-                const used = (state.matches || []).some((m) => (m.a || []).includes?.(p.id) || (m.b || []).includes?.(p.id));
+                const used = (state.matches || []).some((m) => {
+
+                    const sess = (state.sessions || []).find((s) => s.id === m.sessionId);
+                    if (!sess) return false;
+
+                    const pairA = (sess.pairs || []).find((pair) => pair.id === m.pairAId);
+                    const pairB = (sess.pairs || []).find((pair) => pair.id === m.pairBId);
+
+                    const playersInMatch = [
+                        pairA?.p1, pairA?.p2,
+                        pairB?.p1, pairB?.p2
+                    ].filter(Boolean);
+
+                    return playersInMatch.includes(p.id);
+                });
                 if (used) return alert("Esse jogador já tem jogos no histórico. Desativa ao invés de remover.");
                 if (!confirm(`Remover ${p.name}?`)) return;
 
@@ -252,10 +347,36 @@
         }
     }
 
+    if ($("btnLogin")) {
+        $("btnLogin").addEventListener("click", async () => {
+            const username = ($("loginUsername")?.value || "").trim();
+            const password = ($("loginPassword")?.value || "").trim();
+
+            if (!username || !password) {
+                return alert("Preencha usuário e senha.");
+            }
+
+            try {
+                await doLogin(username, password);
+                $("loginPassword").value = "";
+                alert("Login feito ✅");
+            } catch (err) {
+                alert(err.message || "Falha no login");
+            }
+        });
+    }
+
+    if ($("btnLogout")) {
+        $("btnLogout").addEventListener("click", async () => {
+            await doLogout();
+            alert("Saiu da conta.");
+        });
+    }
+
     if ($("btnAddPlayer")) {
-        $("btnAddPlayer").addEventListener("click", () => {
+        $("btnAddPlayer").addEventListener("click", async () => {
             if (!requireAdmin()) return;
-            addPlayer($("newPlayerName").value);
+            await addPlayer($("newPlayerName").value);
             $("newPlayerName").value = "";
             $("newPlayerName").focus();
         });
@@ -263,6 +384,7 @@
 
     if ($("btnActivateAll")) {
         $("btnActivateAll").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
             (state.players || []).forEach((p) => (p.active = true));
             saveState();
             renderPlayers();
@@ -286,6 +408,7 @@
 
     if ($("btnDeactivateAll")) {
         $("btnDeactivateAll").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
             (state.players || []).forEach((p) => (p.active = false));
             saveState();
             renderPlayers();
@@ -304,6 +427,26 @@
                     })
                 )
             );
+        });
+    }
+
+    if ($("btnUndo")) {
+        $("btnUndo").addEventListener("click", () => {
+            if (!requireAdmin()) return;
+            const sess = getCurrentSession();
+            if (!sess) return alert("Sem sessão ativa.");
+            if (!confirm("Desfazer o último jogo desta sessão?")) return;
+
+            undoLastMatchOfCurrentSession();
+            recomputeNextIndex(sess);
+            saveState();
+            updateNextGameUI();
+
+            renderMatchHistory();
+
+            updateTopStats();
+            window.renderRanking();
+            alert("Último jogo da sessão desfeito.");
         });
     }
 
@@ -421,7 +564,7 @@
 
     if ($("btnStartSession")) {
         $("btnStartSession").addEventListener("click", () => {
-            if (!requireAdmin()) return;
+            if (!requireOperator()) return;
             const inputName = ($("sessionName")?.value || "").trim();
 
             function formatDateBR() {
@@ -462,6 +605,8 @@
         const btn = ev.target.closest?.("#btnAddMatch");
         if (!btn) return;
 
+        if (!requireOperator()) return;
+
         const sess = getCurrentSession();
         if (!sess) return alert("Inicia uma sessão do dia antes de registrar jogos.");
 
@@ -498,6 +643,7 @@
 
     if ($("btnUndo")) {
         $("btnUndo").addEventListener("click", () => {
+            if (!requireAdmin()) return;
             const sess = getCurrentSession();
             if (!sess) return alert("Sem sessão ativa.");
             if (!confirm("Desfazer o último jogo desta sessão?")) return;
@@ -591,11 +737,14 @@
 
     function renderMatchHistory() {
 
-        const sess = getCurrentSession();
-        if (!sess) return;
-
         const wrap = $("matchHistory");
         if (!wrap) return;
+
+        const sess = getCurrentSession();
+        if (!sess) {
+            wrap.innerHTML = "<div class='muted'>Sem sessão ativa.</div>";
+            return;
+        }
 
         const matches = (state.matches || []).filter(m => m.sessionId === sess.id);
 
@@ -628,10 +777,10 @@
         <span>${pairName(m.pairBId)}</span>
       </div>
 
-      <div style="display:flex; gap:8px;">
-        <button class="secondary btnEditMatch" data-id="${m.id}">✏️</button>
-        <button class="secondary btnDelMatch" data-id="${m.id}">🗑️</button>
-      </div>
+    <div style="display:flex; gap:8px;">
+    ${canOperate() ? `<button class="secondary btnEditMatch" data-id="${m.id}">✏️</button>` : ""}
+    ${isAdmin() ? `<button class="secondary btnDelMatch" data-id="${m.id}">🗑️</button>` : ""}
+    </div>
     </div>
   `).join("");
     }
@@ -848,6 +997,7 @@
     renderDataInfo();
     renderMatchHistory();
     checkDbStatus();
+    updateAuthUI();
 
     document.addEventListener("click", async (ev) => {
         const btnEdit = ev.target.closest?.(".btnEditMatch");
@@ -861,12 +1011,11 @@
         const idx = (state.matches || []).findIndex(m => m.id === matchId);
         if (idx < 0) return alert("Jogo não encontrado.");
 
-        // 🔒 senha (você já tem o requireAdmin() no app.js)
-        if (!requireAdmin()) return;
-
         const match = state.matches[idx];
 
         if (btnEdit) {
+            if (!requireOperator()) return;
+
             const a = prompt("Novo placar da Dupla A:", String(match.scoreA));
             if (a === null) return;
             const b = prompt("Novo placar da Dupla B:", String(match.scoreB));
@@ -891,11 +1040,11 @@
         }
 
         if (btnDel) {
+            if (!requireAdmin()) return;
             if (!confirm("Apagar esse jogo?")) return;
 
             state.matches.splice(idx, 1);
 
-            // Ajusta rodízio pra não quebrar o “próximo jogo”
             recomputeNextIndex(sess);
 
             saveState();

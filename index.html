@@ -32,6 +32,34 @@
   </nav>
 
   <main class="container">
+    <section id="authBox" class="card">
+      <div class="row" style="align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div>
+          <b>Acesso</b>
+          <div id="authStatus" class="muted" style="margin-top:6px;">Não logado</div>
+        </div>
+
+        <div id="loginForm" class="row" style="align-items:end; gap:12px; flex-wrap:wrap;">
+          <div>
+            <div class="muted">Usuário</div>
+            <input id="loginUsername" type="text" placeholder="Seu usuário" />
+          </div>
+
+          <div>
+            <div class="muted">Senha</div>
+            <input id="loginPassword" type="password" placeholder="Sua senha" />
+          </div>
+
+          <div>
+            <button id="btnLogin">Entrar</button>
+          </div>
+        </div>
+
+        <div id="logoutBox" style="display:none;">
+          <button id="btnLogout" class="secondary">Sair</button>
+        </div>
+      </div>
+    </section>
     <!-- TAB: JOGOS -->
     <section id="tab-jogos">
       <div class="card">
@@ -155,8 +183,8 @@
     <!-- TAB: DADOS -->
     <section id="tab-dados" style="display:none;">
       <div class="card">
-        <b>Export / Import</b>
-        <div class="row" style="margin-top:10px;">
+        <b>Gerenciamento</b>
+        <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
           <button id="btnReset" class="secondary">Zerar tudo</button>
           <button id="btnResetKeepPlayers" class="secondary">Zerar jogos e sessões (manter jogadores)</button>
           <button id="btnCheckDb" class="secondary">Checar banco</button>

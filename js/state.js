@@ -8,12 +8,21 @@ function defaultState() {
     players: [],
     sessions: [],
     currentSessionId: null,
-    matches: []
+    matches: [],
+
+    auth: {
+      user: null
+    }
   };
 }
 
 // carrega do localStorage, senão cria do zero
 let state = (window.loadState && loadState()) || defaultState();
+
+// garante compatibilidade com estados antigos
+if (!state.auth) {
+  state.auth = { user: null };
+}
 
 // garante campos (compat)
 if (!Array.isArray(state.players)) state.players = [];
