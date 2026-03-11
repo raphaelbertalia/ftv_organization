@@ -28,6 +28,27 @@
         return (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now());
     }
 
+    async function apiJson(url, options = {}) {
+        const res = await fetch(url, {
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
+            },
+            ...options
+        });
+
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (_) { }
+
+        if (!res.ok) {
+            throw new Error(data?.error || `HTTP ${res.status}`);
+        }
+
+        return data;
+    }
+
     function buildScheduleQuartaCH(pairs) {
         if (!pairs || pairs.length !== 4) return null;
 
@@ -90,23 +111,50 @@
             const chk = document.createElement("input");
             chk.type = "checkbox";
             chk.checked = !!p.active;
-            chk.addEventListener("change", () => {
+            chk.addEventListener("change", async () => {
                 p.active = chk.checked;
                 saveState();
                 renderPairsEditor();
                 updateTopStats();
+
+                try {
+                    await apiJson("/api/players", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            id: p.id,
+                            name: p.name,
+                            active: p.active
+                        })
+                    });
+                } catch (err) {
+                    console.error("Erro atualizando player ativo no banco:", err);
+                }
             });
 
             const name = document.createElement("input");
             name.value = p.name || "";
-            name.addEventListener("change", () => {
+            name.addEventListener("change", async () => {
                 const clean = (name.value || "").trim();
                 if (!clean) return;
+
                 p.name = clean;
                 saveState();
                 renderPairsEditor();
                 renderPairSelects();
                 window.renderRanking();
+
+                try {
+                    await apiJson("/api/players", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            id: p.id,
+                            name: p.name,
+                            active: p.active
+                        })
+                    });
+                } catch (err) {
+                    console.error("Erro atualizando nome do player no banco:", err);
+                }
             });
 
             const right = document.createElement("div");
@@ -119,17 +167,27 @@
             const del = document.createElement("span");
             del.className = "link";
             del.textContent = "remover";
-            del.addEventListener("click", () => {
+            del.addEventListener("click", async () => {
                 if (!requireAdmin()) return;
-                const used = (state.matches || []).some((m) => (m.a || []).includes(p.id) || (m.b || []).includes(p.id));
+                const used = (state.matches || []).some((m) => (m.a || []).includes?.(p.id) || (m.b || []).includes?.(p.id));
                 if (used) return alert("Esse jogador já tem jogos no histórico. Desativa ao invés de remover.");
                 if (!confirm(`Remover ${p.name}?`)) return;
+
                 state.players = (state.players || []).filter((x) => x.id !== p.id);
                 saveState();
                 renderPlayers();
                 renderPairsEditor();
                 renderPairSelects();
                 updateTopStats();
+
+                try {
+                    await apiJson("/api/players", {
+                        method: "DELETE",
+                        body: JSON.stringify({ id: p.id })
+                    });
+                } catch (err) {
+                    console.error("Erro removendo player no banco:", err);
+                }
             });
 
             right.appendChild(pill);
@@ -143,17 +201,30 @@
         });
     }
 
-    function addPlayer(name) {
+    async function addPlayer(name) {
         const clean = (name || "").trim();
         if (!clean) return alert("Nome vazio 😅");
+
         if ((state.players || []).some((p) => (p.name || "").toLowerCase() === clean.toLowerCase())) {
             return alert("Já tem esse nome.");
         }
-        state.players.push({ id: uid(), name: clean, active: true });
+
+        const player = { id: uid(), name: clean, active: true };
+
+        state.players.push(player);
         saveState();
         renderPlayers();
         renderPairsEditor();
         updateTopStats();
+
+        try {
+            await apiJson("/api/players", {
+                method: "POST",
+                body: JSON.stringify(player)
+            });
+        } catch (err) {
+            console.error("Erro salvando jogador no banco:", err);
+        }
     }
 
     if ($("btnAddPlayer")) {
@@ -166,22 +237,48 @@
     }
 
     if ($("btnActivateAll")) {
-        $("btnActivateAll").addEventListener("click", () => {
+        $("btnActivateAll").addEventListener("click", async () => {
             (state.players || []).forEach((p) => (p.active = true));
             saveState();
             renderPlayers();
             renderPairsEditor();
             updateTopStats();
+
+            await Promise.allSettled(
+                (state.players || []).map((p) =>
+                    apiJson("/api/players", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            id: p.id,
+                            name: p.name,
+                            active: true
+                        })
+                    })
+                )
+            );
         });
     }
 
     if ($("btnDeactivateAll")) {
-        $("btnDeactivateAll").addEventListener("click", () => {
+        $("btnDeactivateAll").addEventListener("click", async () => {
             (state.players || []).forEach((p) => (p.active = false));
             saveState();
             renderPlayers();
             renderPairsEditor();
             updateTopStats();
+
+            await Promise.allSettled(
+                (state.players || []).map((p) =>
+                    apiJson("/api/players", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            id: p.id,
+                            name: p.name,
+                            active: false
+                        })
+                    })
+                )
+            );
         });
     }
 
@@ -458,29 +555,50 @@
     }
 
     if ($("btnReset")) {
-        $("btnReset").addEventListener("click", () => {
-            if (!requireAdmin()) return; // 🔒 senha primeiro
+        $("btnReset").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
             if (!confirm("Zerar tudo mesmo? (Jogadores, sessões e jogos)")) return;
 
-            state = defaultState();
-            saveState();
-            renderPlayers();
-            renderPairsEditor();
-            renderPairSelects();
-            updateTopStats();
-            window.renderRanking();
-            renderDataInfo();
-            alert("Zerado.");
+            try {
+                await apiJson("/api/reset", {
+                    method: "POST",
+                    body: JSON.stringify({ keepPlayers: false })
+                });
+
+                state = defaultState();
+                saveState();
+                renderPlayers();
+                renderPairsEditor();
+                renderPairSelects();
+                updateTopStats();
+                window.renderRanking();
+                renderDataInfo();
+                renderMatchHistory();
+                alert("Zerado.");
+            } catch (err) {
+                console.error("Erro resetando banco:", err);
+                alert("Falhou ao zerar no banco.");
+            }
         });
     }
 
     if ($("btnResetKeepPlayers")) {
-        $("btnResetKeepPlayers").addEventListener("click", () => {
+        $("btnResetKeepPlayers").addEventListener("click", async () => {
             if (!requireAdmin()) return;
             if (!confirm("Zerar TODOS os jogos e sessões, mas manter os jogadores?")) return;
 
-            resetKeepPlayers();
-            alert("Zerado ✅ (jogos e sessões apagados, jogadores mantidos)");
+            try {
+                await apiJson("/api/reset", {
+                    method: "POST",
+                    body: JSON.stringify({ keepPlayers: true })
+                });
+
+                resetKeepPlayers();
+                alert("Zerado ✅ (jogos e sessões apagados, jogadores mantidos)");
+            } catch (err) {
+                console.error("Erro resetando banco mantendo players:", err);
+                alert("Falhou ao zerar no banco.");
+            }
         });
     }
 
@@ -750,7 +868,7 @@
     renderDataInfo();
     renderMatchHistory();
 
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
         const btnEdit = ev.target.closest?.(".btnEditMatch");
         const btnDel = ev.target.closest?.(".btnDelMatch");
         if (!btnEdit && !btnDel) return;
@@ -785,6 +903,7 @@
             match.editedAt = Date.now();
 
             saveState();
+            await window.syncMatchToDb(match);
             updateAllSessionUI();
             alert("Placar atualizado ✅");
             return;
@@ -799,6 +918,7 @@
             recomputeNextIndex(sess);
 
             saveState();
+            await window.deleteMatchFromDb(match.id);
             updateAllSessionUI();
             alert("Jogo apagado ✅");
             return;

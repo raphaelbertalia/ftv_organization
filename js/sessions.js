@@ -4,9 +4,6 @@ function getCurrentSession() {
   return state.sessions.find(s => s.id === state.currentSessionId) || null;
 }
 
-// gerador simples aqui mesmo pra não depender de import
-// gerador do Quarta CH (8 jogos, todo mundo joga 4x)
-// schedule guarda referências (pair/winner/loser)
 function generateSchedule(pairs) {
   if (!pairs || pairs.length !== 4) return [];
 
@@ -24,11 +21,40 @@ function generateSchedule(pairs) {
   ];
 }
 
+function syncSessionToDb(session) {
+  fetch("/api/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: session.id,
+      date_iso: session.dateISO
+    })
+  }).catch(err => console.error("Erro ao salvar sessão no banco:", err));
+}
+
+function syncPairsToDb(session) {
+  (session.pairs || []).forEach(pair => {
+    fetch("/api/pairs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: pair.id,
+        session_id: session.id,
+        p1: pair.p1,
+        p2: pair.p2
+      })
+    }).catch(err => console.error("Erro ao salvar dupla no banco:", err));
+  });
+}
+
 function createSession(name, pairs) {
-  const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now());
+  const id = (crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Math.random().toString(36).slice(2) + Date.now());
+
   const dateISO = new Date().toISOString().slice(0, 10);
 
-  state.sessions.push({
+  const session = {
     id,
     name,
     dateISO,
@@ -36,12 +62,15 @@ function createSession(name, pairs) {
     roster: pairs.flatMap(p => [p.p1, p.p2]),
     schedule: generateSchedule(pairs),
     nextIndex: 0
-  });
+  };
 
+  state.sessions.push(session);
   state.currentSessionId = id;
   saveState();
+
+  syncSessionToDb(session);
+  syncPairsToDb(session);
 }
 
-// ✅ expõe pro app.js
 window.getCurrentSession = getCurrentSession;
 window.createSession = createSession;

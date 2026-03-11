@@ -18,9 +18,9 @@ function getMatchByScheduleIndex(sessionId, idx) {
   return getMatchesOfSession(sessionId).find(m => m.scheduleIndex === idx) || null;
 }
 
-function getWinnerLoserPairId(match, want /* "winner" | "loser" */) {
+function getWinnerLoserPairId(match, want) {
   if (!match) return null;
-  if (match.scoreA === match.scoreB) return null; // empate -> não resolve
+  if (match.scoreA === match.scoreB) return null;
 
   const winnerId = match.scoreA > match.scoreB ? match.pairAId : match.pairBId;
   const loserId  = match.scoreA > match.scoreB ? match.pairBId : match.pairAId;
@@ -29,19 +29,16 @@ function getWinnerLoserPairId(match, want /* "winner" | "loser" */) {
 }
 
 function resolvePairId(session, ref) {
-  // ref: { type:"pair", id } | { type:"winner"/"loser", match: <1..8> }
   if (!ref) return null;
-
   if (ref.type === "pair") return ref.id;
 
-  const prevIdx = Number(ref.match) - 1; // match 1..8 -> idx 0..7
+  const prevIdx = Number(ref.match) - 1;
   const prev = getMatchByScheduleIndex(session.id, prevIdx);
   if (!prev) return null;
 
-  return getWinnerLoserPairId(prev, ref.type); // "winner" ou "loser"
+  return getWinnerLoserPairId(prev, ref.type);
 }
 
-// (mantida) versão "antiga" — ok deixar, mas não vamos usar ela no addMatch
 function getExpectedPairsForScheduleIndex(session, idx) {
   const sch = session.schedule?.[idx];
   if (!sch) return null;
@@ -53,7 +50,6 @@ function getExpectedPairsForScheduleIndex(session, idx) {
   return { aId, bId };
 }
 
-// ✅ versão usada pelo addMatch (nome diferente pra não dar conflito/loop)
 function computeExpectedPairsForScheduleIndex(session, idx) {
   const sch = session.schedule?.[idx];
   if (!sch) return null;
@@ -66,10 +62,34 @@ function computeExpectedPairsForScheduleIndex(session, idx) {
 }
 
 function isSameFixture(p1a, p1b, p2a, p2b) {
-  // compara ignorando ordem
   const x = [p1a, p1b].sort().join("::");
   const y = [p2a, p2b].sort().join("::");
   return x === y;
+}
+
+function syncMatchToDb(match) {
+  return fetch("/api/matches", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: match.id,
+      session_id: match.sessionId,
+      pair_a: match.pairAId,
+      pair_b: match.pairBId,
+      score_a: match.scoreA,
+      score_b: match.scoreB,
+      schedule_index: match.scheduleIndex,
+      created_at: match.createdAt
+    })
+  }).catch(err => console.error("Erro ao salvar jogo no banco:", err));
+}
+
+function deleteMatchFromDb(matchId) {
+  return fetch("/api/matches", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: matchId })
+  }).catch(err => console.error("Erro ao apagar jogo no banco:", err));
 }
 
 function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
@@ -81,24 +101,20 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
 
   state.matches = state.matches || [];
 
-  // decide o scheduleIndex (prioriza o que veio do app.js)
   const scheduleIndex =
     Number.isInteger(scheduleIndexArg)
       ? scheduleIndexArg
-      : getMatchesOfSession(session.id).length; // 0..7 (ordem de cadastro)
+      : getMatchesOfSession(session.id).length;
 
-  // valida contra o schedule (se existir)
   if (session.schedule?.length) {
     if (scheduleIndex < 0 || scheduleIndex >= session.schedule.length) {
       return alert("Esse jogo está fora da sequência da sessão.");
     }
 
-    // impede duplicar o mesmo índice
     if (getMatchByScheduleIndex(session.id, scheduleIndex)) {
       return alert("Esse jogo da sequência já foi registrado.");
     }
 
-    // ✅ usa a função com nome diferente (sem risco de recursão)
     const expected = computeExpectedPairsForScheduleIndex(session, scheduleIndex);
     if (!expected) {
       return alert("Ainda não dá pra montar esse jogo. Termine os jogos anteriores primeiro (sem empates).");
@@ -110,11 +126,13 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
   }
 
   const match = {
-    id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now()),
+    id: (crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : (Math.random().toString(36).slice(2) + Date.now()),
     createdAt: Date.now(),
     dateISO: session.dateISO,
     sessionId: session.id,
-    scheduleIndex, // ✅ agora fica salvo
+    scheduleIndex,
     pairAId,
     pairBId,
     scoreA: Number(scoreA),
@@ -123,6 +141,7 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
 
   state.matches.push(match);
   saveState();
+  syncMatchToDb(match);
 }
 
 function undoLastMatchOfCurrentSession() {
@@ -130,7 +149,6 @@ function undoLastMatchOfCurrentSession() {
   if (!session) return alert("Sem sessão ativa.");
   state.matches = state.matches || [];
 
-  // remove o último match da sessão (pela createdAt)
   let lastIdx = -1;
   let lastTime = -Infinity;
 
@@ -143,19 +161,21 @@ function undoLastMatchOfCurrentSession() {
   }
 
   if (lastIdx >= 0) {
+    const removed = state.matches[lastIdx];
     state.matches.splice(lastIdx, 1);
     saveState();
+    deleteMatchFromDb(removed.id);
     return;
   }
 
   alert("Não tem jogo dessa sessão pra desfazer.");
 }
 
-// ✅ expõe pro app.js
 window.addMatch = addMatch;
 window.undoLastMatchOfCurrentSession = undoLastMatchOfCurrentSession;
+window.syncMatchToDb = syncMatchToDb;
+window.deleteMatchFromDb = deleteMatchFromDb;
 
-// (opcional) expõe helper SEM loop (se você quiser usar no app.js)
 window.getExpectedPairsForScheduleIndex = function(idx) {
   const session = getCurrentSession();
   if (!session) return null;
