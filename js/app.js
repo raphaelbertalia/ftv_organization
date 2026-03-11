@@ -49,6 +49,31 @@
         return data;
     }
 
+    let dbStatus = {
+        ok: false,
+        checkedAt: null,
+        error: null
+    };
+
+    async function checkDbStatus() {
+        try {
+            const data = await apiJson("/api/test-db");
+            dbStatus = {
+                ok: !!data?.ok,
+                checkedAt: new Date().toISOString(),
+                error: null
+            };
+        } catch (err) {
+            dbStatus = {
+                ok: false,
+                checkedAt: new Date().toISOString(),
+                error: err?.message || "Falha ao consultar banco"
+            };
+        }
+
+        renderDataInfo();
+    }
+
     function buildScheduleQuartaCH(pairs) {
         if (!pairs || pairs.length !== 4) return null;
 
@@ -495,65 +520,6 @@
         if ($(id)) $(id).addEventListener("change", () => window.renderRanking());
     });
 
-    // ---------- Dados: export/import/reset ----------
-    function exportJSON() {
-        const payload = JSON.stringify(state, null, 2);
-        const blob = new Blob([payload], { type: "application/json" });
-        const a = document.createElement("a");
-        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-        a.href = URL.createObjectURL(blob);
-        a.download = `liga-futevolei-${ts}.json`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-    }
-
-    function importJSONFile(file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const data = JSON.parse(String(reader.result || ""));
-                if (!data || typeof data !== "object") throw new Error("JSON inválido");
-                if (!Array.isArray(data.players) || !Array.isArray(data.matches)) throw new Error("Formato inválido");
-
-                // pequenas correções/compat
-                data.players.forEach((p) => {
-                    if (!p.id || !p.name) throw new Error("Jogadores inválidos");
-                    if (typeof p.active !== "boolean") p.active = true;
-                });
-
-                if (!Array.isArray(data.sessions)) data.sessions = [];
-                if (typeof data.currentSessionId === "undefined") data.currentSessionId = null;
-
-                state = data;
-                saveState();
-
-                renderPlayers();
-                renderPairsEditor();
-                renderPairSelects();
-                updateTopStats();
-                window.renderRanking();
-                renderDataInfo();
-                alert("Importado com sucesso ✅");
-            } catch (e) {
-                alert("Falhou ao importar: " + (e?.message || "erro"));
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    if ($("btnExport")) $("btnExport").addEventListener("click", exportJSON);
-
-    if ($("btnImport")) $("btnImport").addEventListener("click", () => $("importFile").click());
-
-    if ($("importFile")) {
-        $("importFile").addEventListener("change", (ev) => {
-            const f = ev.target.files && ev.target.files[0];
-            if (!f) return;
-            importJSONFile(f);
-            ev.target.value = "";
-        });
-    }
-
     if ($("btnReset")) {
         $("btnReset").addEventListener("click", async () => {
             if (!requireAdmin()) return;
@@ -565,16 +531,8 @@
                     body: JSON.stringify({ keepPlayers: false })
                 });
 
-                state = defaultState();
-                saveState();
-                renderPlayers();
-                renderPairsEditor();
-                renderPairSelects();
-                updateTopStats();
-                window.renderRanking();
-                renderDataInfo();
-                renderMatchHistory();
-                alert("Zerado.");
+                applyFullLocalReset();
+                alert("Zerado total ✅");
             } catch (err) {
                 console.error("Erro resetando banco:", err);
                 alert("Falhou ao zerar no banco.");
@@ -585,7 +543,7 @@
     if ($("btnResetKeepPlayers")) {
         $("btnResetKeepPlayers").addEventListener("click", async () => {
             if (!requireAdmin()) return;
-            if (!confirm("Zerar TODOS os jogos e sessões, mas manter os jogadores?")) return;
+            if (!confirm("Zerar jogos e sessões, mas manter os jogadores?")) return;
 
             try {
                 await apiJson("/api/reset", {
@@ -593,8 +551,8 @@
                     body: JSON.stringify({ keepPlayers: true })
                 });
 
-                resetKeepPlayers();
-                alert("Zerado ✅ (jogos e sessões apagados, jogadores mantidos)");
+                applyKeepPlayersLocalReset();
+                alert("Jogos e sessões apagados; jogadores mantidos ✅");
             } catch (err) {
                 console.error("Erro resetando banco mantendo players:", err);
                 alert("Falhou ao zerar no banco.");
@@ -631,13 +589,24 @@
 
     function renderDataInfo() {
         if (!$("dbInfo")) return;
+
+        const checked = dbStatus.checkedAt
+            ? new Date(dbStatus.checkedAt).toLocaleString("pt-BR")
+            : "nunca";
+
+        const dbLine = dbStatus.ok
+            ? "conectado ✅"
+            : `falha ❌${dbStatus.error ? " (" + dbStatus.error + ")" : ""}`;
+
         $("dbInfo").textContent =
             `versão: ${state.version}\n` +
             `criado:  ${state.createdAt}\n` +
             `update:  ${state.updatedAt}\n` +
             `jogadores: ${(state.players || []).length}\n` +
             `sessões:   ${(state.sessions || []).length}\n` +
-            `jogos:     ${(state.matches || []).length}\n`;
+            `jogos:     ${(state.matches || []).length}\n` +
+            `banco:     ${dbLine}\n` +
+            `checado:   ${checked}\n`;
     }
 
     function renderMatchHistory() {
@@ -857,6 +826,37 @@
 
         if ($("pairA")) $("pairA").value = planned.pairAId;
         if ($("pairB")) $("pairB").value = planned.pairBId;
+    }
+
+    function applyFullLocalReset() {
+        state = defaultState();
+        saveState();
+        renderPlayers();
+        renderPairsEditor();
+        renderPairSelects();
+        updateTopStats();
+        window.renderRanking();
+        renderDataInfo();
+        renderMatchHistory();
+    }
+
+    function applyKeepPlayersLocalReset() {
+        const keepPlayers = (state.players || []).slice();
+
+        state.sessions = [];
+        state.matches = [];
+        state.currentSessionId = null;
+        state.players = keepPlayers;
+        state.updatedAt = new Date().toISOString();
+
+        saveState();
+        renderPlayers();
+        renderPairsEditor();
+        renderPairSelects();
+        updateTopStats();
+        window.renderRanking();
+        renderDataInfo();
+        renderMatchHistory();
     }
 
     // ---------- Init ----------
