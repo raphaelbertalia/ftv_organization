@@ -1150,9 +1150,16 @@
     // ---------- Init ----------
     renderPlayers();
     renderPairsEditor();
-    updateAllSessionUI();
+    renderPairSelects();
+    updateNextGameUI();
+    updateTopStats();
+    window.renderRanking();
+    renderDataInfo();
+    renderMatchHistory();
     checkDbStatus();
     updateAuthUI();
+    updateEndSessionButton();
+    renderSessionSummary();
 
     document.addEventListener("click", async (ev) => {
         const btnEdit = ev.target.closest?.(".btnEditMatch");
