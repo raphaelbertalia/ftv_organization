@@ -123,6 +123,7 @@
 
     function updateAuthUI() {
         const user = getCurrentUser();
+        const logged = !!user;
 
         if ($("authStatus")) {
             $("authStatus").textContent = user
@@ -136,11 +137,15 @@
         if ($("btnLogin")) $("btnLogin").style.display = user ? "none" : "inline-block";
         if ($("btnLogout")) $("btnLogout").style.display = user ? "inline-block" : "none";
 
-        const dadosTab = document.querySelector('.tab[data-tab="dados"]');
-        if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
-
+        const jogosTab = document.querySelector('.tab[data-tab="jogos"]');
+        const rankingTab = document.querySelector('.tab[data-tab="ranking"]');
         const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
+        const dadosTab = document.querySelector('.tab[data-tab="dados"]');
+
+        if (jogosTab) jogosTab.style.display = logged ? "inline-block" : "none";
+        if (rankingTab) rankingTab.style.display = "inline-block";
         if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
+        if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
 
         if ($("btnStartSession")) $("btnStartSession").style.display = canOperate() ? "inline-block" : "none";
         if ($("btnAddMatch")) $("btnAddMatch").style.display = canOperate() ? "inline-block" : "none";
@@ -151,6 +156,30 @@
         if ($("btnReset")) $("btnReset").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnResetKeepPlayers")) $("btnResetKeepPlayers").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnCheckDb")) $("btnCheckDb").style.display = isAdmin() ? "inline-block" : "none";
+
+        const tabJogos = $("tab-jogos");
+        const tabJogadores = $("tab-jogadores");
+        const tabDados = $("tab-dados");
+        const tabRanking = $("tab-ranking");
+
+        if (tabJogos) tabJogos.style.display = "none";
+        if (tabJogadores) tabJogadores.style.display = "none";
+        if (tabDados) tabDados.style.display = "none";
+        if (tabRanking) tabRanking.style.display = "none";
+
+        if (!logged) {
+            showTab("ranking");
+        } else {
+            const activeTab = document.querySelector(".tab.active")?.dataset.tab;
+
+            if (activeTab === "jogadores" && !isAdmin()) {
+                showTab("jogos");
+            } else if (activeTab === "dados" && !isAdmin()) {
+                showTab("jogos");
+            } else if (!activeTab || activeTab === "ranking") {
+                showTab("jogos");
+            }
+        }
 
         renderMatchHistory();
     }
@@ -174,10 +203,22 @@
 
     // ---------- Tabs ----------
     function showTab(name) {
+        const user = getCurrentUser();
+
+        if (name === "jogos" && !user) {
+            name = "ranking";
+        }
+
+        if ((name === "jogadores" || name === "dados") && !isAdmin()) {
+            name = user ? "jogos" : "ranking";
+        }
+
         document.querySelectorAll('[id^="tab-"]').forEach((el) => (el.style.display = "none"));
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+
         const tabEl = document.getElementById(`tab-${name}`);
         if (tabEl) tabEl.style.display = "block";
+
         const btn = document.querySelector(`.tab[data-tab="${name}"]`);
         if (btn) btn.classList.add("active");
 
@@ -427,26 +468,6 @@
                     })
                 )
             );
-        });
-    }
-
-    if ($("btnUndo")) {
-        $("btnUndo").addEventListener("click", () => {
-            if (!requireAdmin()) return;
-            const sess = getCurrentSession();
-            if (!sess) return alert("Sem sessão ativa.");
-            if (!confirm("Desfazer o último jogo desta sessão?")) return;
-
-            undoLastMatchOfCurrentSession();
-            recomputeNextIndex(sess);
-            saveState();
-            updateNextGameUI();
-
-            renderMatchHistory();
-
-            updateTopStats();
-            window.renderRanking();
-            alert("Último jogo da sessão desfeito.");
         });
     }
 
