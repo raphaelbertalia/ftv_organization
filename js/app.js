@@ -42,10 +42,18 @@
     }
 
     function requireOperator() {
+        const user = getCurrentUser();
+
+        if (!user || user.role === "guest") {
+            alert("Modo visitante não pode fazer isso 👀");
+            return false;
+        }
+
         if (!canOperate()) {
             alert("Sem permissão 😅");
             return false;
         }
+
         return true;
     }
 
@@ -121,34 +129,60 @@
         updateAuthUI();
     }
 
+    function enterGuestMode() {
+        state.auth = state.auth || {};
+        state.auth.user = { username: "visitante", role: "guest" };
+        saveState();
+        updateAuthUI();
+    }
+
     function updateAuthUI() {
         const user = getCurrentUser();
         const logged = !!user;
+        const guest = user?.role === "guest";
 
         if ($("authStatus")) {
-            $("authStatus").textContent = user
-                ? `Logado como: ${user.username} (${user.role})`
+            $("authStatus").innerHTML = user
+                ? guest
+                    ? `Acesso atual: <span class="guest-badge">visitante</span>`
+                    : `Logado como: ${user.username} (${user.role})`
                 : "Não logado";
         }
 
-        if ($("loginForm")) $("loginForm").style.display = user ? "none" : "flex";
-        if ($("logoutBox")) $("logoutBox").style.display = user ? "block" : "none";
+        if ($("loginForm")) {
+            $("loginForm").style.display = !logged ? "flex" : "none";
+        }
 
-        if ($("btnLogin")) $("btnLogin").style.display = user ? "none" : "inline-block";
-        if ($("btnLogout")) $("btnLogout").style.display = user ? "inline-block" : "none";
+        if ($("logoutBox")) {
+            $("logoutBox").style.display = logged && !guest ? "block" : "none";
+        }
+
+        if ($("guestLoginBox")) {
+            $("guestLoginBox").style.display = guest ? "block" : "none";
+        }
+
+        if ($("btnRankingOnly")) {
+            $("btnRankingOnly").style.display = !logged ? "inline-block" : "none";
+        }
+
+        if ($("guestBanner")) {
+            $("guestBanner").style.display = guest ? "block" : "none";
+        }
 
         const jogosTab = document.querySelector('.tab[data-tab="jogos"]');
         const rankingTab = document.querySelector('.tab[data-tab="ranking"]');
         const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
         const dadosTab = document.querySelector('.tab[data-tab="dados"]');
 
-        if (jogosTab) jogosTab.style.display = logged ? "inline-block" : "none";
+        if (jogosTab) jogosTab.style.display = logged && !guest ? "inline-block" : "none";
         if (rankingTab) rankingTab.style.display = "inline-block";
         if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
         if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
 
         if ($("btnStartSession")) $("btnStartSession").style.display = canOperate() ? "inline-block" : "none";
-        if ($("btnAddMatch")) $("btnAddMatch").style.display = canOperate() ? "inline-block" : "none";
+        if ($("btnAddMatch")) {
+            $("btnAddMatch").disabled = !canOperate();
+        }
         if ($("btnUndo")) $("btnUndo").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnAddPlayer")) $("btnAddPlayer").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnActivateAll")) $("btnActivateAll").style.display = isAdmin() ? "inline-block" : "none";
@@ -157,28 +191,11 @@
         if ($("btnResetKeepPlayers")) $("btnResetKeepPlayers").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnCheckDb")) $("btnCheckDb").style.display = isAdmin() ? "inline-block" : "none";
 
-        const tabJogos = $("tab-jogos");
-        const tabJogadores = $("tab-jogadores");
-        const tabDados = $("tab-dados");
-        const tabRanking = $("tab-ranking");
-
-        if (tabJogos) tabJogos.style.display = "none";
-        if (tabJogadores) tabJogadores.style.display = "none";
-        if (tabDados) tabDados.style.display = "none";
-        if (tabRanking) tabRanking.style.display = "none";
-
-        if (!logged) {
+        if (!logged || guest) {
             showTab("ranking");
         } else {
             const activeTab = document.querySelector(".tab.active")?.dataset.tab;
-
-            if (activeTab === "jogadores" && !isAdmin()) {
-                showTab("jogos");
-            } else if (activeTab === "dados" && !isAdmin()) {
-                showTab("jogos");
-            } else if (!activeTab || activeTab === "ranking") {
-                showTab("jogos");
-            }
+            showTab(activeTab || "jogos");
         }
 
         renderMatchHistory();
@@ -204,13 +221,22 @@
     // ---------- Tabs ----------
     function showTab(name) {
         const user = getCurrentUser();
+        const guest = user?.role === "guest";
 
-        if (name === "jogos" && !user) {
+        if (!user) {
+            name = "ranking";
+        }
+
+        if (guest && name !== "ranking") {
             name = "ranking";
         }
 
         if ((name === "jogadores" || name === "dados") && !isAdmin()) {
-            name = user ? "jogos" : "ranking";
+            name = user && !guest ? "jogos" : "ranking";
+        }
+
+        if (name === "jogos" && (!user || guest)) {
+            name = "ranking";
         }
 
         document.querySelectorAll('[id^="tab-"]').forEach((el) => (el.style.display = "none"));
@@ -404,6 +430,21 @@
             } catch (err) {
                 alert(err.message || "Falha no login");
             }
+        });
+    }
+
+    if ($("btnShowLogin")) {
+        $("btnShowLogin").addEventListener("click", () => {
+            state.auth = state.auth || {};
+            state.auth.user = null;
+            saveState();
+            updateAuthUI();
+        });
+    }
+
+    if ($("btnRankingOnly")) {
+        $("btnRankingOnly").addEventListener("click", () => {
+            enterGuestMode();
         });
     }
 
@@ -1077,5 +1118,6 @@
     });
 
     // default tab
-    showTab("jogos");
+    const bootUser = getCurrentUser();
+    showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");
 })();
