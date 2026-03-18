@@ -1054,6 +1054,7 @@
     renderPlayers();
     renderPairsEditor();
     renderPairSelects();
+    updateNextGameUI();
     updateTopStats();
     window.renderRanking();
     renderDataInfo();
