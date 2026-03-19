@@ -9,6 +9,27 @@ function assertScore(n) {
   return Number.isFinite(v) && v >= 0 && Number.isInteger(v);
 }
 
+function isValidFinalScore(scoreA, scoreB) {
+  const a = Number(scoreA);
+  const b = Number(scoreB);
+
+  if (!assertScore(a) || !assertScore(b)) return false;
+  if (a === b) return false;
+
+  const max = Math.max(a, b);
+  const min = Math.min(a, b);
+
+  if (max < 18) return false;
+
+  // terminou no limite normal
+  if (min < 17) {
+    return max === 18;
+  }
+
+  // a partir de 17x17, precisa abrir 2
+  return (max - min) === 2;
+}
+
 function getMatchesOfSession(sessionId) {
   state.matches = state.matches || [];
   return state.matches.filter(m => m.sessionId === sessionId);
@@ -23,7 +44,7 @@ function getWinnerLoserPairId(match, want) {
   if (match.scoreA === match.scoreB) return null;
 
   const winnerId = match.scoreA > match.scoreB ? match.pairAId : match.pairBId;
-  const loserId  = match.scoreA > match.scoreB ? match.pairBId : match.pairAId;
+  const loserId = match.scoreA > match.scoreB ? match.pairBId : match.pairAId;
 
   return want === "winner" ? winnerId : loserId;
 }
@@ -97,7 +118,9 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
   if (!session) return alert("Inicie uma sessão antes.");
 
   if (!pairAId || !pairBId || pairAId === pairBId) return alert("Selecione duas duplas diferentes.");
-  if (!assertScore(scoreA) || !assertScore(scoreB)) return alert("Placar inválido.");
+  if (!isValidFinalScore(scoreA, scoreB)) {
+    return alert("Placar inválido. Vai até 18, mas em 17x17 vence quem abrir 2.");
+  }
 
   state.matches = state.matches || [];
 
@@ -176,7 +199,7 @@ window.undoLastMatchOfCurrentSession = undoLastMatchOfCurrentSession;
 window.syncMatchToDb = syncMatchToDb;
 window.deleteMatchFromDb = deleteMatchFromDb;
 
-window.getExpectedPairsForScheduleIndex = function(idx) {
+window.getExpectedPairsForScheduleIndex = function (idx) {
   const session = getCurrentSession();
   if (!session) return null;
   return computeExpectedPairsForScheduleIndex(session, idx);

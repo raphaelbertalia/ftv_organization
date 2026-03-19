@@ -677,9 +677,13 @@
 
         const scoreA = parseInt(($("scoreA")?.value || ""), 10);
         const scoreB = parseInt(($("scoreB")?.value || ""), 10);
-        if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return alert("Coloca os dois placares (ex: 18 e 15).");
-        if (scoreA < 0 || scoreB < 0 || scoreA > 18 || scoreB > 18) return alert("Placar deve ficar entre 0 e 18.");
-        if (scoreA !== 18 && scoreB !== 18) return alert("Alguém precisa fechar em 18 😅");
+        if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) {
+            return alert("Coloca os dois placares (ex: 18 e 15).");
+        }
+
+        if (!isValidFinalScore(scoreA, scoreB)) {
+            return alert("Placar inválido. Vai até 18, mas em 17x17 vence quem abrir 2.");
+        }
 
         recomputeNextIndex(sess); // garante sess.nextIndex consistente
 
@@ -1179,9 +1183,13 @@
             const scoreA = parseInt(a, 10);
             const scoreB = parseInt(b, 10);
 
-            if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) return alert("Placar inválido.");
-            if (scoreA < 0 || scoreB < 0 || scoreA > 18 || scoreB > 18) return alert("Placar deve ficar entre 0 e 18.");
-            if (scoreA !== 18 && scoreB !== 18) return alert("Alguém precisa fechar em 18 😅");
+            if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) {
+                return alert("Placar inválido.");
+            }
+
+            if (!isValidFinalScore(scoreA, scoreB)) {
+                return alert("Placar inválido. Vai até 18, mas em 17x17 vence quem abrir 2.");
+            }
 
             match.scoreA = scoreA;
             match.scoreB = scoreB;
