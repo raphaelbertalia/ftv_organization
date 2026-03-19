@@ -30,7 +30,6 @@ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background-color: var(--bg);
   background-image:
-    radial-gradient(900px 380px at 50% -15%, rgba(34, 197, 94, .06), transparent 70%),
     radial-gradient(800px 320px at 88% 0%, rgba(59, 130, 246, .08), transparent 70%),
     linear-gradient(180deg, var(--bg), #070a10 65%, #05080d 100%);
   color: var(--text);
@@ -320,7 +319,7 @@ pre {
   align-items: end;
 }
 
-#loginForm > div {
+#loginForm>div {
   display: flex;
   flex-direction: column;
 }
@@ -349,7 +348,7 @@ pre {
     width: 100%;
   }
 
-  #loginForm > div,
+  #loginForm>div,
   #loginForm .auth-actions {
     width: 100%;
   }
