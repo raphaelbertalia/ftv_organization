@@ -6,7 +6,7 @@ export default async function handler(req, res) {
       const result = await pool.query(`
         SELECT id, date_iso
         FROM sessions
-        ORDER BY date_iso DESC
+        ORDER BY created_at DESC
       `);
 
       return res.status(200).json(result.rows);
@@ -21,8 +21,8 @@ export default async function handler(req, res) {
 
       await pool.query(
         `
-        INSERT INTO sessions (id, date_iso)
-        VALUES ($1, $2)
+        INSERT INTO sessions (id, date_iso, created_at)
+        VALUES ($1, $2, NOW())
         ON CONFLICT (id)
         DO UPDATE SET
           date_iso = EXCLUDED.date_iso
