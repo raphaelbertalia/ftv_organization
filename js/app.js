@@ -103,6 +103,27 @@
         renderDataInfo();
     }
 
+    async function hydrateStateFromDb() {
+        try {
+            const data = await apiJson("/api/bootstrap");
+
+            state.players = Array.isArray(data.players) ? data.players : [];
+            state.sessions = Array.isArray(data.sessions) ? data.sessions : [];
+            state.matches = Array.isArray(data.matches) ? data.matches : [];
+
+            const exists = state.sessions.some(s => s.id === state.currentSessionId);
+
+            if (!exists) {
+                state.currentSessionId = state.sessions[0]?.id || null;
+            }
+
+            saveState();
+            updateAllSessionUI();
+        } catch (err) {
+            console.error("Erro carregando dados do banco:", err);
+        }
+    }
+
     async function doLogin(username, password) {
         const data = await apiJson("/api/login", {
             method: "POST",
@@ -625,7 +646,7 @@
     }
 
     if ($("btnStartSession")) {
-        $("btnStartSession").addEventListener("click", () => {
+        $("btnStartSession").addEventListener("click", async () => {
             if (!requireOperator()) return;
             const inputName = ($("sessionName")?.value || "").trim();
 
@@ -655,6 +676,17 @@
             sess.schedule = buildScheduleQuartaCH(sess.pairs);
             sess.nextIndex = 0;
             saveState();
+
+            try {
+                await apiJson("/api/sessions", {
+                    method: "POST",
+                    body: JSON.stringify(sess)
+                });
+            } catch (err) {
+                console.error("Erro salvando sessão no banco:", err);
+                alert("Sessão criada localmente, mas falhou ao salvar no banco.");
+            }
+
             updateAllSessionUI();
             alert("Sessão iniciada e duplas salvas ✅");
         });
@@ -1152,11 +1184,17 @@
     }
 
     // ---------- Init ----------
-    renderPlayers();
-    renderPairsEditor();
-    updateAllSessionUI();
-    checkDbStatus();
-    updateAuthUI();
+    (async function init() {
+        renderPlayers();
+        renderPairsEditor();
+        updateAllSessionUI();
+        await checkDbStatus();
+        await hydrateStateFromDb();
+        updateAuthUI();
+
+        const bootUser = getCurrentUser();
+        showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");
+    })();
 
     document.addEventListener("click", async (ev) => {
         const btnEdit = ev.target.closest?.(".btnEditMatch");
