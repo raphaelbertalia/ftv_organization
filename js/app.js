@@ -108,8 +108,28 @@
             const data = await apiJson("/api/bootstrap");
 
             state.players = Array.isArray(data.players) ? data.players : [];
-            state.sessions = Array.isArray(data.sessions) ? data.sessions : [];
-            state.matches = Array.isArray(data.matches) ? data.matches : [];
+
+            state.sessions = Array.isArray(data.sessions)
+                ? data.sessions.map(s => ({
+                    ...s,
+                    dateISO: s.dateISO ?? s.date_iso ?? null,
+                    createdAt: s.createdAt ?? s.created_at ?? null,
+                    pairs: Array.isArray(s.pairs) ? s.pairs : []
+                }))
+                : [];
+
+            state.matches = Array.isArray(data.matches)
+                ? data.matches.map(m => ({
+                    ...m,
+                    sessionId: m.sessionId ?? m.session_id ?? null,
+                    pairAId: m.pairAId ?? m.pair_a_id ?? null,
+                    pairBId: m.pairBId ?? m.pair_b_id ?? null,
+                    scoreA: m.scoreA ?? m.score_a ?? null,
+                    scoreB: m.scoreB ?? m.score_b ?? null,
+                    scheduleIndex: m.scheduleIndex ?? m.schedule_index ?? null,
+                    createdAt: m.createdAt ?? m.created_at ?? null
+                }))
+                : [];
 
             const exists = state.sessions.some(s => s.id === state.currentSessionId);
 
