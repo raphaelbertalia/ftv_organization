@@ -17,10 +17,6 @@
     };
   }
 
-  function getSessionById(id) {
-    return (state.sessions || []).find(s => String(s.id) === String(id)) || null;
-  }
-
   function getPeriodValue() {
     return document.getElementById("period")?.value || "current";
   }
@@ -48,13 +44,17 @@
     if (!sessions || !sessions.length) return [];
 
     const statsByPlayer = new Map();
-    const sessionsById = new Map(
-      sessions.map(s => [String(s.id), s])
-    );
+    const sessionsById = new Map();
+    const allPairsById = new Map();
 
-    for (const session of sessions) {
+    sessions.forEach(session => {
+      sessionsById.set(String(session.id), session);
+
+      (session.pairs || []).forEach(pair => {
+        allPairsById.set(String(pair.id), pair);
+      });
+
       const roster = Array.isArray(session.roster) ? session.roster : [];
-
       roster.forEach(pid => {
         const player = (state.players || []).find(p => String(p.id) === String(pid));
         if (!player) return;
@@ -63,7 +63,7 @@
           statsByPlayer.set(String(pid), emptyStats(player));
         }
       });
-    }
+    });
 
     const matches = (allMatches || []).filter(m =>
       sessionsById.has(String(m.sessionId))
@@ -73,27 +73,62 @@
       const session = sessionsById.get(String(m.sessionId));
       if (!session) continue;
 
-      const pairA = (session.pairs || []).find(p => String(p.id) === String(m.pairAId));
-      const pairB = (session.pairs || []).find(p => String(p.id) === String(m.pairBId));
-      if (!pairA || !pairB) continue;
+      const pairA =
+        (session.pairs || []).find(p => String(p.id) === String(m.pairAId)) ||
+        allPairsById.get(String(m.pairAId));
+
+      const pairB =
+        (session.pairs || []).find(p => String(p.id) === String(m.pairBId)) ||
+        allPairsById.get(String(m.pairBId));
+
+      if (!pairA || !pairB) {
+        console.warn("Par não encontrado no ranking:", {
+          matchId: m.id,
+          sessionId: m.sessionId,
+          pairAId: m.pairAId,
+          pairBId: m.pairBId,
+          sessionPairs: session.pairs || []
+        });
+        continue;
+      }
 
       const scoreA = Number(m.scoreA);
       const scoreB = Number(m.scoreB);
+
+      if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) {
+        continue;
+      }
 
       const playersA = [pairA.p1, pairA.p2];
       const playersB = [pairB.p1, pairB.p2];
 
       playersA.forEach(pid => {
-        const s = statsByPlayer.get(String(pid));
+        const key = String(pid);
+        const player = (state.players || []).find(p => String(p.id) === key);
+
+        if (!statsByPlayer.has(key) && player) {
+          statsByPlayer.set(key, emptyStats(player));
+        }
+
+        const s = statsByPlayer.get(key);
         if (!s) return;
+
         s.played++;
         s.pointsFor += scoreA;
         s.pointsAgainst += scoreB;
       });
 
       playersB.forEach(pid => {
-        const s = statsByPlayer.get(String(pid));
+        const key = String(pid);
+        const player = (state.players || []).find(p => String(p.id) === key);
+
+        if (!statsByPlayer.has(key) && player) {
+          statsByPlayer.set(key, emptyStats(player));
+        }
+
+        const s = statsByPlayer.get(key);
         if (!s) return;
+
         s.played++;
         s.pointsFor += scoreB;
         s.pointsAgainst += scoreA;
