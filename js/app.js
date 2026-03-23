@@ -274,9 +274,7 @@
         if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
 
         if ($("btnStartSession")) $("btnStartSession").style.display = canOperate() ? "inline-block" : "none";
-        if ($("btnAddMatch")) {
-            $("btnAddMatch").disabled = !canOperate();
-        }
+        if ($("btnAddMatch")) $("btnAddMatch").disabled = !canOperate();
         if ($("btnUndo")) $("btnUndo").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnAddPlayer")) $("btnAddPlayer").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnActivateAll")) $("btnActivateAll").style.display = isAdmin() ? "inline-block" : "none";
@@ -284,13 +282,6 @@
         if ($("btnReset")) $("btnReset").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnResetKeepPlayers")) $("btnResetKeepPlayers").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnCheckDb")) $("btnCheckDb").style.display = isAdmin() ? "inline-block" : "none";
-
-        if (!logged || guest) {
-            showTab("ranking");
-        } else {
-            const activeTab = document.querySelector(".tab.active")?.dataset.tab;
-            showTab(activeTab || "jogos");
-        }
 
         renderMatchHistory();
     }
