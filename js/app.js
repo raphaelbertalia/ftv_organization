@@ -191,11 +191,13 @@
         }
 
         const jogosTab = document.querySelector('.tab[data-tab="jogos"]');
+        const sessoesTab = document.querySelector('.tab[data-tab="sessoes"]');
         const rankingTab = document.querySelector('.tab[data-tab="ranking"]');
         const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
         const dadosTab = document.querySelector('.tab[data-tab="dados"]');
 
         if (jogosTab) jogosTab.style.display = logged && !guest ? "inline-block" : "none";
+        if (sessoesTab) sessoesTab.style.display = logged && !guest ? "inline-block" : "none";
         if (rankingTab) rankingTab.style.display = "inline-block";
         if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
         if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
@@ -252,6 +254,10 @@
             name = "ranking";
         }
 
+        if (name === "sessoes" && (!user || guest)) {
+            name = "ranking";
+        }
+
         if ((name === "jogadores" || name === "dados") && !isAdmin()) {
             name = user && !guest ? "jogos" : "ranking";
         }
@@ -270,6 +276,7 @@
         if (btn) btn.classList.add("active");
 
         if (name === "ranking") window.renderRanking();
+        if (name === "sessoes") renderSessionsTab();
         if (name === "jogadores") renderPlayers();
         if (name === "dados") renderDataInfo();
     }
@@ -648,6 +655,10 @@
     if ($("btnStartSession")) {
         $("btnStartSession").addEventListener("click", async () => {
             if (!requireOperator()) return;
+
+            if (getCurrentSession()) {
+                return alert("Já existe uma sessão ativa. Finalize a atual antes de iniciar outra.");
+            }
             const inputName = ($("sessionName")?.value || "").trim();
 
             function formatDateBR() {
@@ -676,6 +687,8 @@
             sess.schedule = buildScheduleQuartaCH(sess.pairs);
             sess.nextIndex = 0;
             saveState();
+
+            if ($("sessionName")) $("sessionName").value = "";
 
             updateAllSessionUI();
             alert("Sessão iniciada e duplas salvas ✅");
@@ -746,11 +759,27 @@
             const matches = getSessionMatches(sess);
             if (matches.length < 8) return alert("A sessão ainda não terminou.");
 
-            renderSessionSummary();
-            $("sessionSummary")?.scrollIntoView({ behavior: "smooth", block: "start" });
-            alert("Sessão encerrada ✅ Agora é só printar.");
+            state.viewSessionId = sess.id;
+            state.currentSessionId = null;
+            state.updatedAt = new Date().toISOString();
+            saveState();
+
+            updateAllSessionUI();
+            showTab("sessoes");
+
+            alert(`Sessão "${sess.name}" encerrada ✅`);
         });
     }
+
+    document.addEventListener("click", (ev) => {
+        const btn = ev.target.closest?.(".btnViewSession");
+        if (!btn) return;
+
+        state.viewSessionId = btn.dataset.id;
+        saveState();
+        renderSessionsTab();
+        showTab("sessoes");
+    });
 
     // ---------- Ranking controls ----------
     ["period", "sortBy", "showOnly"].forEach((id) => {
@@ -898,6 +927,7 @@
         window.renderRanking();
         renderDataInfo();
         renderMatchHistory();
+        renderSessionsTab();
         updateEndSessionButton();
         renderSessionSummary();
     }
@@ -907,6 +937,93 @@
             .filter(m => m.sessionId === sess.id)
             .slice()
             .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
+    }
+
+    function getSessionById(id) {
+        return (state.sessions || []).find(s => s.id === id) || null;
+    }
+
+    function getViewedSession() {
+        return getSessionById(state.viewSessionId || state.currentSessionId || null);
+    }
+
+    function renderSessionsTab() {
+        const list = $("sessionsList");
+        const details = $("sessionDetails");
+
+        if (!list || !details) return;
+
+        const sessions = (state.sessions || [])
+            .slice()
+            .sort((a, b) => (b.dateISO || "").localeCompare(a.dateISO || ""));
+
+        if (!sessions.length) {
+            list.innerHTML = "<div class='muted'>Nenhuma sessão cadastrada.</div>";
+            details.innerHTML = "<div class='muted'>Nada para exibir.</div>";
+            return;
+        }
+
+        list.innerHTML = sessions.map(sess => {
+            const matches = getSessionMatches(sess);
+            const isActive = sess.id === state.currentSessionId;
+
+            return `
+            <div class="player-item" style="justify-content:space-between; gap:12px;">
+                <div>
+                    <b>${sess.name || "Sem nome"}</b>
+                    <div class="muted">${sess.dateISO || "-"} • ${matches.length} jogo(s)</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <span class="pill">${isActive ? "ativa" : "encerrada"}</span>
+                    <button class="secondary btnViewSession" data-id="${sess.id}">Abrir</button>
+                </div>
+            </div>
+        `;
+        }).join("");
+
+        const viewed = getViewedSession();
+
+        if (!viewed) {
+            details.innerHTML = "<div class='muted'>Selecione uma sessão.</div>";
+            return;
+        }
+
+        const matches = getSessionMatches(viewed);
+        const table = computePairTableForSession(viewed);
+        const best = table[0];
+        const worst = table[table.length - 1];
+
+        details.innerHTML = `
+        <div>
+            <div class="muted">Sessão selecionada</div>
+            <div style="font-size:20px; font-weight:700; margin-top:4px;">
+                ${viewed.name || "Sem nome"}
+            </div>
+            <div class="muted" style="margin-top:6px;">
+                Data: ${viewed.dateISO || "-"} • Jogos: ${matches.length}
+            </div>
+
+            <hr style="margin:16px 0; opacity:.2;">
+
+            <div><b>Duplas</b></div>
+            <div class="muted" style="margin-top:8px;">
+                ${(viewed.pairs || []).map(pair => getPairDisplayName(viewed, pair.id)).join(" • ")}
+            </div>
+
+            <hr style="margin:16px 0; opacity:.2;">
+
+            ${table.length
+                ? `
+                    <div><b>Resumo</b></div>
+                    <div class="muted" style="margin-top:8px;">
+                        Melhor dupla: ${getPairDisplayName(viewed, best.pairId)}<br>
+                        Pior dupla: ${getPairDisplayName(viewed, worst.pairId)}
+                    </div>
+                    `
+                : `<div class="muted">Sem ranking para essa sessão ainda.</div>`
+            }
+        </div>
+    `;
     }
 
     function getWinnerLoser(match) {
@@ -976,6 +1093,25 @@
         const p2 = (state.players || []).find((p) => p.id === pair.p2)?.name || "?";
 
         return `${p1} + ${p2}`;
+    }
+
+    function updateStartSessionButton() {
+        const btn = $("btnStartSession");
+        const input = $("sessionName");
+        const sess = getCurrentSession();
+
+        if (!btn) return;
+
+        const hasActiveSession = !!sess;
+
+        btn.disabled = hasActiveSession;
+        btn.title = hasActiveSession ? "Finalize a sessão atual para iniciar outra." : "";
+        btn.style.opacity = hasActiveSession ? "0.6" : "1";
+        btn.style.cursor = hasActiveSession ? "not-allowed" : "pointer";
+
+        if (input) {
+            input.disabled = hasActiveSession;
+        }
     }
 
     function updateEndSessionButton() {
@@ -1106,7 +1242,14 @@
 
     function updateNextGameUI() {
         const sess = getCurrentSession();
-        if (!sess) return;
+
+        if (!sess) {
+            if ($("gameProgress")) $("gameProgress").textContent = "";
+            if ($("nextGameLabel")) $("nextGameLabel").textContent = "Sem sessão ativa.";
+            if ($("pairA")) $("pairA").value = "";
+            if ($("pairB")) $("pairB").value = "";
+            return;
+        }
 
         const planned = computeNextPlannedGame(sess);
 

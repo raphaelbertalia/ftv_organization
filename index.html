@@ -26,6 +26,7 @@
 
   <nav class="tabs">
     <button class="tab" data-tab="jogos">Jogos</button>
+    <button class="tab" data-tab="sessoes">Sessões</button>
     <button class="tab" data-tab="ranking">Ranking</button>
     <button class="tab" data-tab="jogadores">Jogadores</button>
     <button class="tab" data-tab="dados">Dados</button>
@@ -145,6 +146,23 @@
 
         <div id="sessionSummary" class="card" style="display:none;">
           <div id="sessionSummaryContent"></div>
+        </div>
+      </section>
+
+      <section id="tab-sessoes" style="display:none;">
+        <div class="card">
+          <b>Sessões</b>
+          <div class="muted" style="margin-top:6px;">
+            Consulte sessões antigas e veja o resumo de cada uma.
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="sessionsList"></div>
+        </div>
+
+        <div class="card">
+          <div id="sessionDetails"></div>
         </div>
       </section>
 
