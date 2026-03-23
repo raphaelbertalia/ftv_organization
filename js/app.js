@@ -109,32 +109,65 @@
 
             state.players = Array.isArray(data.players) ? data.players : [];
 
-            state.sessions = Array.isArray(data.sessions)
-                ? data.sessions.map(s => ({
+            const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
+            const rawPairs = Array.isArray(data.pairs) ? data.pairs : [];
+            const rawMatches = Array.isArray(data.matches) ? data.matches : [];
+
+            state.matches = rawMatches.map(m => ({
+                ...m,
+                sessionId: m.sessionId ?? m.session_id ?? null,
+                pairAId: m.pairAId ?? m.pair_a_id ?? null,
+                pairBId: m.pairBId ?? m.pair_b_id ?? null,
+                scoreA: m.scoreA ?? m.score_a ?? null,
+                scoreB: m.scoreB ?? m.score_b ?? null,
+                scheduleIndex: m.scheduleIndex ?? m.schedule_index ?? null,
+                createdAt: m.createdAt ?? m.created_at ?? null
+            }));
+
+            state.sessions = rawSessions.map(s => {
+                const sessionId = s.id;
+                const sessionPairs = rawPairs
+                    .filter(p => (p.session_id ?? p.sessionId) === sessionId)
+                    .map(p => ({
+                        id: p.id,
+                        p1: p.p1,
+                        p2: p.p2
+                    }));
+
+                const normalized = {
                     ...s,
                     dateISO: s.dateISO ?? s.date_iso ?? null,
                     createdAt: s.createdAt ?? s.created_at ?? null,
-                    pairs: Array.isArray(s.pairs) ? s.pairs : []
-                }))
-                : [];
+                    pairs: sessionPairs
+                };
 
-            state.matches = Array.isArray(data.matches)
-                ? data.matches.map(m => ({
-                    ...m,
-                    sessionId: m.sessionId ?? m.session_id ?? null,
-                    pairAId: m.pairAId ?? m.pair_a_id ?? null,
-                    pairBId: m.pairBId ?? m.pair_b_id ?? null,
-                    scoreA: m.scoreA ?? m.score_a ?? null,
-                    scoreB: m.scoreB ?? m.score_b ?? null,
-                    scheduleIndex: m.scheduleIndex ?? m.schedule_index ?? null,
-                    createdAt: m.createdAt ?? m.created_at ?? null
-                }))
-                : [];
+                normalized.roster = sessionPairs.flatMap(pair => [pair.p1, pair.p2]);
 
-            const exists = state.sessions.some(s => s.id === state.currentSessionId);
+                if (sessionPairs.length === 4) {
+                    normalized.schedule = buildScheduleQuartaCH(sessionPairs);
+                } else {
+                    normalized.schedule = null;
+                }
 
-            if (!exists) {
-                state.currentSessionId = state.sessions[0]?.id || null;
+                const sessionMatches = state.matches.filter(m => m.sessionId === sessionId);
+                const maxIdx = sessionMatches.reduce((acc, m) => {
+                    return typeof m.scheduleIndex === "number" ? Math.max(acc, m.scheduleIndex) : acc;
+                }, -1);
+
+                normalized.nextIndex = maxIdx >= 0 ? maxIdx + 1 : sessionMatches.length;
+
+                return normalized;
+            });
+
+            const currentStillExists = state.sessions.some(s => s.id === state.currentSessionId);
+
+            if (!currentStillExists) {
+                state.currentSessionId = null;
+            }
+
+            const viewedStillExists = state.sessions.some(s => s.id === state.viewSessionId);
+            if (!viewedStillExists) {
+                state.viewSessionId = null;
             }
 
             saveState();
@@ -948,6 +981,7 @@
         renderDataInfo();
         renderMatchHistory();
         renderSessionsTab();
+        updateStartSessionButton();
         updateEndSessionButton();
         renderSessionSummary();
     }

@@ -18,6 +18,12 @@ export default async function handler(req, res) {
             ORDER BY created_at DESC
         `);
 
+        const pairsResult = await pool.query(`
+            SELECT id, session_id, p1, p2
+            FROM pairs
+            ORDER BY id ASC
+        `);
+
         const matchesResult = await pool.query(`
             SELECT *
             FROM matches
@@ -27,6 +33,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
             players: playersResult.rows || [],
             sessions: sessionsResult.rows || [],
+            pairs: pairsResult.rows || [],
             matches: matchesResult.rows || []
         });
     } catch (err) {
