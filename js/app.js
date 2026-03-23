@@ -1029,12 +1029,18 @@
         list.innerHTML = sessions.map(sess => {
             const matches = getSessionMatches(sess);
             const isActive = String(sess.id) === String(state.currentSessionId);
+            const table = computePairTableForSession(sess);
+            const best = table[0];
+            const bestLabel = best ? getPairDisplayName(sess, best.pairId) : "—";
 
             return `
             <div class="player-item" style="justify-content:space-between; gap:12px;">
                 <div>
                     <b>${sess.name || "Sem nome"}</b>
                     <div class="muted">${sess.dateISO || "-"} • ${matches.length} jogo(s)</div>
+                    <div class="muted" style="margin-top:4px;">
+                        🏆 ${bestLabel}
+                    </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <span class="pill">${isActive ? "ativa" : "encerrada"}</span>
@@ -1075,16 +1081,62 @@
 
             <hr style="margin:16px 0; opacity:.2;">
 
-            ${table.length
-                ? `
-                    <div><b>Resumo</b></div>
-                    <div class="muted" style="margin-top:8px;">
-                        Melhor dupla: ${getPairDisplayName(viewed, best.pairId)}<br>
-                        Pior dupla: ${getPairDisplayName(viewed, worst.pairId)}
+            ${table.length ? `
+                <div><b>Resumo da sessão</b></div>
+
+                <div style="display:grid; gap:12px; margin-top:12px;">
+                    <div class="card" style="border-color: rgba(34,197,94,.40);">
+                        <div style="font-size:14px; color:#22c55e;">🏆 Melhor dupla</div>
+                        <div style="font-size:18px; font-weight:800; margin-top:4px;">
+                            ${getPairDisplayName(viewed, best.pairId)}
+                        </div>
+                        <div class="muted" style="margin-top:6px;">
+                            ${best.points} pts • ${best.wins} vitórias • saldo ${best.diff} • pró ${best.pointsFor}
+                        </div>
                     </div>
-                    `
-                : `<div class="muted">Sem ranking para essa sessão ainda.</div>`
-            }
+
+                    <div class="card" style="border-color: rgba(239,68,68,.40);">
+                        <div style="font-size:14px; color:#ef4444;">🪵 Pior dupla</div>
+                        <div style="font-size:18px; font-weight:800; margin-top:4px;">
+                            ${getPairDisplayName(viewed, worst.pairId)}
+                        </div>
+                        <div class="muted" style="margin-top:6px;">
+                            ${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff} • pró ${worst.pointsFor}
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="margin:16px 0; opacity:.2;">
+
+                <div><b>Ranking da sessão</b></div>
+
+                <table class="table" style="margin-top:10px;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Dupla</th>
+                            <th>Pontos</th>
+                            <th>V</th>
+                            <th>Saldo</th>
+                            <th>Pró</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${table.map((r, i) => `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${getPairDisplayName(viewed, r.pairId)}</td>
+                                <td>${r.points}</td>
+                                <td>${r.wins}</td>
+                                <td>${r.diff}</td>
+                                <td>${r.pointsFor}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            ` : `
+                <div class="muted">Sem ranking para essa sessão ainda.</div>
+            `}
         </div>
     `;
     }
