@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const result = await pool.query(`
-        SELECT id, date_iso
+        SELECT id, date_iso, name, created_at
         FROM sessions
         ORDER BY created_at DESC
       `);
@@ -13,21 +13,25 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const { id, date_iso } = req.body || {};
+      const { id, dateISO, date_iso, name } = req.body || {};
 
-      if (!id || !date_iso) {
+      const finalDateIso = date_iso || dateISO || null;
+      const finalName = name || null;
+
+      if (!id || !finalDateIso) {
         return res.status(400).json({ error: "id e date_iso são obrigatórios" });
       }
 
       await pool.query(
         `
-        INSERT INTO sessions (id, date_iso, created_at)
-        VALUES ($1, $2, NOW())
+        INSERT INTO sessions (id, date_iso, name, created_at)
+        VALUES ($1, $2, $3, NOW())
         ON CONFLICT (id)
         DO UPDATE SET
-          date_iso = EXCLUDED.date_iso
+          date_iso = EXCLUDED.date_iso,
+          name = EXCLUDED.name
         `,
-        [id, date_iso]
+        [id, finalDateIso, finalName]
       );
 
       return res.status(200).json({ ok: true });
