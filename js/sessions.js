@@ -21,15 +21,24 @@ function generateSchedule(pairs) {
   ];
 }
 
-function syncSessionToDb(session) {
-  fetch("/api/sessions", {
+async function syncSessionToDb(session) {
+  const res = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: session.id,
-      date_iso: session.dateISO
+      date_iso: session.dateISO,
+      name: session.name
     })
-  }).catch(err => console.error("Erro ao salvar sessão no banco:", err));
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(data?.error || `HTTP ${res.status}`);
+  }
+
+  return data;
 }
 
 function syncPairsToDb(session) {
@@ -47,7 +56,7 @@ function syncPairsToDb(session) {
   });
 }
 
-function createSession(name, pairs) {
+async function createSession(name, pairs) {
   const id = (crypto && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Math.random().toString(36).slice(2) + Date.now());
@@ -68,7 +77,7 @@ function createSession(name, pairs) {
   state.currentSessionId = id;
   saveState();
 
-  syncSessionToDb(session);
+  await syncSessionToDb(session);
   syncPairsToDb(session);
 }
 

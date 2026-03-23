@@ -671,21 +671,11 @@
             }
 
             // createSession (sessions.js) deve salvar: {id,name,dateISO,pairs,roster...} e setar currentSessionId
-            createSession(name, pairs);
+            await createSession(name, pairs);
             const sess = getCurrentSession();
             sess.schedule = buildScheduleQuartaCH(sess.pairs);
             sess.nextIndex = 0;
             saveState();
-
-            try {
-                await apiJson("/api/sessions", {
-                    method: "POST",
-                    body: JSON.stringify(sess)
-                });
-            } catch (err) {
-                console.error("Erro salvando sessão no banco:", err);
-                alert("Sessão criada localmente, mas falhou ao salvar no banco.");
-            }
 
             updateAllSessionUI();
             alert("Sessão iniciada e duplas salvas ✅");
