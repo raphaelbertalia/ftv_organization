@@ -13,16 +13,28 @@ export default async function handler(req, res) {
     `);
 
         const sessionsResult = await pool.query(`
-      SELECT *
-      FROM sessions
-      ORDER BY created_at DESC
-    `);
+  SELECT 
+        id,
+        name,
+        date_iso AS "dateISO",
+        created_at AS "createdAt"
+  FROM sessions
+  ORDER BY created_at DESC
+`);
 
         const matchesResult = await pool.query(`
-      SELECT *
-      FROM matches
-      ORDER BY created_at ASC
-    `);
+  SELECT 
+        id,
+        session_id AS "sessionId",
+        pair_a_id AS "pairAId",
+        pair_b_id AS "pairBId",
+        score_a AS "scoreA",
+        score_b AS "scoreB",
+        schedule_index AS "scheduleIndex",
+        created_at AS "createdAt"
+  FROM matches
+  ORDER BY created_at ASC
+`);
 
         return res.status(200).json({
             players: playersResult.rows || [],
