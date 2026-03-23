@@ -124,8 +124,8 @@
             state.matches = rawMatches.map(m => ({
                 ...m,
                 sessionId: m.sessionId ?? m.session_id ?? null,
-                pairAId: m.pairAId ?? m.pair_a_id ?? null,
-                pairBId: m.pairBId ?? m.pair_b_id ?? null,
+                pairAId: m.pairAId ?? m.pair_a_id ?? m.pair_a ?? null,
+                pairBId: m.pairBId ?? m.pair_b_id ?? m.pair_b ?? null,
                 scoreA: m.scoreA ?? m.score_a ?? null,
                 scoreB: m.scoreB ?? m.score_b ?? null,
                 scheduleIndex: m.scheduleIndex ?? m.schedule_index ?? null,
