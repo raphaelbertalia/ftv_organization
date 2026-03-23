@@ -18,7 +18,7 @@
   }
 
   function getPeriodValue() {
-    return document.getElementById("period")?.value || "current";
+    return document.getElementById("period")?.value || "session";
   }
 
   function getSortValue() {
@@ -29,11 +29,33 @@
     return document.getElementById("showOnly")?.value || "all";
   }
 
-  function getSessionsForRanking() {
-    const period = getPeriodValue();
+  function todayISO() {
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tz).toISOString().slice(0, 10);
+  }
 
-    if (period === "all") {
-      return (state.sessions || []).slice();
+  function getSessionsForRanking() {
+    const period = String(getPeriodValue() || "").toLowerCase();
+    const sessions = (state.sessions || []).slice();
+
+    if (period === "all" || period === "tudo" || period === "todas") {
+      return sessions;
+    }
+
+    if (period === "today" || period === "hoje") {
+      const today = todayISO();
+      return sessions.filter(s => String(s.dateISO) === String(today));
+    }
+
+    if (
+      period === "session" ||
+      period === "current" ||
+      period === "sessao_atual" ||
+      period === "sessão atual"
+    ) {
+      const current = window.getCurrentSession?.() || null;
+      return current ? [current] : [];
     }
 
     const current = window.getCurrentSession?.() || null;
@@ -195,6 +217,16 @@
         );
       }
 
+      if (sortBy === "for") {
+        return (
+          (b.pointsFor - a.pointsFor) ||
+          (b.points - a.points) ||
+          (b.diff - a.diff) ||
+          (b.wins - a.wins) ||
+          a.name.localeCompare(b.name)
+        );
+      }
+
       return (
         (b.points - a.points) ||
         (b.diff - a.diff) ||
@@ -205,6 +237,7 @@
     });
 
     const showOnly = getShowOnlyValue();
+
     if (showOnly === "played") {
       return table.filter(r => r.played > 0);
     }
