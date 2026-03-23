@@ -104,6 +104,14 @@
     }
 
     async function hydrateStateFromDb() {
+        const previousCurrentSessionId = state.currentSessionId ?? null;
+        const previousViewSessionId = state.viewSessionId ?? null;
+
+        state.sessions = [];
+        state.matches = [];
+        state.currentSessionId = null;
+        state.viewSessionId = null;
+
         try {
             const data = await apiJson("/api/bootstrap");
 
@@ -126,8 +134,9 @@
 
             state.sessions = rawSessions.map(s => {
                 const sessionId = s.id;
+
                 const sessionPairs = rawPairs
-                    .filter(p => (p.session_id ?? p.sessionId) === sessionId)
+                    .filter(p => String(p.session_id ?? p.sessionId) === String(sessionId))
                     .map(p => ({
                         id: p.id,
                         p1: p.p1,
@@ -149,9 +158,13 @@
                     normalized.schedule = null;
                 }
 
-                const sessionMatches = state.matches.filter(m => m.sessionId === sessionId);
+                const sessionMatches = state.matches.filter(
+                    m => String(m.sessionId) === String(sessionId)
+                );
+
                 const maxIdx = sessionMatches.reduce((acc, m) => {
-                    return typeof m.scheduleIndex === "number" ? Math.max(acc, m.scheduleIndex) : acc;
+                    const idx = Number(m.scheduleIndex);
+                    return Number.isInteger(idx) ? Math.max(acc, idx) : acc;
                 }, -1);
 
                 normalized.nextIndex = maxIdx >= 0 ? maxIdx + 1 : sessionMatches.length;
@@ -159,15 +172,20 @@
                 return normalized;
             });
 
-            const currentStillExists = state.sessions.some(s => s.id === state.currentSessionId);
+            const currentStillExists = state.sessions.some(
+                s => String(s.id) === String(previousCurrentSessionId)
+            );
 
-            if (!currentStillExists) {
-                state.currentSessionId = null;
+            if (currentStillExists) {
+                state.currentSessionId = previousCurrentSessionId;
             }
 
-            const viewedStillExists = state.sessions.some(s => s.id === state.viewSessionId);
-            if (!viewedStillExists) {
-                state.viewSessionId = null;
+            const viewedStillExists = state.sessions.some(
+                s => String(s.id) === String(previousViewSessionId)
+            );
+
+            if (viewedStillExists) {
+                state.viewSessionId = previousViewSessionId;
             }
 
             saveState();
@@ -919,7 +937,7 @@
             return;
         }
 
-        const matches = (state.matches || []).filter(m => m.sessionId === sess.id);
+        const matches = (state.matches || []).filter(m => String(m.sessionId) === String(sess.id));
 
         if (!matches.length) {
             wrap.innerHTML = "<div class='muted'>Nenhum jogo ainda.</div>";
@@ -988,7 +1006,7 @@
 
     function getSessionMatches(sess) {
         return (state.matches || [])
-            .filter(m => m.sessionId === sess.id)
+            .filter(m => String(m.sessionId) === String(sess.id))
             .slice()
             .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
     }
@@ -1019,7 +1037,7 @@
 
         list.innerHTML = sessions.map(sess => {
             const matches = getSessionMatches(sess);
-            const isActive = sess.id === state.currentSessionId;
+            const isActive = String(sess.id) === String(state.currentSessionId);
 
             return `
             <div class="player-item" style="justify-content:space-between; gap:12px;">
@@ -1251,7 +1269,7 @@
     }
 
     function getMatchByScheduleIndex(sess, idx) {
-        return (state.matches || []).find(m => m.sessionId === sess.id && m.scheduleIndex === idx) || null;
+        return (state.matches || []).find(m => String(m.sessionId) === String(sess.id) && Number(m.scheduleIndex) === Number(idx)) || null;
     }
 
     function getWinnerLoserPairId(match, want) {
