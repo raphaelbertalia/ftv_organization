@@ -362,14 +362,15 @@ pre {
 /* ===== CARD IMAGEM RESENHA ===== */
 
 .share-card {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+
   width: 1080px;
   height: 1920px;
-  padding: 90px 70px;
-  border-radius: 40px;
-  text-align: center;
-  font-family: system-ui, sans-serif;
-  color: #fff;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+
+  background-color: #020617;
+  /* fundo base forte */
 
   display: flex;
   flex-direction: column;
@@ -378,11 +379,17 @@ pre {
 }
 
 .share-card.best {
-  background: linear-gradient(180deg, #04111d 0%, #0f172a 30%, #16a34a 100%);
+  background: linear-gradient(180deg,
+      #020617 0%,
+      #0f172a 40%,
+      #14532d 100%);
 }
 
 .share-card.worst {
-  background: linear-gradient(180deg, #04111d 0%, #0f172a 30%, #7f1d1d 100%);
+  background: linear-gradient(180deg,
+      #020617 0%,
+      #0f172a 40%,
+      #7f1d1d 100%);
 }
 
 .share-title {
