@@ -904,6 +904,80 @@
         showTab("sessoes");
     });
 
+    async function gerarImagemResumo(tipo) {
+        const sess = getCurrentSession() || getViewedSession();
+        if (!sess) return alert("Sem sessão");
+
+        const table = computePairTableForSession(sess);
+        if (!table.length) return alert("Sem dados");
+
+        const best = table[0];
+        const worst = table[table.length - 1];
+
+        const data = tipo === "best" ? best : worst;
+
+        const nome = getPairDisplayName(sess, data.pairId);
+
+        // 👉 busca mensagem do backend
+        let frase = "";
+        try {
+            const res = await apiJson(`/api/resenha-message?kind=${tipo}`);
+            frase = res.message || "";
+        } catch {
+            frase = tipo === "best"
+                ? "Hoje foi domínio total 🔥"
+                : "Hoje não deu... 😂";
+        }
+
+        // 👉 cria card fake
+        const el = document.createElement("div");
+        el.className = `share-card ${tipo}`;
+
+        el.innerHTML = `
+            <div class="share-title">QUARTA CH</div>
+
+            <div class="share-subtitle">
+                ${tipo === "best" ? "🏆 MELHOR DUPLA" : "🪵 PIOR DUPLA"}
+            </div>
+
+            <div class="share-name">
+                ${nome}
+            </div>
+
+            <div class="share-stats">
+                ${data.points} pts • ${data.wins} vitórias
+            </div>
+
+            <div class="share-msg">
+                "${frase}"
+            </div>
+
+            <div class="share-date">
+                ${sess.dateISO}
+            </div>
+            `;
+
+        document.body.appendChild(el);
+
+        const canvas = await html2canvas(el);
+        document.body.removeChild(el);
+
+        const link = document.createElement("a");
+        link.download = `${tipo} -quarta.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+
+    document.addEventListener("click", (ev) => {
+        if (ev.target.closest("#btnShareBest")) {
+            gerarImagemResumo("best");
+        }
+
+        if (ev.target.closest("#btnShareWorst")) {
+            gerarImagemResumo("worst");
+        }
+    });
+
     // ---------- Ranking controls ----------
     ["period", "sortBy", "showOnly"].forEach((id) => {
         if ($(id)) $(id).addEventListener("change", () => window.renderRanking());
@@ -965,17 +1039,17 @@
 
         const dbLine = dbStatus.ok
             ? "conectado ✅"
-            : `falha ❌${dbStatus.error ? " (" + dbStatus.error + ")" : ""}`;
+            : `falha ❌${dbStatus.error ? " (" + dbStatus.error + ")" : ""} `;
 
         $("dbInfo").textContent =
-            `versão: ${state.version}\n` +
-            `criado:  ${state.createdAt}\n` +
-            `update:  ${state.updatedAt}\n` +
-            `jogadores: ${(state.players || []).length}\n` +
-            `sessões:   ${(state.sessions || []).length}\n` +
-            `jogos:     ${(state.matches || []).length}\n` +
-            `banco:     ${dbLine}\n` +
-            `checado:   ${checked}\n`;
+            `versão: ${state.version} \n` +
+            `criado:  ${state.createdAt} \n` +
+            `update:  ${state.updatedAt} \n` +
+            `jogadores: ${(state.players || []).length} \n` +
+            `sessões:   ${(state.sessions || []).length} \n` +
+            `jogos:     ${(state.matches || []).length} \n` +
+            `banco:     ${dbLine} \n` +
+            `checado:   ${checked} \n`;
     }
 
     function renderMatchHistory() {
@@ -1368,6 +1442,10 @@
             <div class="muted">
                 ${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff} • pró ${worst.pointsFor}
             </div>
+        </div>
+        <div style="margin-top:16px; display:flex; gap:10px; justify-content:center;">
+            <button id="btnShareBest">📸 Campeão</button>
+            <button id="btnShareWorst" class="secondary">📸 Lenha 🪵</button>
         </div>
     `;
 
