@@ -362,52 +362,68 @@ pre {
 /* ===== CARD IMAGEM RESENHA ===== */
 
 .share-card {
-  width: 600px;
-  padding: 30px;
-  border-radius: 20px;
+  width: 1080px;
+  height: 1920px;
+  padding: 90px 70px;
+  border-radius: 40px;
   text-align: center;
   font-family: system-ui, sans-serif;
   color: #fff;
-  box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .share-card.best {
-  background: linear-gradient(135deg, #0f172a, #16a34a);
+  background: linear-gradient(180deg, #04111d 0%, #0f172a 30%, #16a34a 100%);
 }
 
 .share-card.worst {
-  background: linear-gradient(135deg, #0f172a, #7f1d1d);
+  background: linear-gradient(180deg, #04111d 0%, #0f172a 30%, #7f1d1d 100%);
 }
 
 .share-title {
-  font-size: 20px;
-  opacity: 0.8;
-}
-
-.share-subtitle {
-  font-size: 28px;
-  font-weight: 800;
-  margin-top: 10px;
-}
-
-.share-name {
-  font-size: 22px;
-  margin-top: 20px;
+  font-size: 52px;
+  letter-spacing: 4px;
+  opacity: 0.85;
   font-weight: 700;
 }
 
+.share-subtitle {
+  font-size: 86px;
+  font-weight: 900;
+  margin-top: 26px;
+  line-height: 1.1;
+}
+
+.share-name {
+  font-size: 74px;
+  margin-top: 80px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
 .share-stats {
-  margin-top: 10px;
+  margin-top: 32px;
+  font-size: 42px;
+  opacity: 0.95;
 }
 
 .share-msg {
-  margin-top: 20px;
+  margin-top: 90px;
+  font-size: 50px;
+  line-height: 1.35;
   font-style: italic;
-  opacity: 0.9;
+  opacity: 0.95;
+  max-width: 820px;
 }
 
 .share-date {
-  margin-top: 20px;
-  font-size: 12px;
-  opacity: 0.6;
+  margin-top: 100px;
+  font-size: 28px;
+  opacity: 0.7;
+  letter-spacing: 2px;
 }

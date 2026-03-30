@@ -959,7 +959,11 @@
 
         document.body.appendChild(el);
 
-        const canvas = await html2canvas(el);
+        const canvas = await html2canvas(el, {
+            scale: 1,
+            useCORS: true,
+            backgroundColor: null
+        });
         document.body.removeChild(el);
 
         const link = document.createElement("a");
@@ -1222,7 +1226,7 @@
                 <div><b>Resumo da sessão</b></div>
 
                 <div style="display:grid; gap:12px; margin-top:12px;">
-                    <div class="card" style="border-color: rgba(34,197,94,.40);">
+                    <div class="card session-share-trigger" data-share-kind="best" style="border-color: rgba(34,197,94,.40); cursor:pointer;">
                         <div style="font-size:14px; color:#22c55e;">🏆 Melhor dupla</div>
                         <div style="font-size:18px; font-weight:800; margin-top:4px;">
                             ${getPairDisplayName(viewed, best.pairId)}
@@ -1232,7 +1236,7 @@
                         </div>
                     </div>
 
-                    <div class="card" style="border-color: rgba(239,68,68,.40);">
+                    <div class="card session-share-trigger" data-share-kind="worst" style="border-color: rgba(239,68,68,.40); cursor:pointer;">
                         <div style="font-size:14px; color:#ef4444;">🪵 Pior dupla</div>
                         <div style="font-size:18px; font-weight:800; margin-top:4px;">
                             ${getPairDisplayName(viewed, worst.pairId)}
@@ -1644,6 +1648,16 @@
             alert("Jogo apagado ✅");
             return;
         }
+    });
+
+    document.addEventListener("click", (ev) => {
+        const card = ev.target.closest(".session-share-trigger");
+        if (!card) return;
+
+        const tipo = card.dataset.shareKind;
+        if (!tipo) return;
+
+        gerarImagemResumo(tipo);
     });
 
     // default tab
