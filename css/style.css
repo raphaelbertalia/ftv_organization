@@ -376,6 +376,7 @@ pre {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  color: #ffffff; /* força branco */
 }
 
 .share-card.best {
@@ -383,6 +384,7 @@ pre {
       #020617 0%,
       #0f172a 40%,
       #14532d 100%);
+      color: #facc15; /* dourado leve */
 }
 
 .share-card.worst {
@@ -390,6 +392,7 @@ pre {
       #020617 0%,
       #0f172a 40%,
       #7f1d1d 100%);
+      color: #f87171; /* vermelho suave */
 }
 
 .share-title {
@@ -397,6 +400,7 @@ pre {
   letter-spacing: 4px;
   opacity: 0.85;
   font-weight: 700;
+  color: #ffffff;
 }
 
 .share-subtitle {
@@ -404,6 +408,7 @@ pre {
   font-weight: 900;
   margin-top: 26px;
   line-height: 1.1;
+  color: #ffffff;
 }
 
 .share-name {
@@ -411,12 +416,15 @@ pre {
   margin-top: 80px;
   font-weight: 900;
   line-height: 1.15;
+  color: #ffffff;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.6);
 }
 
 .share-stats {
   margin-top: 32px;
   font-size: 42px;
   opacity: 0.95;
+  color: #ffffff;
 }
 
 .share-msg {
@@ -426,6 +434,7 @@ pre {
   font-style: italic;
   opacity: 0.95;
   max-width: 820px;
+  color: #ffffff;
 }
 
 .share-date {
@@ -433,4 +442,5 @@ pre {
   font-size: 28px;
   opacity: 0.7;
   letter-spacing: 2px;
+  color: #ffffff;
 }

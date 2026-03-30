@@ -934,35 +934,47 @@
         el.className = `share-card ${tipo}`;
 
         el.innerHTML = `
-            <div class="share-title">QUARTA CH</div>
+            <!-- overlay bonito -->
+            <div style="
+                position:absolute;
+                inset:0;
+                background: radial-gradient(circle at top, rgba(255,255,255,0.05), transparent 60%);
+            "></div>
 
-            <div class="share-subtitle">
+            <!-- conteúdo -->
+            <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;">
+
+                <div class="share-title">QUARTA CH</div>
+
+                <div class="share-subtitle">
                 ${tipo === "best" ? "🏆 MELHOR DUPLA" : "🪵 PIOR DUPLA"}
-            </div>
+                </div>
 
-            <div class="share-name">
+                <div class="share-name">
                 ${nome}
-            </div>
+                </div>
 
-            <div class="share-stats">
+                <div class="share-stats">
                 ${data.points} pts • ${data.wins} vitórias
-            </div>
+                </div>
 
-            <div class="share-msg">
+                <div class="share-msg">
                 "${frase}"
-            </div>
+                </div>
 
-            <div class="share-date">
+                <div class="share-date">
                 ${sess.dateISO}
+                </div>
+
             </div>
             `;
 
         document.body.appendChild(el);
 
         const canvas = await html2canvas(el, {
-            scale: 1,
-            useCORS: true,
-            backgroundColor: null
+            scale: 2,
+            backgroundColor: "#020617",
+            useCORS: true
         });
         document.body.removeChild(el);
 
