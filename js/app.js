@@ -616,6 +616,7 @@
         const makeSelect = (id) => {
             const sel = document.createElement("select");
             sel.id = id;
+            sel.disabled = !!getCurrentSession();
             const o0 = document.createElement("option");
             o0.value = "";
             o0.textContent = "— selecione —";
@@ -655,6 +656,21 @@
             card.appendChild(row);
             wrap.appendChild(card);
         }
+    }
+
+    function updatePairsEditorLock() {
+        const sess = getCurrentSession();
+        const locked = !!sess;
+
+        const wrap = $("pairsEditor");
+        if (!wrap) return;
+
+        wrap.querySelectorAll("select").forEach((sel) => {
+            sel.disabled = locked;
+        });
+
+        wrap.style.opacity = locked ? "0.7" : "1";
+        wrap.style.pointerEvents = locked ? "none" : "auto";
     }
 
     function renderPairSelects() {
@@ -993,6 +1009,7 @@
         updateStartSessionButton();
         updateEndSessionButton();
         renderSessionSummary();
+        updatePairsEditorLock();
     }
 
     function getSessionMatches(sess) {
@@ -1435,6 +1452,7 @@
     (async function init() {
         renderPlayers();
         renderPairsEditor();
+        updatePairsEditorLock();
         updateAllSessionUI();
         await checkDbStatus();
         await hydrateStateFromDb();
