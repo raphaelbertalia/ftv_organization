@@ -37,6 +37,29 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    if (req.method === "DELETE") {
+      const { id } = req.body || {};
+
+      if (!id) {
+        return res.status(400).json({ error: "id é obrigatório" });
+      }
+
+      try {
+        // 1. apagar matches da sessão
+        await pool.query(`DELETE FROM matches WHERE session_id = $1`, [id]);
+
+        // 2. apagar pairs da sessão
+        await pool.query(`DELETE FROM pairs WHERE session_id = $1`, [id]);
+
+        // 3. apagar sessão
+        await pool.query(`DELETE FROM sessions WHERE id = $1`, [id]);
+
+        return res.status(200).json({ ok: true });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
     return res.status(405).json({ error: "Método não permitido" });
   } catch (err) {
     return res.status(500).json({ error: err.message });

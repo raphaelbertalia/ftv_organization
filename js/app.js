@@ -849,6 +849,51 @@
         });
     }
 
+    document.addEventListener("click", async (ev) => {
+        const btn = ev.target.closest(".btnDeleteSession");
+        if (!btn) return;
+
+        if (!requireAdmin()) return;
+
+        const id = btn.dataset.id;
+
+        const sess = state.sessions.find(s => s.id === id);
+
+        if (!confirm(
+            `⚠️ Excluir sessão "${sess?.name || 'sem nome'}"?\n\n` +
+            "Essa ação não pode ser desfeita."
+        )) return;
+
+        try {
+            await apiJson("/api/sessions", {
+                method: "DELETE",
+                body: JSON.stringify({ id })
+            });
+
+            // 👉 AQUI É O PONTO EXATO
+            state.sessions = state.sessions.filter(s => s.id !== id);
+
+            state.matches = state.matches.filter(
+                m => String(m.sessionId) !== String(id)
+            );
+
+            if (state.currentSessionId === id) {
+                state.currentSessionId = null;
+            }
+
+            if (state.viewSessionId === id) {
+                state.viewSessionId = null;
+            }
+
+            saveState();
+            updateAllSessionUI();
+
+            alert("Sessão excluída 🗑️");
+        } catch (err) {
+            alert(err.message || "Erro ao excluir sessão");
+        }
+    });
+
     document.addEventListener("click", (ev) => {
         const btn = ev.target.closest?.(".btnViewSession");
         if (!btn) return;
@@ -1062,6 +1107,7 @@
                 <div style="display:flex; gap:8px; align-items:center;">
                     <span class="pill">${isActive ? "ativa" : "encerrada"}</span>
                     <button class="secondary btnViewSession" data-id="${sess.id}">Abrir</button>
+                    ${isAdmin() ? `<button class="secondary btnDeleteSession" data-id="${sess.id}">🗑️</button>` : ""}
                 </div>
             </div>
         `;
