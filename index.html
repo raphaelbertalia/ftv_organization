@@ -11,15 +11,22 @@
 
 <body>
   <header>
-    <div class="row" style="align-items:center; justify-content:space-between;">
+    <div class="row" style="align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
       <div>
         <div><b>Quarta CH</b></div>
         <div class="muted" id="statusLine">—</div>
       </div>
-      <div class="row" style="align-items:center;">
+
+      <div class="row" style="align-items:center; gap:8px; flex-wrap:wrap;">
         <span class="pill">Hoje: <b id="todayLabel">—</b></span>
         <span class="pill">Jogos hoje: <b id="todayGames">0</b></span>
         <span class="pill">Ativos: <b id="activeCount">0</b></span>
+
+        <span id="headerUserBox" class="pill" style="display:none;">
+          <span id="headerUserText">—</span>
+        </span>
+
+        <button id="btnHeaderLogout" class="secondary" type="button" style="display:none;">Sair</button>
       </div>
     </div>
   </header>
@@ -33,48 +40,50 @@
   </nav>
 
   <main class="container">
-    <section id="authBox" class="card">
-      <div class="row" style="align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-        <div>
-          <b>Acesso</b>
-          <div id="authStatus" class="muted" style="margin-top:6px;">Não logado</div>
-        </div>
-
-        <div id="loginForm" class="row" style="align-items:end; gap:12px; flex-wrap:wrap;">
+    <section id="loginScreen">
+      <section id="authBox" class="card">
+        <div class="row" style="align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div>
-            <div class="muted">Usuário</div>
-            <input id="loginUsername" type="text" placeholder="Seu usuário" />
+            <b>Acesso</b>
+            <div id="authStatus" class="muted" style="margin-top:6px;">Não logado</div>
           </div>
 
-          <div>
-            <div class="muted">Senha</div>
-            <input id="loginPassword" type="password" placeholder="Sua senha" />
+          <div id="loginForm" class="row" style="align-items:end; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div class="muted">Usuário</div>
+              <input id="loginUsername" type="text" placeholder="Seu usuário" />
+            </div>
+
+            <div>
+              <div class="muted">Senha</div>
+              <input id="loginPassword" type="password" placeholder="Sua senha" />
+            </div>
+
+            <div class="auth-actions">
+              <button id="btnLogin" type="button">Entrar</button>
+              <button id="btnRankingOnly" class="secondary" type="button">Ver ranking apenas</button>
+            </div>
           </div>
 
-          <div class="auth-actions">
-            <button id="btnLogin" type="button">Entrar</button>
-            <button id="btnRankingOnly" class="secondary" type="button">Ver ranking apenas</button>
+          <div id="guestLoginBox" style="display:none;">
+            <button id="btnShowLogin" class="secondary" type="button">Fazer login</button>
+          </div>
+
+          <div id="logoutBox" style="display:none;">
+            <button id="btnLogout" class="secondary" type="button">Sair</button>
           </div>
         </div>
+      </section>
 
-        <div id="guestLoginBox" style="display:none;">
-          <button id="btnShowLogin" class="secondary" type="button">Fazer login</button>
-        </div>
-
-        <div id="logoutBox" style="display:none;">
-          <button id="btnLogout" class="secondary" type="button">Sair</button>
-        </div>
-      </div>
+      <section id="guestBanner" class="card" style="display:none;">
+        👀 Modo visitante — você só pode ver o ranking
+      </section>
     </section>
 
-    <section id="guestBanner" class="card" style="display:none;">
-      👀 Modo visitante — você só pode ver o ranking
-    </section>
-
-    <div id="appContent">
+    <div id="appContent" style="display:none;">
       <!-- TAB: JOGOS -->
       <section id="tab-jogos">
-        <div class="card">
+        <div id="sessionSetupCard" class="card">
           <div class="row" style="align-items:end;">
             <div>
               <div class="muted">Sessão</div>
@@ -90,7 +99,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div id="sessionProgressCard" class="card">
           <div class="row" style="align-items:center; justify-content:space-between;">
             <div>
               <div id="gameProgress" class="muted"></div>
@@ -104,7 +113,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div id="matchCard" class="card">
           <b>Registrar jogo</b>
           <div class="row" style="margin-top:10px; align-items:end;">
             <div>
@@ -133,13 +142,13 @@
           </div>
         </div>
 
-        <div class="card">
+        <div id="pairsCard" class="card">
           <b>Duplas (4)</b>
           <div class="muted" style="margin-top:6px;">Selecione 8 jogadores ativos (2 por dupla) e inicie a sessão.</div>
           <div id="pairsEditor" style="margin-top:10px;"></div>
         </div>
 
-        <div class="card">
+        <div id="historyCard" class="card">
           <b>Histórico da sessão</b>
           <div id="matchHistory" style="margin-top:10px;"></div>
         </div>

@@ -283,6 +283,7 @@
         if ($("btnResetKeepPlayers")) $("btnResetKeepPlayers").style.display = isAdmin() ? "inline-block" : "none";
         if ($("btnCheckDb")) $("btnCheckDb").style.display = isAdmin() ? "inline-block" : "none";
 
+        updateHomeLayout();
         renderMatchHistory();
     }
 
@@ -354,6 +355,63 @@
         if ($("todayGames")) $("todayGames").textContent = String((state.matches || []).filter((m) => m.dateISO === t).length);
         if ($("activeCount")) $("activeCount").textContent = String((state.players || []).filter((p) => p.active).length);
         if ($("statusLine")) $("statusLine").textContent = `Jogadores: ${(state.players || []).length} • Jogos: ${(state.matches || []).length}`;
+    }
+
+    function updateHomeLayout() {
+        const user = getCurrentUser();
+        const logged = !!user;
+        const guest = user?.role === "guest";
+        const hasActiveSession = !!getCurrentSession();
+
+        if ($("loginScreen")) {
+            $("loginScreen").style.display = (!logged || guest) ? "block" : "none";
+        }
+
+        if ($("appContent")) {
+            $("appContent").style.display = logged ? "block" : "none";
+        }
+
+        if ($("headerUserBox")) {
+            $("headerUserBox").style.display = logged ? "inline-flex" : "none";
+        }
+
+        if ($("btnHeaderLogout")) {
+            $("btnHeaderLogout").style.display = logged && !guest ? "inline-block" : "none";
+        }
+
+        if ($("headerUserText")) {
+            if (!logged) {
+                $("headerUserText").textContent = "";
+            } else if (guest) {
+                $("headerUserText").textContent = "Visitante";
+            } else {
+                $("headerUserText").textContent = `${user.username} (${user.role})`;
+            }
+        }
+
+        if ($("sessionSetupCard")) {
+            $("sessionSetupCard").style.display = logged && !guest && !hasActiveSession ? "block" : "none";
+        }
+
+        if ($("pairsCard")) {
+            $("pairsCard").style.display = logged && !guest && !hasActiveSession ? "block" : "none";
+        }
+
+        if ($("sessionProgressCard")) {
+            $("sessionProgressCard").style.display = logged && !guest && hasActiveSession ? "block" : "none";
+        }
+
+        if ($("matchCard")) {
+            $("matchCard").style.display = logged && !guest && hasActiveSession ? "block" : "none";
+        }
+
+        if ($("historyCard")) {
+            $("historyCard").style.display = logged && !guest ? "block" : "none";
+        }
+
+        if ($("sessionSummary")) {
+            $("sessionSummary").style.display = logged && !guest ? $("sessionSummary").style.display : "none";
+        }
     }
 
     // ---------- Players ----------
@@ -516,6 +574,7 @@
             try {
                 await doLogin(username, password);
                 $("loginPassword").value = "";
+                showTab("jogos");
                 alert("Login feito ✅");
             } catch (err) {
                 alert(err.message || "Falha no login");
@@ -535,12 +594,22 @@
     if ($("btnRankingOnly")) {
         $("btnRankingOnly").addEventListener("click", () => {
             enterGuestMode();
+            showTab("ranking");
         });
     }
 
     if ($("btnLogout")) {
         $("btnLogout").addEventListener("click", async () => {
             await doLogout();
+            showTab("ranking");
+            alert("Saiu da conta.");
+        });
+    }
+
+    if ($("btnHeaderLogout")) {
+        $("btnHeaderLogout").addEventListener("click", async () => {
+            await doLogout();
+            showTab("ranking");
             alert("Saiu da conta.");
         });
     }
@@ -1145,6 +1214,7 @@
         updateEndSessionButton();
         renderSessionSummary();
         updatePairsEditorLock();
+        updateHomeLayout();
     }
 
     function getSessionMatches(sess) {
@@ -1592,11 +1662,12 @@
     (async function init() {
         renderPlayers();
         renderPairsEditor();
-        updatePairsEditorLock();
-        updateAllSessionUI();
+
         await checkDbStatus();
         await hydrateStateFromDb();
+
         updateAuthUI();
+        updateAllSessionUI();
 
         const bootUser = getCurrentUser();
         showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");
