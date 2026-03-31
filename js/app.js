@@ -414,6 +414,34 @@
         }
     }
 
+    function updateRankingPeriodUI() {
+        const period = $("period")?.value || "session";
+        const isCustom = period === "custom";
+
+        if ($("fromDateWrap")) {
+            $("fromDateWrap").style.display = isCustom ? "block" : "none";
+        }
+
+        if ($("toDateWrap")) {
+            $("toDateWrap").style.display = isCustom ? "block" : "none";
+        }
+
+        if (isCustom) {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, "0");
+            const firstDay = `${y}-${m}-01`;
+
+            if ($("fromDate") && !$("fromDate").value) {
+                $("fromDate").value = firstDay;
+            }
+
+            if ($("toDate") && !$("toDate").value) {
+                $("toDate").value = todayISO();
+            }
+        }
+    }
+
     // ---------- Players ----------
     function renderPlayers() {
         const wrap = $("playersList");
@@ -1064,8 +1092,32 @@
     });
 
     // ---------- Ranking controls ----------
-    ["period", "sortBy", "showOnly"].forEach((id) => {
-        if ($(id)) $(id).addEventListener("change", () => window.renderRanking());
+    function updateRankingPeriodUI() {
+        const period = $("period")?.value || "session";
+        const isCustom = period === "custom";
+
+        if ($("fromDateWrap")) $("fromDateWrap").style.display = isCustom ? "block" : "none";
+        if ($("toDateWrap")) $("toDateWrap").style.display = isCustom ? "block" : "none";
+
+        if (isCustom) {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, "0");
+            const firstDay = `${y}-${m}-01`;
+
+            if ($("fromDate") && !$("fromDate").value) $("fromDate").value = firstDay;
+            if ($("toDate") && !$("toDate").value) $("toDate").value = todayISO();
+        }
+    }
+
+    // ---------- Ranking controls ----------
+    ["period", "sortBy", "showOnly", "fromDate", "toDate"].forEach((id) => {
+        if ($(id)) {
+            $(id).addEventListener("change", () => {
+                updateRankingPeriodUI();
+                window.renderRanking();
+            });
+        }
     });
 
     if ($("btnReset")) {
@@ -1668,6 +1720,7 @@
 
         updateAuthUI();
         updateAllSessionUI();
+        updateRankingPeriodUI();
 
         const bootUser = getCurrentUser();
         showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");

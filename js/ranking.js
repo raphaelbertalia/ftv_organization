@@ -29,24 +29,77 @@
     return document.getElementById("showOnly")?.value || "all";
   }
 
+  function getFromDateValue() {
+    return document.getElementById("fromDate")?.value || "";
+  }
+
+  function getToDateValue() {
+    return document.getElementById("toDate")?.value || "";
+  }
+
   function todayISO() {
     const d = new Date();
     const tz = d.getTimezoneOffset() * 60000;
     return new Date(Date.now() - tz).toISOString().slice(0, 10);
   }
 
-  function getSessionsForRanking() {
-    const period = String(getPeriodValue() || "").toLowerCase();
-    const sessions = (state.sessions || []).slice();
+  function currentMonthKey() {
+    return todayISO().slice(0, 7);
+  }
+
+  function lastMonthKey() {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }
+
+  function normalizeDateISO(value) {
+    return String(value || "").slice(0, 10);
+  }
+
+  function isSessionInPeriod(session, period) {
+    const dateISO = normalizeDateISO(session?.dateISO);
+
+    if (!dateISO) return false;
 
     if (period === "all" || period === "tudo" || period === "todas") {
-      return sessions;
+      return true;
     }
 
     if (period === "today" || period === "hoje") {
-      const today = todayISO();
-      return sessions.filter(s => String(s.dateISO) === String(today));
+      return dateISO === todayISO();
     }
+
+    if (period === "month" || period === "mes" || period === "mês") {
+      return dateISO.slice(0, 7) === currentMonthKey();
+    }
+
+    if (
+      period === "lastmonth" ||
+      period === "mespassado" ||
+      period === "mês passado"
+    ) {
+      return dateISO.slice(0, 7) === lastMonthKey();
+    }
+
+    if (period === "custom" || period === "personalizado") {
+      const from = getFromDateValue();
+      const to = getToDateValue();
+
+      if (from && dateISO < from) return false;
+      if (to && dateISO > to) return false;
+
+      return true;
+    }
+
+    return false;
+  }
+
+  function getSessionsForRanking() {
+    const period = String(getPeriodValue() || "").toLowerCase();
+    const sessions = (state.sessions || []).slice();
 
     if (
       period === "session" ||
@@ -58,8 +111,7 @@
       return current ? [current] : [];
     }
 
-    const current = window.getCurrentSession?.() || null;
-    return current ? [current] : [];
+    return sessions.filter(session => isSessionInPeriod(session, period));
   }
 
   function computeRankingForSessions(sessions, allMatches = []) {
@@ -252,6 +304,13 @@
     if (!el) return;
 
     if (!sessions.length) {
+      const period = getPeriodValue();
+
+      if (period === "session") {
+        el.innerHTML = `<div class="muted">Não há sessão ativa no momento.</div>`;
+        return;
+      }
+
       el.innerHTML = `<div class="muted">Nenhuma sessão disponível para o filtro selecionado.</div>`;
       return;
     }
