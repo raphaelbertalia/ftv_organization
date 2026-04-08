@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       `
       SELECT id, username, password, role, active
       FROM users
-      WHERE username = $1
+      WHERE LOWER(username) = LOWER($1)
       LIMIT 1
       `,
       [username]
