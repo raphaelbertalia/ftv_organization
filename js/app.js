@@ -465,18 +465,15 @@
                 renderPairsEditor();
                 updateTopStats();
 
-                try {
-                    await apiJson("/api/players", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            id: p.id,
-                            name: p.name,
-                            active: p.active
-                        })
-                    });
-                } catch (err) {
-                    console.error("Erro atualizando player ativo no banco:", err);
-                }
+                await apiJson("/api/players", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: p.id,
+                        name: p.name,
+                        active: p.active,
+                        side: p.side || ""
+                    })
+                });
             });
 
             const name = document.createElement("input");
@@ -491,18 +488,38 @@
                 renderPairSelects();
                 window.renderRanking();
 
-                try {
-                    await apiJson("/api/players", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            id: p.id,
-                            name: p.name,
-                            active: p.active
-                        })
-                    });
-                } catch (err) {
-                    console.error("Erro atualizando nome do player no banco:", err);
-                }
+                await apiJson("/api/players", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: p.id,
+                        name: p.name,
+                        active: p.active,
+                        side: p.side || ""
+                    })
+                });
+            });
+
+            const side = document.createElement("select");
+            side.innerHTML = `
+            <option value="">Lado</option>
+            <option value="left">Esquerdo</option>
+            <option value="right">Direito</option>
+            <option value="both">Coringa</option>
+        `;
+            side.value = p.side || "";
+            side.addEventListener("change", async () => {
+                p.side = side.value;
+                saveState();
+
+                await apiJson("/api/players", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: p.id,
+                        name: p.name,
+                        active: p.active,
+                        side: p.side || ""
+                    })
+                });
             });
 
             const right = document.createElement("div");
@@ -517,8 +534,8 @@
             del.textContent = "remover";
             del.addEventListener("click", async () => {
                 if (!requireAdmin()) return;
-                const used = (state.matches || []).some((m) => {
 
+                const used = (state.matches || []).some((m) => {
                     const sess = (state.sessions || []).find((s) => s.id === m.sessionId);
                     if (!sess) return false;
 
@@ -532,6 +549,7 @@
 
                     return playersInMatch.includes(p.id);
                 });
+
                 if (used) return alert("Esse jogador já tem jogos no histórico. Desativa ao invés de remover.");
                 if (!confirm(`Remover ${p.name}?`)) return;
 
@@ -542,14 +560,10 @@
                 renderPairSelects();
                 updateTopStats();
 
-                try {
-                    await apiJson("/api/players", {
-                        method: "DELETE",
-                        body: JSON.stringify({ id: p.id })
-                    });
-                } catch (err) {
-                    console.error("Erro removendo player no banco:", err);
-                }
+                await apiJson("/api/players", {
+                    method: "DELETE",
+                    body: JSON.stringify({ id: p.id })
+                });
             });
 
             right.appendChild(pill);
@@ -557,6 +571,7 @@
 
             div.appendChild(chk);
             div.appendChild(name);
+            div.appendChild(side);
             div.appendChild(right);
 
             wrap.appendChild(div);
@@ -571,7 +586,14 @@
             return alert("Já tem esse nome.");
         }
 
-        const player = { id: uid(), name: clean, active: true };
+        const side = $("newPlayerSide")?.value || "";
+
+        const player = {
+            id: uid(),
+            name: clean,
+            active: true,
+            side
+        };
 
         state.players.push(player);
         saveState();
@@ -826,6 +848,51 @@
         return pairs;
     }
 
+    function shuffleArray(arr) {
+        return arr
+            .map(item => ({ item, sort: Math.random() }))
+            .sort((a, b) => a.sort - b.sort)
+            .map(({ item }) => item);
+    }
+
+    function drawPairsBySide() {
+        if (getCurrentSession()) {
+            return alert("Já existe uma sessão ativa.");
+        }
+
+        const activePlayers = (state.players || []).filter(p => p.active);
+
+        const lefts = shuffleArray(activePlayers.filter(p => p.side === "left"));
+        const rights = shuffleArray(activePlayers.filter(p => p.side === "right"));
+        const boths = shuffleArray(activePlayers.filter(p => p.side === "both"));
+
+        while (lefts.length < 4 && boths.length) {
+            lefts.push(boths.pop());
+        }
+
+        while (rights.length < 4 && boths.length) {
+            rights.push(boths.pop());
+        }
+
+        if (lefts.length < 4 || rights.length < 4) {
+            return alert("Não deu pra formar 4 duplas. Precisa de 4 jogadores para cada lado, usando coringas se necessário.");
+        }
+
+        const finalLefts = shuffleArray(lefts).slice(0, 4);
+        const finalRights = shuffleArray(rights).slice(0, 4);
+
+        for (let i = 1; i <= 4; i++) {
+            const left = finalLefts[i - 1];
+            const right = finalRights[i - 1];
+
+            const sel1 = $(`p${i}_1`);
+            const sel2 = $(`p${i}_2`);
+
+            if (sel1) sel1.value = left.id;
+            if (sel2) sel2.value = right.id;
+        }
+    }
+
     if ($("btnStartSession")) {
         $("btnStartSession").addEventListener("click", async () => {
             if (!requireOperator()) return;
@@ -866,6 +933,12 @@
 
             updateAllSessionUI();
             alert("Sessão iniciada e duplas salvas ✅");
+        });
+    }
+
+    if ($("btnDrawPairs")) {
+        $("btnDrawPairs").addEventListener("click", () => {
+            drawPairsBySide();
         });
     }
 

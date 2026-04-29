@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const result = await pool.query(`
-        SELECT id, name, active
+        SELECT id, name, active, side
         FROM players
         ORDER BY name ASC
       `);
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const { id, name, active = true } = req.body || {};
+      const { id, name, active = true, side = null } = req.body || {};
 
       if (!id || !name) {
         return res.status(400).json({ error: "id e name são obrigatórios" });
@@ -21,14 +21,15 @@ export default async function handler(req, res) {
 
       await pool.query(
         `
-        INSERT INTO players (id, name, active)
-        VALUES ($1, $2, $3)
+        INSERT INTO players (id, name, active, side)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (id)
         DO UPDATE SET
           name = EXCLUDED.name,
-          active = EXCLUDED.active
+          active = EXCLUDED.active,
+          side = EXCLUDED.side
         `,
-        [id, name, active]
+        [id, name, active, side]
       );
 
       return res.status(200).json({ ok: true });

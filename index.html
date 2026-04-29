@@ -145,6 +145,9 @@
         <div id="pairsCard" class="card">
           <b>Duplas (4)</b>
           <div class="muted" style="margin-top:6px;">Selecione 8 jogadores ativos (2 por dupla) e inicie a sessão.</div>
+          <button id="btnDrawPairs" class="secondary" type="button">
+            Sortear duplas
+          </button>
           <div id="pairsEditor" style="margin-top:10px;"></div>
         </div>
 
@@ -230,6 +233,14 @@
           <b>Jogadores</b>
           <div class="row" style="margin-top:10px; align-items:end;">
             <input id="newPlayerName" placeholder="Nome do jogador" />
+
+            <select id="newPlayerSide">
+              <option value="">Lado</option>
+              <option value="left">Esquerdo</option>
+              <option value="right">Direito</option>
+              <option value="both">Coringa</option>
+            </select>
+
             <button id="btnAddPlayer">Adicionar</button>
             <button id="btnActivateAll" class="secondary">Ativar todos</button>
             <button id="btnDeactivateAll" class="secondary">Desativar todos</button>
