@@ -1799,4 +1799,43 @@
     // default tab
     const bootUser = getCurrentUser();
     showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");
+
+    // 🔄 Corrige reload ao voltar do celular bloqueado
+    let rehydrating = false;
+
+    async function safeRehydrate() {
+        if (rehydrating) return;
+        rehydrating = true;
+
+        try {
+            await hydrateStateFromDb();
+
+            // mantém a mesma sessão ativa após voltar do bloqueio
+            const current = (state.sessions || []).find(
+                s => String(s.id) === String(state.currentSessionId)
+            );
+
+            if (current) {
+                state.currentSessionId = current.id;
+            }
+
+            updateAllSessionUI();
+        } catch (err) {
+            console.error("Erro ao reidratar:", err);
+        } finally {
+            rehydrating = false;
+        }
+    }
+
+    // quando volta do background
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            safeRehydrate();
+        }
+    });
+
+    // fallback
+    window.addEventListener("focus", () => {
+        safeRehydrate();
+    });
 })();
