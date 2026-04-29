@@ -19,9 +19,9 @@ export default async function handler(req, res) {
         `);
 
         const pairsResult = await pool.query(`
-            SELECT id, session_id, p1, p2
+            SELECT id, session_id, p1, p2, position
             FROM pairs
-            ORDER BY id ASC
+            ORDER BY session_id ASC, position ASC, id ASC
         `);
 
         const matchesResult = await pool.query(`

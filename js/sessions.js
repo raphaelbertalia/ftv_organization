@@ -42,7 +42,7 @@ async function syncSessionToDb(session) {
 }
 
 function syncPairsToDb(session) {
-  (session.pairs || []).forEach(pair => {
+  (session.pairs || []).forEach((pair, index) => {
     fetch("/api/pairs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -50,7 +50,8 @@ function syncPairsToDb(session) {
         id: pair.id,
         session_id: session.id,
         p1: pair.p1,
-        p2: pair.p2
+        p2: pair.p2,
+        position: index + 1
       })
     }).catch(err => console.error("Erro ao salvar dupla no banco:", err));
   });
