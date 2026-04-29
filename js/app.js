@@ -172,12 +172,22 @@
                 return normalized;
             });
 
+            // tenta manter sessão atual
             const currentStillExists = state.sessions.some(
                 s => String(s.id) === String(previousCurrentSessionId)
             );
 
             if (currentStillExists) {
                 state.currentSessionId = previousCurrentSessionId;
+            } else {
+                // 🔥 pega a sessão mais recente como ativa
+                const latest = (state.sessions || [])
+                    .slice()
+                    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+
+                if (latest) {
+                    state.currentSessionId = latest.id;
+                }
             }
 
             const viewedStillExists = state.sessions.some(
