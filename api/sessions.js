@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const result = await pool.query(`
-        SELECT id, date_iso, name, created_at
+        SELECT id, date_iso, name, created_at, status
         FROM sessions
         ORDER BY created_at DESC
       `);
@@ -24,8 +24,8 @@ export default async function handler(req, res) {
 
       await pool.query(
         `
-        INSERT INTO sessions (id, date_iso, name, created_at)
-        VALUES ($1, $2, $3, NOW())
+        INSERT INTO sessions (id, date_iso, name, created_at, status)
+        VALUES ($1, $2, $3, NOW(), 'em_andamento')
         ON CONFLICT (id)
         DO UPDATE SET
           date_iso = EXCLUDED.date_iso,
@@ -58,6 +58,25 @@ export default async function handler(req, res) {
       } catch (err) {
         return res.status(500).json({ error: err.message });
       }
+    }
+
+    if (req.method === "PATCH") {
+      const { id, status } = req.body || {};
+
+      if (!id || !status) {
+        return res.status(400).json({ error: "id e status são obrigatórios" });
+      }
+
+      await pool.query(
+        `
+    UPDATE sessions
+    SET status = $2
+    WHERE id = $1
+    `,
+        [id, status]
+      );
+
+      return res.status(200).json({ ok: true });
     }
 
     return res.status(405).json({ error: "Método não permitido" });

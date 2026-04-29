@@ -172,23 +172,12 @@
                 return normalized;
             });
 
-            // tenta manter sessão atual
-            const currentStillExists = state.sessions.some(
-                s => String(s.id) === String(previousCurrentSessionId)
+            // 🔥 agora quem manda é o banco
+            const activeSession = (state.sessions || []).find(
+                s => s.status === "em_andamento"
             );
 
-            if (currentStillExists) {
-                state.currentSessionId = previousCurrentSessionId;
-            } else {
-                // 🔥 pega a sessão mais recente como ativa
-                const latest = (state.sessions || [])
-                    .slice()
-                    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
-
-                if (latest) {
-                    state.currentSessionId = latest.id;
-                }
-            }
+            state.currentSessionId = activeSession ? activeSession.id : null;
 
             const viewedStillExists = state.sessions.some(
                 s => String(s.id) === String(previousViewSessionId)
@@ -937,12 +926,20 @@
     }
 
     if ($("btnEndSession")) {
-        $("btnEndSession").addEventListener("click", () => {
+        $("btnEndSession").addEventListener("click", async () => {
             const sess = getCurrentSession();
             if (!sess) return alert("Sem sessão ativa.");
 
             const matches = getSessionMatches(sess);
             if (matches.length < 8) return alert("A sessão ainda não terminou.");
+
+            await apiJson("/api/sessions", {
+                method: "PATCH",
+                body: JSON.stringify({
+                    id: sess.id,
+                    status: "encerrada"
+                })
+            });
 
             state.viewSessionId = sess.id;
             state.currentSessionId = null;
