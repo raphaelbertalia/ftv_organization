@@ -614,6 +614,47 @@
         });
     }
 
+    // ---------- Ciclo ----------
+    function renderCycleTab() {
+        const info = $("cycleInfo");
+        const editor = $("cyclePairsEditor");
+
+        if (!info || !editor) return;
+
+        const cycle = (state.cycles || []).find(c => c.id === state.currentCycleId);
+
+        if (!cycle) {
+            info.innerHTML = "<div class='muted'>Nenhum ciclo ativo.</div>";
+            editor.innerHTML = "";
+            return;
+        }
+
+        info.innerHTML = `
+        <div><b>${cycle.name}</b></div>
+        <div class="muted" style="margin-top:6px;">
+            ${cycle.startDate} até ${cycle.endDate}
+        </div>
+    `;
+
+        const pairs = cycle.pairs || [];
+
+        if (!pairs.length) {
+            editor.innerHTML = "<div class='muted'>Nenhuma dupla sorteada ainda.</div>";
+            return;
+        }
+
+        editor.innerHTML = pairs.map((p, i) => {
+            const p1 = state.players.find(pl => pl.id === p.p1)?.name || "?";
+            const p2 = state.players.find(pl => pl.id === p.p2)?.name || "?";
+
+            return `
+            <div class="player-item">
+                <b>Dupla ${i + 1}</b> — ${p1} + ${p2}
+            </div>
+        `;
+        }).join("");
+    }
+
     async function addPlayer(name) {
         const clean = (name || "").trim();
         if (!clean) return alert("Nome vazio 😅");
@@ -969,6 +1010,114 @@
 
             updateAllSessionUI();
             alert("Sessão iniciada e duplas salvas ✅");
+        });
+    }
+
+    if ($("btnCreateCycle")) {
+        $("btnCreateCycle").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
+
+            const name = $("cycleName").value;
+            const start = $("cycleStartDate").value;
+            const end = $("cycleEndDate").value;
+
+            if (!name || !start || !end) {
+                return alert("Preenche tudo 😅");
+            }
+
+            try {
+                await apiJson("/api/monthly-cycles", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: uid(),
+                        name,
+                        start_date: start,
+                        end_date: end,
+                        pairs: []
+                    })
+                });
+
+                await hydrateStateFromDb();
+                renderCycleTab();
+
+                alert("Ciclo criado ✅");
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    }
+
+    if ($("btnDeleteCycle")) {
+        $("btnDeleteCycle").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
+
+            const cycle = (state.cycles || []).find(c => c.id === state.currentCycleId);
+            if (!cycle) return alert("Sem ciclo ativo.");
+
+            if (!confirm("Excluir ciclo atual?")) return;
+
+            try {
+                await apiJson("/api/monthly-cycles", {
+                    method: "DELETE",
+                    body: JSON.stringify({ id: cycle.id })
+                });
+
+                await hydrateStateFromDb();
+                renderCycleTab();
+
+                alert("Ciclo removido 🗑️");
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    }
+
+    if ($("btnDrawCyclePairs")) {
+        $("btnDrawCyclePairs").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
+
+            const cycle = (state.cycles || []).find(c => c.id === state.currentCycleId);
+            if (!cycle) return alert("Cria um ciclo primeiro.");
+
+            const activePlayers = (state.players || []).filter(p => p.active);
+
+            if (activePlayers.length < 8) {
+                return alert("Precisa de pelo menos 8 jogadores ativos.");
+            }
+
+            const shuffled = activePlayers
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 8);
+
+            const pairs = [];
+
+            for (let i = 0; i < 4; i++) {
+                pairs.push({
+                    id: uid(),
+                    p1: shuffled[i * 2].id,
+                    p2: shuffled[i * 2 + 1].id
+                });
+            }
+
+            try {
+                await apiJson("/api/monthly-cycles", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: cycle.id,
+                        name: cycle.name,
+                        start_date: cycle.startDate,
+                        end_date: cycle.endDate,
+                        pairs
+                    })
+                });
+
+                await hydrateStateFromDb();
+                renderCycleTab();
+
+                alert("Duplas sorteadas 🔥");
+            } catch (err) {
+                alert(err.message);
+            }
         });
     }
 
