@@ -165,13 +165,14 @@
 
                 const sessionPairs = rawPairs
                     .filter(p =>
-                        String(p.session_id ?? p.sessionId) === String(sessionId)
-                        && !p.cycle_id
+                        String(p.session_id ?? p.sessionId ?? "") === String(sessionId)
+                        && !(p.cycle_id ?? p.cycleId)
                     )
                     .map(p => ({
                         id: p.id,
                         p1: p.p1,
-                        p2: p.p2
+                        p2: p.p2,
+                        position: p.position
                     }));
 
                 const normalized = {
