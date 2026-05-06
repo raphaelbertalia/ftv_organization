@@ -104,16 +104,35 @@
     }
 
     async function hydrateStateFromDb() {
-        const previousCurrentSessionId = state.currentSessionId ?? null;
         const previousViewSessionId = state.viewSessionId ?? null;
 
         state.sessions = [];
         state.matches = [];
+        state.cycles = [];
         state.currentSessionId = null;
+        state.currentCycleId = null;
         state.viewSessionId = null;
 
         try {
             const data = await apiJson("/api/bootstrap");
+
+            state.players = Array.isArray(data.players) ? data.players : [];
+
+            const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
+            const rawPairs = Array.isArray(data.pairs) ? data.pairs : [];
+            const rawMatches = Array.isArray(data.matches) ? data.matches : [];
+            const rawCycles = Array.isArray(data.cycles) ? data.cycles : [];
+
+            state.matches = rawMatches.map(m => ({
+                ...m,
+                sessionId: m.sessionId ?? m.session_id ?? null,
+                pairAId: m.pairAId ?? m.pair_a_id ?? m.pair_a ?? null,
+                pairBId: m.pairBId ?? m.pair_b_id ?? m.pair_b ?? null,
+                scoreA: m.scoreA ?? m.score_a ?? null,
+                scoreB: m.scoreB ?? m.score_b ?? null,
+                scheduleIndex: m.scheduleIndex ?? m.schedule_index ?? null,
+                createdAt: m.createdAt ?? m.created_at ?? null
+            }));
 
             state.cycles = rawCycles.map(c => {
                 const cycleId = c.id;
@@ -141,24 +160,6 @@
             );
 
             state.currentCycleId = activeCycle ? activeCycle.id : null;
-
-            state.players = Array.isArray(data.players) ? data.players : [];
-
-            const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
-            const rawPairs = Array.isArray(data.pairs) ? data.pairs : [];
-            const rawMatches = Array.isArray(data.matches) ? data.matches : [];
-            const rawCycles = Array.isArray(data.cycles) ? data.cycles : [];
-
-            state.matches = rawMatches.map(m => ({
-                ...m,
-                sessionId: m.sessionId ?? m.session_id ?? null,
-                pairAId: m.pairAId ?? m.pair_a_id ?? m.pair_a ?? null,
-                pairBId: m.pairBId ?? m.pair_b_id ?? m.pair_b ?? null,
-                scoreA: m.scoreA ?? m.score_a ?? null,
-                scoreB: m.scoreB ?? m.score_b ?? null,
-                scheduleIndex: m.scheduleIndex ?? m.schedule_index ?? null,
-                createdAt: m.createdAt ?? m.created_at ?? null
-            }));
 
             state.sessions = rawSessions.map(s => {
                 const sessionId = s.id;
