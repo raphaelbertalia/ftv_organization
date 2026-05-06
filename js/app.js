@@ -745,7 +745,7 @@
             );
 
         const cycleRankingHtml = cycleRanking.length
-                    ? `
+            ? `
                 <table class="table" style="margin-top:10px;">
                     <thead>
                         <tr>
@@ -1074,6 +1074,27 @@
         return pairs;
     }
 
+    function readCyclePairsFromEditor() {
+        const pairs = [];
+        const used = new Set();
+
+        for (let i = 1; i <= 4; i++) {
+            const p1 = $(`cycle_p${i}_1`)?.value || "";
+            const p2 = $(`cycle_p${i}_2`)?.value || "";
+
+            if (!p1 || !p2) throw new Error("Preencha todas as duplas do ciclo.");
+            if (p1 === p2) throw new Error("Dupla não pode repetir jogador.");
+            if (used.has(p1) || used.has(p2)) throw new Error("Um jogador foi usado em mais de uma dupla.");
+
+            used.add(p1);
+            used.add(p2);
+
+            pairs.push({ id: uid(), p1, p2 });
+        }
+
+        return pairs;
+    }
+
     function shuffleArray(arr) {
         return arr
             .map(item => ({ item, sort: Math.random() }))
@@ -1223,6 +1244,38 @@
             } catch (err) {
                 alert(err.message);
             }
+        });
+    }
+
+    if ($("btnSaveCyclePairs")) {
+        $("btnSaveCyclePairs").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
+
+            const cycle = getActiveCycle();
+            if (!cycle) return alert("Crie um ciclo primeiro.");
+
+            let pairs;
+            try {
+                pairs = readCyclePairsFromEditor();
+            } catch (err) {
+                return alert(err.message);
+            }
+
+            await apiJson("/api/monthly-cycles", {
+                method: "POST",
+                body: JSON.stringify({
+                    id: cycle.id,
+                    name: cycle.name,
+                    start_date: cycle.startDate,
+                    end_date: cycle.endDate,
+                    pairs
+                })
+            });
+
+            await hydrateStateFromDb();
+            renderCycleTab();
+
+            alert("Duplas do ciclo salvas ✅");
         });
     }
 
