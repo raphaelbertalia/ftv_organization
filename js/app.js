@@ -621,7 +621,7 @@
 
         if (!info || !editor) return;
 
-        const cycle = (state.cycles || []).find(c => c.id === state.currentCycleId);
+        const cycle = getActiveCycle();
 
         if (!cycle) {
             info.innerHTML = "<div class='muted'>Nenhum ciclo ativo.</div>";
@@ -638,21 +638,56 @@
 
         const pairs = cycle.pairs || [];
 
-        if (!pairs.length) {
-            editor.innerHTML = "<div class='muted'>Nenhuma dupla sorteada ainda.</div>";
-            return;
-        }
+        const pairsHtml = pairs.length
+            ? pairs.map((p, i) => {
+                const p1 = state.players.find(pl => pl.id === p.p1)?.name || "?";
+                const p2 = state.players.find(pl => pl.id === p.p2)?.name || "?";
 
-        editor.innerHTML = pairs.map((p, i) => {
-            const p1 = state.players.find(pl => pl.id === p.p1)?.name || "?";
-            const p2 = state.players.find(pl => pl.id === p.p2)?.name || "?";
+                return `
+                <div class="player-item">
+                    <b>Dupla ${i + 1}</b> — ${p1} + ${p2}
+                </div>
+            `;
+            }).join("")
+            : "<div class='muted'>Nenhuma dupla sorteada ainda.</div>";
 
-            return `
-            <div class="player-item">
-                <b>Dupla ${i + 1}</b> — ${p1} + ${p2}
-            </div>
-        `;
-        }).join("");
+        const cycleSessions = (state.sessions || []).filter(s => {
+            const date = s.dateISO;
+            return date && cycle.startDate && cycle.endDate
+                && date >= cycle.startDate
+                && date <= cycle.endDate;
+        });
+
+        const sessionsHtml = cycleSessions.length
+            ? cycleSessions.map(s => {
+                const matches = getSessionMatches(s);
+                const table = computePairTableForSession(s);
+                const best = table[0];
+                const bestLabel = best ? getPairDisplayName(s, best.pairId) : "—";
+
+                return `
+                <div class="player-item" style="justify-content:space-between; gap:12px;">
+                    <div>
+                        <b>${s.name || "Sem nome"}</b>
+                        <div class="muted">${s.dateISO || "-"} • ${matches.length} jogo(s)</div>
+                        <div class="muted">🏆 ${bestLabel}</div>
+                    </div>
+                    <button class="secondary btnViewSession" data-id="${s.id}">Abrir</button>
+                </div>
+            `;
+            }).join("")
+            : "<div class='muted'>Nenhuma sessão dentro deste ciclo ainda.</div>";
+
+        editor.innerHTML = `
+        ${pairsHtml}
+
+        <hr style="margin:16px 0; opacity:.2;">
+
+        <div><b>Resultados do ciclo</b></div>
+        <div style="margin-top:10px;">
+            ${sessionsHtml}
+        </div>
+    `;
     }
 
     async function addPlayer(name) {
