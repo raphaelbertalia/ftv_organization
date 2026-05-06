@@ -622,23 +622,21 @@
         if (!info || !editor) return;
 
         const cycle = getActiveCycle();
+        const allCycles = state.cycles || [];
 
         if (!cycle) {
             info.innerHTML = "<div class='muted'>Nenhum ciclo ativo.</div>";
-            editor.innerHTML = "";
-            return;
+        } else {
+            info.innerHTML = `
+            <div><b>${cycle.name}</b></div>
+            <div class="muted" style="margin-top:6px;">
+                ${cycle.startDate} até ${cycle.endDate}
+            </div>
+        `;
         }
 
-        info.innerHTML = `
-        <div><b>${cycle.name}</b></div>
-        <div class="muted" style="margin-top:6px;">
-            ${cycle.startDate} até ${cycle.endDate}
-        </div>
-    `;
-
-        const allCycles = (state.cycles || []);
-
-        const cyclesListHtml = allCycles.map(c => `
+        const cyclesListHtml = allCycles.length
+            ? allCycles.map(c => `
             <div class="player-item" style="justify-content:space-between;">
                 <div>
                     <b>${c.name}</b>
@@ -649,18 +647,10 @@
                     <button class="secondary btnDeleteCycleItem" data-id="${c.id}">🗑️</button>
                 </div>
             </div>
-        `).join("");
+        `).join("")
+            : "<div class='muted'>Nenhum ciclo cadastrado.</div>";
 
-        editor.innerHTML = `
-            <div><b>Todos os ciclos</b></div>
-            <div style="margin-top:10px;">
-                ${cyclesListHtml}
-            </div>
-
-            <hr style="margin:16px 0; opacity:.2;">
-        `;
-
-        const pairs = cycle.pairs || [];
+        const pairs = cycle?.pairs || [];
 
         const pairsHtml = pairs.length
             ? pairs.map((p, i) => {
@@ -673,14 +663,16 @@
                 </div>
             `;
             }).join("")
-            : "<div class='muted'>Nenhuma dupla sorteada ainda.</div>";
+            : "<div class='muted'>Nenhuma dupla do ciclo ativo para exibir.</div>";
 
-        const cycleSessions = (state.sessions || []).filter(s => {
-            const date = s.dateISO;
-            return date && cycle.startDate && cycle.endDate
-                && date >= cycle.startDate
-                && date <= cycle.endDate;
-        });
+        const cycleSessions = cycle
+            ? (state.sessions || []).filter(s => {
+                const date = s.dateISO;
+                return date && cycle.startDate && cycle.endDate
+                    && date >= cycle.startDate
+                    && date <= cycle.endDate;
+            })
+            : [];
 
         const sessionsHtml = cycleSessions.length
             ? cycleSessions.map(s => {
@@ -700,18 +692,28 @@
                 </div>
             `;
             }).join("")
-            : "<div class='muted'>Nenhuma sessão dentro deste ciclo ainda.</div>";
+            : "<div class='muted'>Nenhuma sessão dentro do ciclo ativo ainda.</div>";
 
         editor.innerHTML = `
-        ${pairsHtml}
+            <div><b>Todos os ciclos</b></div>
+            <div style="margin-top:10px;">
+                ${cyclesListHtml}
+            </div>
 
-        <hr style="margin:16px 0; opacity:.2;">
+            <hr style="margin:16px 0; opacity:.2;">
 
-        <div><b>Resultados do ciclo</b></div>
-        <div style="margin-top:10px;">
-            ${sessionsHtml}
-        </div>
-    `;
+            <div><b>Duplas do ciclo ativo</b></div>
+            <div style="margin-top:10px;">
+                ${pairsHtml}
+            </div>
+
+            <hr style="margin:16px 0; opacity:.2;">
+
+            <div><b>Resultados do ciclo ativo</b></div>
+            <div style="margin-top:10px;">
+                ${sessionsHtml}
+            </div>
+        `;
     }
 
     async function addPlayer(name) {
