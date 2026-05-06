@@ -636,6 +636,30 @@
         </div>
     `;
 
+        const allCycles = (state.cycles || []);
+
+        const cyclesListHtml = allCycles.map(c => `
+            <div class="player-item" style="justify-content:space-between;">
+                <div>
+                    <b>${c.name}</b>
+                    <div class="muted">${c.startDate} até ${c.endDate}</div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <span class="pill">${c.status}</span>
+                    <button class="secondary btnDeleteCycleItem" data-id="${c.id}">🗑️</button>
+                </div>
+            </div>
+        `).join("");
+
+        editor.innerHTML = `
+            <div><b>Todos os ciclos</b></div>
+            <div style="margin-top:10px;">
+                ${cyclesListHtml}
+            </div>
+
+            <hr style="margin:16px 0; opacity:.2;">
+        `;
+
         const pairs = cycle.pairs || [];
 
         const pairsHtml = pairs.length
@@ -1108,6 +1132,34 @@
                 alert("Ciclo criado ✅");
             } catch (err) {
                 alert(err.message);
+            }
+        });
+    }
+
+    if ($("btnEndCycle")) {
+        $("btnEndCycle").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
+
+            const cycle = getActiveCycle();
+            if (!cycle) return alert("Sem ciclo ativo.");
+
+            if (!confirm(`Finalizar o ciclo "${cycle.name}"?`)) return;
+
+            try {
+                await apiJson("/api/monthly-cycles", {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                        id: cycle.id,
+                        status: "encerrada"
+                    })
+                });
+
+                await hydrateStateFromDb();
+                renderCycleTab();
+
+                alert("Ciclo finalizado ✅");
+            } catch (err) {
+                alert(err.message || "Erro ao finalizar ciclo");
             }
         });
     }
@@ -2203,6 +2255,33 @@
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
             safeRehydrate();
+        }
+    });
+
+    document.addEventListener("click", async (ev) => {
+        const btn = ev.target.closest(".btnDeleteCycleItem");
+        if (!btn) return;
+
+        if (!requireAdmin()) return;
+
+        const id = btn.dataset.id;
+
+        const cycle = state.cycles.find(c => c.id === id);
+
+        if (!confirm(`Excluir ciclo "${cycle?.name || ''}"?`)) return;
+
+        try {
+            await apiJson("/api/monthly-cycles", {
+                method: "DELETE",
+                body: JSON.stringify({ id })
+            });
+
+            await hydrateStateFromDb();
+            renderCycleTab();
+
+            alert("Ciclo excluído 🗑️");
+        } catch (err) {
+            alert(err.message || "Erro ao excluir ciclo");
         }
     });
 
