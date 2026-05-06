@@ -694,6 +694,87 @@
             }).join("")
             : "<div class='muted'>Nenhuma sessão dentro do ciclo ativo ainda.</div>";
 
+        const cycleStats = new Map();
+
+        pairs.forEach(pair => {
+            const p1 = state.players.find(p => p.id === pair.p1)?.name || "?";
+            const p2 = state.players.find(p => p.id === pair.p2)?.name || "?";
+
+            cycleStats.set(pair.id, {
+                pairId: pair.id,
+                label: `${p1} + ${p2}`,
+                played: 0,
+                wins: 0,
+                points: 0,
+                pointsFor: 0,
+                diff: 0
+            });
+        });
+
+        cycleSessions.forEach(sess => {
+            const table = computePairTableForSession(sess);
+
+            table.forEach(row => {
+                const sessionPair = sess.pairs.find(p => p.id === row.pairId);
+                if (!sessionPair) return;
+
+                const cyclePair = pairs.find(p =>
+                    [p.p1, p.p2].sort().join("|") ===
+                    [sessionPair.p1, sessionPair.p2].sort().join("|")
+                );
+
+                if (!cyclePair) return;
+
+                const stat = cycleStats.get(cyclePair.id);
+                if (!stat) return;
+
+                stat.played += row.played || 0;
+                stat.wins += row.wins || 0;
+                stat.points += row.points || 0;
+                stat.pointsFor += row.pointsFor || 0;
+                stat.diff += row.diff || 0;
+            });
+        });
+
+        const cycleRanking = [...cycleStats.values()]
+            .sort((a, b) =>
+                (b.points - a.points) ||
+                (b.wins - a.wins) ||
+                (b.diff - a.diff) ||
+                (b.pointsFor - a.pointsFor)
+            );
+
+        const cycleRankingHtml = cycleRanking.length
+                    ? `
+                <table class="table" style="margin-top:10px;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Dupla</th>
+                            <th>Pts</th>
+                            <th>V</th>
+                            <th>J</th>
+                            <th>Saldo</th>
+                            <th>Pró</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${cycleRanking.map((r, i) => `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${r.label}</td>
+                                <td>${r.points}</td>
+                                <td>${r.wins}</td>
+                                <td>${r.played}</td>
+                                <td>${r.diff}</td>
+                                <td>${r.pointsFor}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `
+            : "<div class='muted'>Sem ranking do ciclo ainda.</div>";
+
         editor.innerHTML = `
             <div><b>Todos os ciclos</b></div>
             <div style="margin-top:10px;">
@@ -709,6 +790,13 @@
 
             <hr style="margin:16px 0; opacity:.2;">
 
+            <div><b>Ranking do ciclo / Churras</b></div>
+            <div style="margin-top:10px;">
+                ${cycleRankingHtml}
+            </div>
+
+            <hr style="margin:16px 0; opacity:.2;">
+            
             <div><b>Resultados do ciclo ativo</b></div>
             <div style="margin-top:10px;">
                 ${sessionsHtml}
