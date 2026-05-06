@@ -115,11 +115,39 @@
         try {
             const data = await apiJson("/api/bootstrap");
 
+            state.cycles = rawCycles.map(c => {
+                const cycleId = c.id;
+
+                const cyclePairs = rawPairs
+                    .filter(p => String(p.cycle_id ?? p.cycleId) === String(cycleId))
+                    .map(p => ({
+                        id: p.id,
+                        p1: p.p1,
+                        p2: p.p2,
+                        position: p.position
+                    }));
+
+                return {
+                    ...c,
+                    startDate: c.startDate ?? c.start_date ?? null,
+                    endDate: c.endDate ?? c.end_date ?? null,
+                    createdAt: c.createdAt ?? c.created_at ?? null,
+                    pairs: cyclePairs
+                };
+            });
+
+            const activeCycle = (state.cycles || []).find(
+                c => c.status === "em_andamento"
+            );
+
+            state.currentCycleId = activeCycle ? activeCycle.id : null;
+
             state.players = Array.isArray(data.players) ? data.players : [];
 
             const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
             const rawPairs = Array.isArray(data.pairs) ? data.pairs : [];
             const rawMatches = Array.isArray(data.matches) ? data.matches : [];
+            const rawCycles = Array.isArray(data.cycles) ? data.cycles : [];
 
             state.matches = rawMatches.map(m => ({
                 ...m,
@@ -136,7 +164,10 @@
                 const sessionId = s.id;
 
                 const sessionPairs = rawPairs
-                    .filter(p => String(p.session_id ?? p.sessionId) === String(sessionId))
+                    .filter(p =>
+                        String(p.session_id ?? p.sessionId) === String(sessionId)
+                        && !p.cycle_id
+                    )
                     .map(p => ({
                         id: p.id,
                         p1: p.p1,

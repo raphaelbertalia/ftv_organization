@@ -19,9 +19,9 @@ export default async function handler(req, res) {
         `);
 
         const pairsResult = await pool.query(`
-            SELECT id, session_id, p1, p2, position
+            SELECT id, session_id, cycle_id, p1, p2, position
             FROM pairs
-            ORDER BY session_id ASC, position ASC, id ASC
+            ORDER BY session_id ASC, cycle_id ASC, position ASC, id ASC
         `);
 
         const matchesResult = await pool.query(`
@@ -30,9 +30,16 @@ export default async function handler(req, res) {
             ORDER BY created_at ASC
         `);
 
+        const cyclesResult = await pool.query(`
+            SELECT *
+            FROM monthly_cycles
+            ORDER BY created_at DESC
+        `);
+
         return res.status(200).json({
             players: playersResult.rows || [],
             sessions: sessionsResult.rows || [],
+            cycles: cyclesResult.rows || [],
             pairs: pairsResult.rows || [],
             matches: matchesResult.rows || []
         });

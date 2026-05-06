@@ -7,7 +7,9 @@ function defaultState() {
     updatedAt: new Date().toISOString(),
     players: [],
     sessions: [],
+    cycles: [],
     currentSessionId: null,
+    currentCycleId: null,
     matches: [],
 
     auth: {
@@ -28,6 +30,8 @@ if (!state.auth) {
 if (!Array.isArray(state.players)) state.players = [];
 if (!Array.isArray(state.sessions)) state.sessions = [];
 if (!Array.isArray(state.matches)) state.matches = [];
+if (!Array.isArray(state.cycles)) state.cycles = [];
+if (typeof state.currentCycleId === "undefined") state.currentCycleId = null;
 if (typeof state.currentSessionId === "undefined") state.currentSessionId = null;
 if (!state.version) state.version = 2;
 if (!state.createdAt) state.createdAt = new Date().toISOString();
