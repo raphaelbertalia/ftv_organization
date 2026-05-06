@@ -298,12 +298,14 @@
         const rankingTab = document.querySelector('.tab[data-tab="ranking"]');
         const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
         const dadosTab = document.querySelector('.tab[data-tab="dados"]');
+        const cicloTab = document.querySelector('.tab[data-tab="ciclo"]');
 
         if (jogosTab) jogosTab.style.display = logged && !guest ? "inline-block" : "none";
         if (sessoesTab) sessoesTab.style.display = logged && !guest ? "inline-block" : "none";
         if (rankingTab) rankingTab.style.display = "inline-block";
         if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
         if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
+        if (cicloTab) cicloTab.style.display = isAdmin() ? "inline-block" : "none";
 
         if ($("btnStartSession")) $("btnStartSession").style.display = canOperate() ? "inline-block" : "none";
         if ($("btnAddMatch")) $("btnAddMatch").disabled = !canOperate();
@@ -353,7 +355,7 @@
             name = "ranking";
         }
 
-        if ((name === "jogadores" || name === "dados") && !isAdmin()) {
+        if ((name === "jogadores" || name === "dados" || name === "ciclo") && !isAdmin()) {
             name = user && !guest ? "jogos" : "ranking";
         }
 
@@ -374,6 +376,7 @@
         if (name === "sessoes") renderSessionsTab();
         if (name === "jogadores") renderPlayers();
         if (name === "dados") renderDataInfo();
+        if (name === "ciclo") renderCycleTab();
     }
 
     document.querySelectorAll(".tab").forEach((t) => {
