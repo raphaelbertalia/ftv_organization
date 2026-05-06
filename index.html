@@ -34,6 +34,7 @@
   <nav class="tabs">
     <button class="tab" data-tab="jogos">Jogos</button>
     <button class="tab" data-tab="sessoes">Sessões</button>
+    <button class="tab" data-tab="ciclo">Ciclo Mensal</button>
     <button class="tab" data-tab="ranking">Ranking</button>
     <button class="tab" data-tab="jogadores">Jogadores</button>
     <button class="tab" data-tab="dados">Dados</button>
@@ -175,6 +176,55 @@
 
         <div class="card">
           <div id="sessionDetails"></div>
+        </div>
+      </section>
+      <!-- TAB: Cycle -->
+      <section id="tab-ciclo" style="display:none;">
+        <div class="card">
+          <b>Ciclo Mensal</b>
+          <div class="muted" style="margin-top:6px;">
+            Sorteie as duplas do mês e gerencie o ciclo atual.
+          </div>
+        </div>
+
+        <div id="cycleAdminCard" class="card">
+          <div class="row" style="align-items:end; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div class="muted">Nome do ciclo</div>
+              <input id="cycleName" placeholder="Ex: Ciclo Maio" />
+            </div>
+
+            <div>
+              <div class="muted">Início</div>
+              <input id="cycleStartDate" type="date" />
+            </div>
+
+            <div>
+              <div class="muted">Fim</div>
+              <input id="cycleEndDate" type="date" />
+            </div>
+
+            <button id="btnCreateCycle" type="button">Criar ciclo</button>
+            <button id="btnDeleteCycle" class="secondary" type="button">Excluir ciclo atual</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <b>Ciclo ativo</b>
+          <div id="cycleInfo" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="card">
+          <b>Duplas do ciclo</b>
+          <div class="muted" style="margin-top:6px;">
+            Use os jogadores ativos e sorteie as duplas do mês.
+          </div>
+
+          <button id="btnDrawCyclePairs" class="secondary" type="button" style="margin-top:10px;">
+            Sortear duplas do ciclo
+          </button>
+
+          <div id="cyclePairsEditor" style="margin-top:10px;"></div>
         </div>
       </section>
 
