@@ -802,6 +802,51 @@
                 ${sessionsHtml}
             </div>
         `;
+        renderCyclePairsManualEditor();
+    }
+
+    function renderCyclePairsManualEditor() {
+        const wrap = $("cyclePairsManualEditor");
+        if (!wrap) return;
+
+        const players = (state.players || [])
+            .filter(p => p.active)
+            .slice()
+            .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+        const makeSelect = (id) => {
+            const sel = document.createElement("select");
+            sel.id = id;
+
+            sel.innerHTML = `<option value="">— selecione —</option>`;
+
+            players.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.id;
+                opt.textContent = p.name;
+                sel.appendChild(opt);
+            });
+
+            return sel;
+        };
+
+        wrap.innerHTML = "";
+
+        for (let i = 1; i <= 4; i++) {
+            const card = document.createElement("div");
+            card.className = "player-item";
+            card.style.marginTop = "8px";
+
+            card.innerHTML = `<b>Dupla ${i}</b>`;
+
+            const s1 = makeSelect(`cycle_p${i}_1`);
+            const s2 = makeSelect(`cycle_p${i}_2`);
+
+            card.appendChild(s1);
+            card.appendChild(s2);
+
+            wrap.appendChild(card);
+        }
     }
 
     async function addPlayer(name) {
