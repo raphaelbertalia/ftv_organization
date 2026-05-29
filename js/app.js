@@ -1968,6 +1968,36 @@
 
             <hr style="margin:16px 0; opacity:.2;">
 
+            <div><b>Jogos da sessão</b></div>
+
+            <div style="margin-top:10px;">
+                ${matches.length
+                            ? matches.map((m, index) => `
+                        <div class="player-item" style="margin-bottom:8px;">
+                            <div>
+                                <b>Jogo ${index + 1}</b>
+                                <div class="muted">
+                                    ${getPairDisplayName(viewed, m.pairAId)}
+                                </div>
+                            </div>
+
+                            <div style="font-weight:700;">
+                                ${m.scoreA} x ${m.scoreB}
+                            </div>
+
+                            <div>
+                                <div class="muted">
+                                    ${getPairDisplayName(viewed, m.pairBId)}
+                                </div>
+                            </div>
+                        </div>
+                    `).join("")
+                            : "<div class='muted'>Nenhum jogo registrado.</div>"
+                        }
+            </div>
+
+            <hr style="margin:16px 0; opacity:.2;">
+
             ${table.length ? `
                 <div><b>Resumo da sessão</b></div>
 
