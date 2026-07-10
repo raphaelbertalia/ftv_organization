@@ -12,6 +12,7 @@
 
     let openedDraw = null;
     let editingPlayer = null;
+    let playersSort = "created";
 
     async function loadChampionshipPlayers(drawId) {
         const user = getCurrentUser();
@@ -129,8 +130,89 @@
         `;
     }
 
+    function sortPlayers(players) {
+        const list = [...players];
+
+        if (playersSort === "name") {
+            return list.sort((a, b) =>
+                (a.name || "").localeCompare(
+                    b.name || "",
+                    "pt-BR"
+                )
+            );
+        }
+
+        if (playersSort === "side") {
+            const sideOrder = {
+                left: 1,
+                right: 2,
+                any: 3
+            };
+
+            return list.sort((a, b) => {
+                const sideDiff =
+                    (sideOrder[a.preferred_side] || 99) -
+                    (sideOrder[b.preferred_side] || 99);
+
+                if (sideDiff !== 0) {
+                    return sideDiff;
+                }
+
+                return (a.name || "").localeCompare(
+                    b.name || "",
+                    "pt-BR"
+                );
+            });
+        }
+
+        if (playersSort === "category") {
+            const categoryOrder = {
+                beginner: 1,
+                novice: 2,
+                advanced_b: 3,
+                advanced_a: 4
+            };
+
+            return list.sort((a, b) => {
+                const categoryDiff =
+                    (categoryOrder[a.category] || 99) -
+                    (categoryOrder[b.category] || 99);
+
+                if (categoryDiff !== 0) {
+                    return categoryDiff;
+                }
+
+                return (a.name || "").localeCompare(
+                    b.name || "",
+                    "pt-BR"
+                );
+            });
+        }
+
+        if (playersSort === "points") {
+            return list.sort((a, b) => {
+                const pointsDiff =
+                    Number(b.points || 0) -
+                    Number(a.points || 0);
+
+                if (pointsDiff !== 0) {
+                    return pointsDiff;
+                }
+
+                return (a.name || "").localeCompare(
+                    b.name || "",
+                    "pt-BR"
+                );
+            });
+        }
+
+        return list;
+    }
+
     function renderPlayersList(players, draw) {
-        const list = Array.isArray(players) ? players : [];
+        const list = Array.isArray(players)
+            ? sortPlayers(players)
+            : [];
 
         if (!list.length) {
             return `
@@ -165,21 +247,20 @@
                         >
                             Lado:
                             ${getSideLabel(
-                                player.preferred_side
-                            )}
+                player.preferred_side
+            )}
                         </div>
 
-                        ${
-                            draw.draw_type === "custom"
-                                ? `
+                        ${draw.draw_type === "custom"
+                    ? `
                                     <div
                                         class="muted"
                                         style="margin-top:4px;"
                                     >
                                         Categoria:
                                         ${getCategoryLabel(
-                                            player.category
-                                        )}
+                        player.category
+                    )}
                                     </div>
 
                                     <div
@@ -192,8 +273,8 @@
                                         ${player.points ?? "—"} ponto(s)
                                     </div>
                                 `
-                                : ""
-                        }
+                    : ""
+                }
                     </div>
 
                     <div class="row" style="gap:8px;">
@@ -267,8 +348,8 @@
                         >
                             Tipo:
                             ${getDrawTypeLabel(
-                                draw.draw_type
-                            )}
+            draw.draw_type
+        )}
                         </div>
 
                         <div
@@ -350,7 +431,57 @@
             </div>
 
             <div class="card" style="margin:0;">
-                <b>Jogadores</b>
+
+                <div
+                    class="row"
+                    style="
+                        justify-content:space-between;
+                        align-items:end;
+                        gap:12px;
+                        flex-wrap:wrap;
+                    "
+                >
+
+                    <b>Jogadores</b>
+
+                    <div>
+
+                        <div class="muted">
+                            Ordenar por
+                        </div>
+
+                        <select id="championshipPlayersSort">
+
+                            <option value="created">
+                                Ordem de cadastro
+                            </option>
+
+                            <option value="name">
+                                Nome A-Z
+                            </option>
+
+                            <option value="side">
+                                Lado
+                            </option>
+
+                            ${draw.draw_type === "custom"
+                ? `
+                                    <option value="category">
+                                        Categoria
+                                    </option>
+
+                                    <option value="points">
+                                        Pontuação
+                                    </option>
+                                `
+                : ""
+            }
+
+                        </select>
+
+                    </div>
+
+                </div>
 
                 <div
                     id="championshipPlayersList"
@@ -358,8 +489,13 @@
                 >
                     ${renderPlayersList(players, draw)}
                 </div>
+
             </div>
         `;
+
+        if ($("championshipPlayersSort")) {
+            $("championshipPlayersSort").value = playersSort;
+        }
 
         $("championshipPlayerName")?.focus();
     }
@@ -469,9 +605,9 @@
                 <div class="card" style="margin:0;">
                     <div class="muted">
                         ${escapeHtml(
-                            err.message ||
-                            "Não foi possível abrir o campeonato."
-                        )}
+                err.message ||
+                "Não foi possível abrir o campeonato."
+            )}
                     </div>
 
                     <button
@@ -654,6 +790,22 @@
 
         return false;
     }
+
+    document.addEventListener("change", async (event) => {
+
+        const sort = event.target.closest(
+            "#championshipPlayersSort"
+        );
+
+        if (!sort || !openedDraw?.id) {
+            return;
+        }
+
+        playersSort = sort.value;
+
+        await openChampionship(openedDraw.id);
+
+    });
 
     window.ChampionshipPlayers = {
         openChampionship,
