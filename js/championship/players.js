@@ -559,9 +559,15 @@
                     style="margin-top:12px;"
                 >
                     ${renderPlayersList(players, draw)}
-                </div>
+                </div
 
             </div>
+
+            
+                ${window.ChampionshipSort.renderDrawSection(
+                draw,
+                players
+            )}
         `;
 
         if ($("championshipPlayersSort")) {
@@ -698,6 +704,15 @@
         event,
         renderChampionshipDrawsTab
     ) {
+
+        const sortClickHandled =
+            await window.ChampionshipSort
+                .handleSortClick(event);
+
+        if (sortClickHandled) {
+            return true;
+        }
+        
         const editPlayerButton = event.target.closest(
             ".btnEditChampionshipPlayer"
         );
