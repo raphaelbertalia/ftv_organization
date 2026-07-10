@@ -303,6 +303,46 @@
         }).join("");
     }
 
+    function getPlayersSummary(players, drawType) {
+        const list = Array.isArray(players) ? players : [];
+
+        const summary = {
+            total: list.length,
+            left: 0,
+            right: 0,
+            any: 0,
+            carries: 0,
+            doesNotCarry: 0
+        };
+
+        list.forEach((player) => {
+            const side = player.preferred_side || "any";
+
+            if (side === "left") {
+                summary.left += 1;
+            } else if (side === "right") {
+                summary.right += 1;
+            } else {
+                summary.any += 1;
+            }
+
+            if (drawType === "custom") {
+                const role =
+                    PLAYER_CATEGORIES[player.category]?.role;
+
+                if (role === "Carrega") {
+                    summary.carries += 1;
+                }
+
+                if (role === "Não carrega") {
+                    summary.doesNotCarry += 1;
+                }
+            }
+        });
+
+        return summary;
+    }
+
     function renderChampionshipDetails(draw, players) {
         const wrap = $("championshipDrawsContent");
 
@@ -310,6 +350,11 @@
 
         openedDraw = draw;
         editingPlayer = null;
+
+        const summary = getPlayersSummary(
+            players,
+            draw.draw_type
+        );
 
         wrap.innerHTML = `
             <div style="margin-bottom:12px;">
@@ -360,6 +405,22 @@
                             ${players.length}
                         </div>
                     </div>
+
+                    <div class="muted" style="margin-top:8px;">
+                        Esquerda: ${summary.left}
+                        • Direita: ${summary.right}
+                        • Qualquer: ${summary.any}
+                    </div>
+
+                    ${draw.draw_type === "custom"
+                        ? `
+                            <div class="muted" style="margin-top:4px;">
+                                Carrega: ${summary.carries}
+                                • Não carrega: ${summary.doesNotCarry}
+                            </div>
+                        `
+                        : ""
+                    }
 
                     <span class="pill">
                         ${escapeHtml(draw.status)}
