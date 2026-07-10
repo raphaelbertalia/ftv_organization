@@ -350,6 +350,11 @@
 
         openedDraw = draw;
         editingPlayer = null;
+        const analysis =
+            window.ChampionshipAnalysis.analyzeChampionship(
+                players,
+                draw.draw_type
+            );
 
         const summary = getPlayersSummary(
             players,
@@ -413,20 +418,25 @@
                     </div>
 
                     ${draw.draw_type === "custom"
-                        ? `
+                ? `
                             <div class="muted" style="margin-top:4px;">
                                 Carrega: ${summary.carries}
                                 • Não carrega: ${summary.doesNotCarry}
                             </div>
                         `
-                        : ""
-                    }
+                : ""
+            }
 
                     <span class="pill">
                         ${escapeHtml(draw.status)}
                     </span>
                 </div>
             </div>
+
+            ${window.ChampionshipAnalysis.renderChampionshipAnalysis(
+                analysis,
+                draw.draw_type
+            )}
 
             <div class="card" style="margin:0 0 12px 0;">
                 <b id="championshipPlayerFormTitle">
