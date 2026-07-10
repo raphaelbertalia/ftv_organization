@@ -559,7 +559,7 @@
                     style="margin-top:12px;"
                 >
                     ${renderPlayersList(players, draw)}
-                </div
+                </div>
 
                 </div>
 
