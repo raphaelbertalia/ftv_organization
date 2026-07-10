@@ -561,14 +561,34 @@
                     ${renderPlayersList(players, draw)}
                 </div
 
-            </div>
+                </div>
 
-            
+                <div
+                    style="
+                        display:flex;
+                        justify-content:center;
+                        margin:18px 0;
+                    "
+                >
+                    <button
+                        id="btnChampionshipSort"
+                        type="button"
+                        ${analysis.canDraw ? "" : "disabled"}
+                        style="
+                            min-width:240px;
+                            font-size:16px;
+                            padding:14px 24px;
+                        "
+                    >
+                        🎲 Sortear duplas
+                    </button>
+                </div>
+
                 ${window.ChampionshipSort.renderDrawSection(
                 draw,
                 players
             )}
-        `;
+`;
 
         if ($("championshipPlayersSort")) {
             $("championshipPlayersSort").value = playersSort;
@@ -712,7 +732,7 @@
         if (sortClickHandled) {
             return true;
         }
-        
+
         const editPlayerButton = event.target.closest(
             ".btnEditChampionshipPlayer"
         );

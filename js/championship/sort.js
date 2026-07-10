@@ -240,8 +240,8 @@
 
                             <div class="muted">
                                 ${getSideLabel(
-                                    pair.left.preferred_side
-                                )}
+            pair.left.preferred_side
+        )}
                                 → Esquerda
                             </div>
                         </div>
@@ -261,14 +261,14 @@
 
                             <div class="muted">
                                 ${getSideLabel(
-                                    pair.right.preferred_side
-                                )}
+            pair.right.preferred_side
+        )}
                                 → Direita
                             </div>
                         </div>
 
                         ${drawType === "custom"
-                            ? `
+                ? `
                                 <div
                                     class="pill"
                                     style="
@@ -279,8 +279,8 @@
                                     ${pair.totalPoints} pontos
                                 </div>
                             `
-                            : ""
-                        }
+                : ""
+            }
                     </div>
                 `).join("")}
             </div>
@@ -301,67 +301,47 @@
                 );
 
         return `
-            <div
-                class="card"
-                style="margin:12px 0 0 0;"
-            >
-                <div
-                    class="row"
-                    style="
-                        justify-content:space-between;
-                        align-items:center;
-                        gap:12px;
-                        flex-wrap:wrap;
-                    "
-                >
-                    <div>
-                        <b>Sorteio das duplas</b>
-
-                        <div
-                            class="muted"
-                            style="margin-top:5px;"
-                        >
-                            ${
-                                draw.draw_type === "custom"
-                                    ? "O sistema respeita os lados e busca equilibrar a pontuação."
-                                    : "O sistema forma duplas respeitando esquerda e direita."
-                            }
-                        </div>
-                    </div>
-
-                    <button
-                        id="btnChampionshipSort"
-                        type="button"
-                        ${analysis.canDraw ? "" : "disabled"}
-                    >
-                        🎲 Sortear duplas
-                    </button>
-                </div>
-
-                ${
-                    !analysis.canDraw
-                        ? `
-                            <div
-                                class="muted"
-                                style="margin-top:12px;"
-                            >
-                                Corrija os bloqueios do diagnóstico
-                                para liberar o sorteio.
-                            </div>
-                        `
-                        : ""
-                }
+        <div
+            class="card"
+            style="margin:12px 0 0 0;"
+        >
+            <div>
+                <b>Sorteio das duplas</b>
 
                 <div
-                    id="championshipSortResult"
-                    style="margin-top:16px;"
+                    class="muted"
+                    style="margin-top:5px;"
                 >
-                    <div class="muted">
-                        Nenhum sorteio realizado.
-                    </div>
+                    ${draw.draw_type === "custom"
+                ? "O sistema respeita os lados e busca equilibrar a pontuação."
+                : "O sistema forma duplas respeitando esquerda e direita."
+            }
                 </div>
             </div>
-        `;
+
+            ${!analysis.canDraw
+                ? `
+                        <div
+                            class="muted"
+                            style="margin-top:12px;"
+                        >
+                            Corrija os bloqueios do diagnóstico
+                            para liberar o sorteio.
+                        </div>
+                    `
+                : ""
+            }
+
+            <div
+                id="championshipSortResult"
+                style="margin-top:16px;"
+            >
+                <div class="muted">
+                    Nenhum sorteio realizado.
+                </div>
+            </div>
+        </div>
+    `;
     }
 
     function performDraw() {
