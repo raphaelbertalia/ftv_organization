@@ -24,6 +24,10 @@
         return getCurrentUser()?.role === "admin";
     }
 
+    function isOrganizer() {
+        return getCurrentUser()?.role === "organizer";
+    }
+
     function canOperate() {
         const role = getCurrentUser()?.role;
         return role === "admin" || role === "user";
@@ -299,10 +303,35 @@
         const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
         const dadosTab = document.querySelector('.tab[data-tab="dados"]');
         const cicloTab = document.querySelector('.tab[data-tab="ciclo"]');
+        const sorteiosTab = document.querySelector('.tab[data-tab="sorteios"]');
 
-        if (jogosTab) jogosTab.style.display = logged && !guest ? "inline-block" : "none";
-        if (sessoesTab) sessoesTab.style.display = logged && !guest ? "inline-block" : "none";
-        if (rankingTab) rankingTab.style.display = "inline-block";
+        if (jogosTab) {
+            jogosTab.style.display =
+                logged && !guest && !isOrganizer()
+                    ? "inline-block"
+                    : "none";
+        }
+
+        if (sessoesTab) {
+            sessoesTab.style.display =
+                logged && !guest && !isOrganizer()
+                    ? "inline-block"
+                    : "none";
+        }
+
+        if (rankingTab) {
+            rankingTab.style.display =
+                isOrganizer()
+                    ? "none"
+                    : "inline-block";
+        }
+
+        if (sorteiosTab) {
+            sorteiosTab.style.display =
+                isOrganizer() || isAdmin()
+                    ? "inline-block"
+                    : "none";
+        }
         if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
         if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
         if (cicloTab) cicloTab.style.display = isAdmin() ? "inline-block" : "none";
@@ -342,6 +371,7 @@
     function showTab(name) {
         const user = getCurrentUser();
         const guest = user?.role === "guest";
+        const organizer = isOrganizer();
 
         if (!user) {
             name = "ranking";
@@ -349,6 +379,10 @@
 
         if (guest && name !== "ranking") {
             name = "ranking";
+        }
+
+        if (organizer && name !== "sorteios") {
+            name = "sorteios";
         }
 
         if (name === "sessoes" && (!user || guest)) {
@@ -377,6 +411,7 @@
         if (name === "jogadores") renderPlayers();
         if (name === "dados") renderDataInfo();
         if (name === "ciclo") renderCycleTab();
+        if (name === "sorteios") { renderChampionshipDrawsTab(); }
     }
 
     document.querySelectorAll(".tab").forEach((t) => {
@@ -849,6 +884,18 @@
         }
     }
 
+    function renderChampionshipDrawsTab() {
+        const wrap = $("championshipDrawsContent");
+
+        if (!wrap) return;
+
+        wrap.innerHTML = `
+        <div class="muted">
+            Módulo de sorteios em construção.
+        </div>
+    `;
+    }
+
     async function addPlayer(name) {
         const clean = (name || "").trim();
         if (!clean) return alert("Nome vazio 😅");
@@ -894,7 +941,7 @@
             try {
                 await doLogin(username, password);
                 $("loginPassword").value = "";
-                showTab("jogos");
+                showTab(isOrganizer() ? "sorteios" : "jogos");
                 alert("Login feito ✅");
             } catch (err) {
                 alert(err.message || "Falha no login");
@@ -1972,7 +2019,7 @@
 
             <div style="margin-top:10px;">
                 ${matches.length
-                            ? matches.map((m, index) => `
+                ? matches.map((m, index) => `
                         <div class="player-item" style="margin-bottom:8px;">
                             <div>
                                 <b>Jogo ${index + 1}</b>
@@ -1992,8 +2039,8 @@
                             </div>
                         </div>
                     `).join("")
-                            : "<div class='muted'>Nenhum jogo registrado.</div>"
-                        }
+                : "<div class='muted'>Nenhum jogo registrado.</div>"
+            }
             </div>
 
             <hr style="margin:16px 0; opacity:.2;">
