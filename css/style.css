@@ -444,3 +444,15 @@ pre {
   letter-spacing: 2px;
   color: #ffffff;
 }
+
+.championship-sort-disabled {
+  opacity: .45;
+  filter: grayscale(.6);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.championship-sort-disabled:hover {
+  filter: grayscale(.6);
+  box-shadow: none;
+}

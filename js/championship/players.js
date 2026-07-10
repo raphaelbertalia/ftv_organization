@@ -573,7 +573,9 @@
                     <button
                         id="btnChampionshipSort"
                         type="button"
-                        ${analysis.canDraw ? "" : "disabled"}
+                        data-can-draw="${analysis.canDraw}"
+                        aria-disabled="${!analysis.canDraw}"
+                        class="${analysis.canDraw ? "" : "championship-sort-disabled"}"
                         style="
                             min-width:240px;
                             font-size:16px;

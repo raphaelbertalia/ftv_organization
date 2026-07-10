@@ -400,6 +400,18 @@
             return false;
         }
 
+        const canDraw =
+            button.dataset.canDraw === "true";
+
+        if (!canDraw) {
+            alert(
+                "O sorteio ainda não pode ser realizado.\n\n" +
+                "Corrija a quantidade de jogadores e os bloqueios indicados no diagnóstico."
+            );
+
+            return true;
+        }
+
         button.disabled = true;
         button.textContent = "Sorteando...";
 
