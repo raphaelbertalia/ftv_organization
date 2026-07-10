@@ -786,6 +786,16 @@
     }
 
     document.addEventListener("click", async (event) => {
+        const playerClickHandled =
+            await window.ChampionshipPlayers.handlePlayerClick(
+                event,
+                renderChampionshipDrawsTab
+            );
+
+        if (playerClickHandled) {
+            return;
+        }
+
         const newButton = event.target.closest(
             "#btnNewChampionship"
         );
@@ -895,7 +905,7 @@
         );
 
         if (openButton) {
-            await openChampionship(
+            await window.ChampionshipPlayers.openChampionship(
                 openButton.dataset.id
             );
 
