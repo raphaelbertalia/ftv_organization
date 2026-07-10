@@ -259,6 +259,7 @@
         const user = getCurrentUser();
         const logged = !!user;
         const guest = user?.role === "guest";
+        const organizer = isOrganizer();
 
         if ($("authStatus")) {
             $("authStatus").innerHTML = user
@@ -298,44 +299,108 @@
 
         if (jogosTab) {
             jogosTab.style.display =
-                logged && !guest && !isOrganizer()
+                logged && !guest && !organizer
                     ? "inline-block"
                     : "none";
         }
 
         if (sessoesTab) {
             sessoesTab.style.display =
-                logged && !guest && !isOrganizer()
+                logged && !guest && !organizer
                     ? "inline-block"
                     : "none";
         }
 
         if (rankingTab) {
             rankingTab.style.display =
-                isOrganizer()
+                organizer
                     ? "none"
                     : "inline-block";
         }
 
         if (sorteiosTab) {
             sorteiosTab.style.display =
-                isOrganizer() || isAdmin()
+                organizer || isAdmin()
                     ? "inline-block"
                     : "none";
         }
-        if (jogadoresTab) jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
-        if (dadosTab) dadosTab.style.display = isAdmin() ? "inline-block" : "none";
-        if (cicloTab) cicloTab.style.display = isAdmin() ? "inline-block" : "none";
 
-        if ($("btnStartSession")) $("btnStartSession").style.display = canOperate() ? "inline-block" : "none";
-        if ($("btnAddMatch")) $("btnAddMatch").disabled = !canOperate();
-        if ($("btnUndo")) $("btnUndo").style.display = isAdmin() ? "inline-block" : "none";
-        if ($("btnAddPlayer")) $("btnAddPlayer").style.display = isAdmin() ? "inline-block" : "none";
-        if ($("btnActivateAll")) $("btnActivateAll").style.display = isAdmin() ? "inline-block" : "none";
-        if ($("btnDeactivateAll")) $("btnDeactivateAll").style.display = isAdmin() ? "inline-block" : "none";
-        if ($("btnReset")) $("btnReset").style.display = isAdmin() ? "inline-block" : "none";
-        if ($("btnResetKeepPlayers")) $("btnResetKeepPlayers").style.display = isAdmin() ? "inline-block" : "none";
-        if ($("btnCheckDb")) $("btnCheckDb").style.display = isAdmin() ? "inline-block" : "none";
+        if (jogadoresTab) {
+            jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
+        }
+
+        if (dadosTab) {
+            dadosTab.style.display = isAdmin() ? "inline-block" : "none";
+        }
+
+        if (cicloTab) {
+            cicloTab.style.display = isAdmin() ? "inline-block" : "none";
+        }
+
+        // Esconde os indicadores do topo para o organizer
+        if ($("todayLabel")?.parentElement) {
+            $("todayLabel").parentElement.style.display =
+                organizer ? "none" : "inline-flex";
+        }
+
+        if ($("todayGames")?.parentElement) {
+            $("todayGames").parentElement.style.display =
+                organizer ? "none" : "inline-flex";
+        }
+
+        if ($("activeCount")?.parentElement) {
+            $("activeCount").parentElement.style.display =
+                organizer ? "none" : "inline-flex";
+        }
+
+        if ($("statusLine")) {
+            $("statusLine").style.display =
+                organizer ? "none" : "block";
+        }
+
+        if ($("btnStartSession")) {
+            $("btnStartSession").style.display =
+                canOperate() ? "inline-block" : "none";
+        }
+
+        if ($("btnAddMatch")) {
+            $("btnAddMatch").disabled = !canOperate();
+        }
+
+        if ($("btnUndo")) {
+            $("btnUndo").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
+
+        if ($("btnAddPlayer")) {
+            $("btnAddPlayer").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
+
+        if ($("btnActivateAll")) {
+            $("btnActivateAll").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
+
+        if ($("btnDeactivateAll")) {
+            $("btnDeactivateAll").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
+
+        if ($("btnReset")) {
+            $("btnReset").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
+
+        if ($("btnResetKeepPlayers")) {
+            $("btnResetKeepPlayers").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
+
+        if ($("btnCheckDb")) {
+            $("btnCheckDb").style.display =
+                isAdmin() ? "inline-block" : "none";
+        }
 
         updateHomeLayout();
         renderMatchHistory();
@@ -402,7 +467,9 @@
         if (name === "jogadores") renderPlayers();
         if (name === "dados") renderDataInfo();
         if (name === "ciclo") renderCycleTab();
-        if (name === "sorteios") { renderChampionshipDrawsTab(); }
+        if (name === "sorteios") {
+            window.renderChampionshipDrawsTab();
+        }
     }
 
     document.querySelectorAll(".tab").forEach((t) => {
