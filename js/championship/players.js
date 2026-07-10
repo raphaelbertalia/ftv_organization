@@ -74,6 +74,30 @@
         });
     }
 
+    async function createChampionshipPlayersBulk({
+        drawId,
+        players
+    }) {
+        const user = getCurrentUser();
+
+        if (!user?.id) {
+            throw new Error("Usuário não identificado.");
+        }
+
+        return apiJson(
+            "/api/championship-draws?action=players",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "players",
+                    draw_id: drawId,
+                    created_by: user.id,
+                    players
+                })
+            }
+        );
+    }
+
     async function updateChampionshipPlayer({
         playerId,
         drawId,
@@ -117,6 +141,184 @@
                 created_by: user.id
             })
         });
+    }
+
+    function renderBulkCategorySelect(drawType) {
+        if (drawType !== "custom") {
+            return "";
+        }
+
+        return `
+        <div class="bulk-player-field">
+            <div class="muted">Categoria</div>
+
+            <select class="bulkPlayerCategory">
+                <option value="">Selecione</option>
+                <option value="beginner">
+                    Estreante
+                </option>
+                <option value="novice">
+                    Iniciante
+                </option>
+                <option value="advanced_b">
+                    Avançado B
+                </option>
+                <option value="advanced_a">
+                    Avançado A
+                </option>
+            </select>
+        </div>
+    `;
+    }
+
+    function createBulkPlayerRow(drawType) {
+        return `
+        <div class="bulk-player-row">
+            <div class="bulk-player-field bulk-player-name">
+                <div class="muted">Nome</div>
+
+                <input
+                    class="bulkPlayerName"
+                    type="text"
+                    placeholder="Nome do jogador"
+                />
+            </div>
+
+            <div class="bulk-player-field">
+                <div class="muted">Lado</div>
+
+                <select class="bulkPlayerSide">
+                    <option value="any">
+                        Qualquer
+                    </option>
+                    <option value="left">
+                        Esquerda
+                    </option>
+                    <option value="right">
+                        Direita
+                    </option>
+                </select>
+            </div>
+
+            ${renderBulkCategorySelect(drawType)}
+
+            <button
+                class="secondary btnRemoveBulkPlayerRow"
+                type="button"
+                aria-label="Remover linha"
+            >
+                🗑️ Remover
+            </button>
+        </div>
+    `;
+    }
+
+    function updateBulkRemoveButtons() {
+        const rows = document.querySelectorAll(
+            ".bulk-player-row"
+        );
+
+        rows.forEach((row) => {
+            const button = row.querySelector(
+                ".btnRemoveBulkPlayerRow"
+            );
+
+            if (button) {
+                button.disabled = rows.length <= 1;
+            }
+        });
+    }
+
+    function addBulkPlayerRow() {
+        const container = $("bulkPlayersRows");
+
+        if (!container || !openedDraw) {
+            return;
+        }
+
+        container.insertAdjacentHTML(
+            "beforeend",
+            createBulkPlayerRow(openedDraw.draw_type)
+        );
+
+        updateBulkRemoveButtons();
+
+        const rows = container.querySelectorAll(
+            ".bulk-player-row"
+        );
+
+        const lastRow = rows[rows.length - 1];
+
+        lastRow
+            ?.querySelector(".bulkPlayerName")
+            ?.focus();
+    }
+
+    function collectBulkPlayers() {
+        const rows = Array.from(
+            document.querySelectorAll(
+                ".bulk-player-row"
+            )
+        );
+
+        const players = [];
+
+        rows.forEach((row, index) => {
+            row.classList.remove("bulk-player-row-error");
+
+            const name = (
+                row.querySelector(".bulkPlayerName")
+                    ?.value || ""
+            ).trim();
+
+            const preferredSide =
+                row.querySelector(".bulkPlayerSide")
+                    ?.value || "any";
+
+            const category =
+                row.querySelector(".bulkPlayerCategory")
+                    ?.value || null;
+
+            /*
+             * Ignora linhas completamente vazias.
+             */
+            if (!name && !category) {
+                return;
+            }
+
+            if (!name) {
+                row.classList.add("bulk-player-row-error");
+
+                throw new Error(
+                    `Informe o nome do jogador na linha ${index + 1}.`
+                );
+            }
+
+            if (
+                openedDraw?.draw_type === "custom" &&
+                !category
+            ) {
+                row.classList.add("bulk-player-row-error");
+
+                throw new Error(
+                    `Selecione a categoria na linha ${index + 1}.`
+                );
+            }
+
+            players.push({
+                name,
+                preferred_side: preferredSide,
+                category
+            });
+        });
+
+        if (!players.length) {
+            throw new Error(
+                "Preencha pelo menos um jogador."
+            );
+        }
+
+        return players;
     }
 
     function renderCategorySelect(drawType) {
@@ -460,6 +662,46 @@
             )}
 
             <div class="card" style="margin:0 0 12px 0;">
+            <div>
+                <b>Adicionar vários jogadores</b>
+
+                <div
+                    class="muted"
+                    style="margin-top:5px;"
+                >
+                    Adicione as linhas e salve todos de uma vez.
+                </div>
+            </div>
+
+            <div
+                id="bulkPlayersRows"
+                style="margin-top:14px;"
+            >
+                ${createBulkPlayerRow(draw.draw_type)}
+            </div>
+
+            <div
+                class="bulk-player-actions"
+                style="margin-top:14px;"
+            >
+                <button
+                    id="btnAddBulkPlayerRow"
+                    class="secondary"
+                    type="button"
+                >
+                    ➕ Adicionar linha
+                </button>
+
+                <button
+                    id="btnSaveBulkPlayers"
+                    type="button"
+                >
+                    💾 Salvar jogadores
+                </button>
+            </div>
+        </div>
+
+            <div class="card" style="margin:0 0 12px 0;">
                 <b id="championshipPlayerFormTitle">
                     Adicionar jogador
                 </b>
@@ -603,7 +845,10 @@
                             padding:14px 24px;
                         "
                     >
-                        🎲 Sortear duplas
+                        ${savedPairs.length
+                ? "🔄 Refazer sorteio"
+                : "🎲 Sortear duplas"
+            }
                     </button>
                 </div>
 
@@ -617,6 +862,8 @@
         if ($("championshipPlayersSort")) {
             $("championshipPlayersSort").value = playersSort;
         }
+
+        updateBulkRemoveButtons();
 
         $("championshipPlayerName")?.focus();
     }
@@ -755,6 +1002,89 @@
                 .handleSortClick(event);
 
         if (sortClickHandled) {
+            return true;
+        }
+
+        const addBulkRowButton = event.target.closest(
+            "#btnAddBulkPlayerRow"
+        );
+
+        if (addBulkRowButton) {
+            addBulkPlayerRow();
+            return true;
+        }
+
+        const removeBulkRowButton = event.target.closest(
+            ".btnRemoveBulkPlayerRow"
+        );
+
+        if (removeBulkRowButton) {
+            const rows = document.querySelectorAll(
+                ".bulk-player-row"
+            );
+
+            if (rows.length <= 1) {
+                return true;
+            }
+
+            removeBulkRowButton
+                .closest(".bulk-player-row")
+                ?.remove();
+
+            updateBulkRemoveButtons();
+
+            return true;
+        }
+
+        const saveBulkPlayersButton = event.target.closest(
+            "#btnSaveBulkPlayers"
+        );
+
+        if (saveBulkPlayersButton) {
+            if (!openedDraw?.id) {
+                alert("Campeonato não identificado.");
+                return true;
+            }
+
+            let players;
+
+            try {
+                players = collectBulkPlayers();
+            } catch (err) {
+                alert(err.message);
+                return true;
+            }
+
+            saveBulkPlayersButton.disabled = true;
+            saveBulkPlayersButton.textContent =
+                "Salvando jogadores...";
+
+            try {
+                const response =
+                    await createChampionshipPlayersBulk({
+                        drawId: openedDraw.id,
+                        players
+                    });
+
+                const total =
+                    response?.total || players.length;
+
+                alert(
+                    `${total} jogador(es) cadastrado(s) ✅`
+                );
+
+                await openChampionship(openedDraw.id);
+            } catch (err) {
+                alert(
+                    err.message ||
+                    "Não foi possível cadastrar os jogadores."
+                );
+
+                saveBulkPlayersButton.disabled = false;
+                saveBulkPlayersButton.textContent =
+                    "💾 Salvar jogadores";
+            }
+
             return true;
         }
 

@@ -376,7 +376,8 @@ pre {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  color: #ffffff; /* força branco */
+  color: #ffffff;
+  /* força branco */
 }
 
 .share-card.best {
@@ -384,7 +385,8 @@ pre {
       #020617 0%,
       #0f172a 40%,
       #14532d 100%);
-      color: #facc15; /* dourado leve */
+  color: #facc15;
+  /* dourado leve */
 }
 
 .share-card.worst {
@@ -392,7 +394,8 @@ pre {
       #020617 0%,
       #0f172a 40%,
       #7f1d1d 100%);
-      color: #f87171; /* vermelho suave */
+  color: #f87171;
+  /* vermelho suave */
 }
 
 .share-title {
@@ -417,7 +420,7 @@ pre {
   font-weight: 900;
   line-height: 1.15;
   color: #ffffff;
-  text-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
 .share-stats {
@@ -455,4 +458,67 @@ pre {
 .championship-sort-disabled:hover {
   filter: grayscale(.6);
   box-shadow: none;
+}
+
+.bulk-player-row {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, .025);
+}
+
+.bulk-player-field {
+  min-width: 160px;
+}
+
+.bulk-player-name {
+  flex: 1;
+  min-width: 220px;
+}
+
+.bulk-player-field input,
+.bulk-player-field select {
+  width: 100%;
+}
+
+.bulk-player-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bulk-player-row-error {
+  border-color: var(--danger);
+  background: rgba(239, 68, 68, .08);
+}
+
+.btnRemoveBulkPlayerRow:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .bulk-player-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bulk-player-field,
+  .bulk-player-name {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .bulk-player-actions {
+    flex-direction: column;
+  }
+
+  .btnRemoveBulkPlayerRow {
+    width: 100%;
+  }
 }

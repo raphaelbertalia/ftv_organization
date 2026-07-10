@@ -89,29 +89,27 @@ async function handlePlayers(req, res) {
         });
     }
 
-    // CADASTRAR JOGADOR
+    // CADASTRAR UM OU VÁRIOS JOGADORES
     if (req.method === "POST") {
         const {
             draw_id,
             created_by,
             name,
             preferred_side = "any",
-            category = null
+            category = null,
+            players
         } = req.body || {};
 
-        if (!draw_id || !created_by || !name?.trim()) {
+        if (!draw_id || !created_by) {
             return res.status(400).json({
-                error: "draw_id, created_by e name são obrigatórios"
+                error: "draw_id e created_by são obrigatórios"
             });
         }
 
-        if (!VALID_SIDES.includes(preferred_side)) {
-            return res.status(400).json({
-                error: "Lado preferencial inválido"
-            });
-        }
-
-        const draw = await getOwnedDraw(draw_id, created_by);
+        const draw = await getOwnedDraw(
+            draw_id,
+            created_by
+        );
 
         if (!draw) {
             return res.status(404).json({
@@ -119,69 +117,186 @@ async function handlePlayers(req, res) {
             });
         }
 
-        let finalCategory = null;
-        let finalPoints = null;
+        /*
+         * Mantém compatibilidade com o cadastro antigo:
+         * - Se vier players, salva em lote.
+         * - Se vier name, salva apenas um jogador.
+         */
+        const playersToCreate =
+            Array.isArray(players)
+                ? players
+                : [
+                    {
+                        name,
+                        preferred_side,
+                        category
+                    }
+                ];
 
-        if (draw.draw_type === "custom") {
-            if (!category || !PLAYER_CATEGORIES[category]) {
-                return res.status(400).json({
-                    error: "Categoria obrigatória para sorteio personalizado"
-                });
-            }
-
-            finalCategory = category;
-            finalPoints = PLAYER_CATEGORIES[category].points;
-        }
-
-        const duplicated = await pool.query(
-            `
-            SELECT id
-            FROM championship_players
-            WHERE draw_id = $1
-              AND LOWER(name) = LOWER($2)
-            LIMIT 1
-            `,
-            [draw_id, name.trim()]
-        );
-
-        if (duplicated.rows.length) {
-            return res.status(409).json({
-                error: "Já existe um jogador com esse nome"
+        if (!playersToCreate.length) {
+            return res.status(400).json({
+                error: "Informe pelo menos um jogador"
             });
         }
 
-        const result = await pool.query(
-            `
-            INSERT INTO championship_players (
-                draw_id,
-                name,
-                preferred_side,
-                category,
-                points
-            )
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING
-                id,
-                draw_id,
-                name,
-                preferred_side,
-                category,
-                points,
-                created_at
-            `,
-            [
-                draw_id,
-                name.trim(),
-                preferred_side,
-                finalCategory,
-                finalPoints
-            ]
+        const normalizedPlayers = playersToCreate.map(
+            (player, index) => {
+                const playerName = (
+                    player?.name || ""
+                ).trim();
+
+                const playerSide =
+                    player?.preferred_side || "any";
+
+                const playerCategory =
+                    player?.category || null;
+
+                if (!playerName) {
+                    throw new Error(
+                        `Informe o nome do jogador na linha ${index + 1}`
+                    );
+                }
+
+                if (!VALID_SIDES.includes(playerSide)) {
+                    throw new Error(
+                        `Lado inválido na linha ${index + 1}`
+                    );
+                }
+
+                let finalCategory = null;
+                let finalPoints = null;
+
+                if (draw.draw_type === "custom") {
+                    if (
+                        !playerCategory ||
+                        !PLAYER_CATEGORIES[playerCategory]
+                    ) {
+                        throw new Error(
+                            `Selecione a categoria na linha ${index + 1}`
+                        );
+                    }
+
+                    finalCategory = playerCategory;
+                    finalPoints =
+                        PLAYER_CATEGORIES[playerCategory].points;
+                }
+
+                return {
+                    name: playerName,
+                    preferred_side: playerSide,
+                    category: finalCategory,
+                    points: finalPoints
+                };
+            }
         );
 
-        return res.status(201).json({
-            ok: true,
-            player: result.rows[0]
-        });
+        /*
+         * Verifica nomes duplicados dentro da própria lista.
+         */
+        const names = new Set();
+
+        for (const player of normalizedPlayers) {
+            const normalizedName =
+                player.name.toLocaleLowerCase("pt-BR");
+
+            if (names.has(normalizedName)) {
+                return res.status(409).json({
+                    error:
+                        `O jogador "${player.name}" aparece mais de uma vez na lista`
+                });
+            }
+
+            names.add(normalizedName);
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            /*
+             * Verifica se algum nome já está cadastrado
+             * neste campeonato.
+             */
+            const duplicatedResult = await client.query(
+                `
+            SELECT name
+            FROM championship_players
+            WHERE draw_id = $1
+              AND LOWER(name) = ANY($2::text[])
+            `,
+                [
+                    draw_id,
+                    normalizedPlayers.map(
+                        player =>
+                            player.name.toLocaleLowerCase(
+                                "pt-BR"
+                            )
+                    )
+                ]
+            );
+
+            if (duplicatedResult.rows.length) {
+                const duplicatedNames =
+                    duplicatedResult.rows
+                        .map(row => row.name)
+                        .join(", ");
+
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    error:
+                        `Jogador(es) já cadastrado(s): ${duplicatedNames}`
+                });
+            }
+
+            const createdPlayers = [];
+
+            for (const player of normalizedPlayers) {
+                const result = await client.query(
+                    `
+                INSERT INTO championship_players (
+                    draw_id,
+                    name,
+                    preferred_side,
+                    category,
+                    points
+                )
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING
+                    id,
+                    draw_id,
+                    name,
+                    preferred_side,
+                    category,
+                    points,
+                    created_at
+                `,
+                    [
+                        draw_id,
+                        player.name,
+                        player.preferred_side,
+                        player.category,
+                        player.points
+                    ]
+                );
+
+                createdPlayers.push(result.rows[0]);
+            }
+
+            await client.query("COMMIT");
+
+            return res.status(201).json({
+                ok: true,
+                players: createdPlayers,
+                total: createdPlayers.length
+            });
+        } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+        } finally {
+            client.release();
+        }
     }
 
     // EDITAR JOGADOR

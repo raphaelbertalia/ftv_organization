@@ -364,12 +364,6 @@
                 `${pair.left.name} / ${pair.right.name}`
             );
 
-            if (currentDraw?.draw_type === "custom") {
-                lines.push(
-                    `Pontuação: ${pair.totalPoints}`
-                );
-            }
-
             lines.push("");
         });
 
