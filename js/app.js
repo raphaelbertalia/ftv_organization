@@ -242,16 +242,7 @@
         updateAuthUI();
     }
 
-    async function doLogout() {
-        try {
-            await apiJson("/api/logout", {
-                method: "POST",
-                body: JSON.stringify({})
-            });
-        } catch (err) {
-            console.error("Erro no logout:", err);
-        }
-
+    function doLogout() {
         state.auth.user = null;
         saveState();
         updateAuthUI();
