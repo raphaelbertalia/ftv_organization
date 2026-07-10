@@ -334,6 +334,235 @@ async function handlePlayers(req, res) {
     });
 }
 
+async function handlePairs(req, res) {
+    // LISTAR DUPLAS CONFIRMADAS
+    if (req.method === "GET") {
+        const { draw_id, created_by } = req.query;
+
+        if (!draw_id || !created_by) {
+            return res.status(400).json({
+                error: "draw_id e created_by são obrigatórios"
+            });
+        }
+
+        const draw = await getOwnedDraw(draw_id, created_by);
+
+        if (!draw) {
+            return res.status(404).json({
+                error: "Campeonato não encontrado"
+            });
+        }
+
+        const result = await pool.query(
+            `
+            SELECT
+                cp.id,
+                cp.draw_id,
+                cp.pair_number,
+                cp.player_1_id,
+                cp.player_2_id,
+                cp.total_points,
+                cp.created_at,
+
+                p1.name AS player_1_name,
+                p1.preferred_side AS player_1_side,
+                p1.category AS player_1_category,
+                p1.points AS player_1_points,
+
+                p2.name AS player_2_name,
+                p2.preferred_side AS player_2_side,
+                p2.category AS player_2_category,
+                p2.points AS player_2_points
+
+            FROM championship_pairs cp
+
+            INNER JOIN championship_players p1
+                ON p1.id = cp.player_1_id
+
+            INNER JOIN championship_players p2
+                ON p2.id = cp.player_2_id
+
+            WHERE cp.draw_id = $1
+
+            ORDER BY cp.pair_number ASC
+            `,
+            [draw_id]
+        );
+
+        return res.status(200).json({
+            draw,
+            pairs: result.rows || []
+        });
+    }
+
+    // CONFIRMAR E SALVAR SORTEIO
+    if (req.method === "POST") {
+        const {
+            draw_id,
+            created_by,
+            pairs
+        } = req.body || {};
+
+        if (
+            !draw_id ||
+            !created_by ||
+            !Array.isArray(pairs) ||
+            !pairs.length
+        ) {
+            return res.status(400).json({
+                error: "draw_id, created_by e pairs são obrigatórios"
+            });
+        }
+
+        const draw = await getOwnedDraw(draw_id, created_by);
+
+        if (!draw) {
+            return res.status(404).json({
+                error: "Campeonato não encontrado"
+            });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            await client.query(
+                `
+                DELETE FROM championship_pairs
+                WHERE draw_id = $1
+                `,
+                [draw_id]
+            );
+
+            for (const pair of pairs) {
+                const {
+                    pair_number,
+                    player_1_id,
+                    player_2_id,
+                    total_points
+                } = pair;
+
+                if (
+                    !pair_number ||
+                    !player_1_id ||
+                    !player_2_id
+                ) {
+                    throw new Error(
+                        "Dados de uma das duplas estão incompletos"
+                    );
+                }
+
+                await client.query(
+                    `
+                    INSERT INTO championship_pairs (
+                        draw_id,
+                        pair_number,
+                        player_1_id,
+                        player_2_id,
+                        total_points
+                    )
+                    VALUES ($1, $2, $3, $4, $5)
+                    `,
+                    [
+                        draw_id,
+                        pair_number,
+                        player_1_id,
+                        player_2_id,
+                        total_points ?? null
+                    ]
+                );
+            }
+
+            await client.query(
+                `
+                UPDATE championship_draws
+                SET
+                    status = 'drawn',
+                    updated_at = NOW()
+                WHERE id = $1
+                  AND created_by = $2
+                `,
+                [draw_id, created_by]
+            );
+
+            await client.query("COMMIT");
+
+            return res.status(201).json({
+                ok: true
+            });
+        } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+        } finally {
+            client.release();
+        }
+    }
+
+    // APAGAR SORTEIO CONFIRMADO
+    if (req.method === "DELETE") {
+        const {
+            draw_id,
+            created_by
+        } = req.body || {};
+
+        if (!draw_id || !created_by) {
+            return res.status(400).json({
+                error: "draw_id e created_by são obrigatórios"
+            });
+        }
+
+        const draw = await getOwnedDraw(draw_id, created_by);
+
+        if (!draw) {
+            return res.status(404).json({
+                error: "Campeonato não encontrado"
+            });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            await client.query(
+                `
+                DELETE FROM championship_pairs
+                WHERE draw_id = $1
+                `,
+                [draw_id]
+            );
+
+            await client.query(
+                `
+                UPDATE championship_draws
+                SET
+                    status = 'draft',
+                    updated_at = NOW()
+                WHERE id = $1
+                  AND created_by = $2
+                `,
+                [draw_id, created_by]
+            );
+
+            await client.query("COMMIT");
+
+            return res.status(200).json({
+                ok: true
+            });
+        } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+        } finally {
+            client.release();
+        }
+    }
+
+    return res.status(405).json({
+        error: "Método não permitido"
+    });
+}
+
 export default async function handler(req, res) {
     try {
         const action = String(
@@ -342,6 +571,10 @@ export default async function handler(req, res) {
 
         if (action === "players") {
             return await handlePlayers(req, res);
+        }
+
+        if (action === "pairs") {
+            return await handlePairs(req, res);
         }
 
         // LISTAR CAMPEONATOS DO USUÁRIO

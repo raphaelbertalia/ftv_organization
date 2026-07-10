@@ -2,7 +2,9 @@
     const {
         PLAYER_CATEGORIES,
         escapeHtml,
-        getSideLabel
+        getSideLabel,
+        getCurrentUser,
+        apiJson
     } = window.ChampionshipUtils;
 
     let currentDraw = null;
@@ -180,6 +182,241 @@
         return bestPairs || [];
     }
 
+    function normalizeSavedPairs(savedPairs) {
+        if (!Array.isArray(savedPairs)) {
+            return [];
+        }
+
+        return savedPairs.map((pair, index) => ({
+            id: pair.id,
+            number: pair.pair_number || index + 1,
+
+            left: {
+                id: pair.player_1_id,
+                name: pair.player_1_name,
+                preferred_side:
+                    pair.player_1_side || "left",
+                category:
+                    pair.player_1_category || null,
+                points:
+                    pair.player_1_points
+            },
+
+            right: {
+                id: pair.player_2_id,
+                name: pair.player_2_name,
+                preferred_side:
+                    pair.player_2_side || "right",
+                category:
+                    pair.player_2_category || null,
+                points:
+                    pair.player_2_points
+            },
+
+            totalPoints:
+                Number(pair.total_points || 0)
+        }));
+    }
+
+    function renderSortActions(confirmed = false) {
+        if (!currentPairs.length) {
+            return "";
+        }
+
+        if (confirmed) {
+            return `
+            <div
+                class="row"
+                style="
+                    margin-top:16px;
+                    gap:10px;
+                "
+            >
+                <span class="pill">
+                    ✅ Sorteio confirmado
+                </span>
+
+                <button
+                    id="btnCopyChampionshipPairs"
+                    class="secondary"
+                    type="button"
+                >
+                    📋 Copiar duplas
+                </button>
+            </div>
+        `;
+        }
+
+        return `
+        <div
+            class="row"
+            style="
+                margin-top:16px;
+                gap:10px;
+            "
+        >
+            <button
+                id="btnConfirmChampionshipPairs"
+                type="button"
+            >
+                💾 Confirmar sorteio
+            </button>
+
+            <button
+                id="btnCopyChampionshipPairs"
+                class="secondary"
+                type="button"
+            >
+                📋 Copiar duplas
+            </button>
+        </div>
+    `;
+    }
+
+    function updateSortActions(confirmed = false) {
+        const actions =
+            document.getElementById(
+                "championshipSortActions"
+            );
+
+        if (!actions) {
+            return;
+        }
+
+        actions.innerHTML =
+            renderSortActions(confirmed);
+    }
+
+    async function saveCurrentPairs() {
+        const user = getCurrentUser();
+
+        if (!user?.id) {
+            throw new Error("Usuário não identificado.");
+        }
+
+        if (!currentDraw?.id || !currentPairs.length) {
+            throw new Error(
+                "Nenhum sorteio disponível para confirmar."
+            );
+        }
+
+        await apiJson(
+            "/api/championship-draws?action=pairs",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "pairs",
+                    draw_id: currentDraw.id,
+                    created_by: user.id,
+                    pairs: currentPairs.map(
+                        (pair, index) => ({
+                            pair_number: index + 1,
+                            player_1_id: pair.left.id,
+                            player_2_id: pair.right.id,
+                            total_points:
+                                pair.totalPoints
+                        })
+                    )
+                })
+            }
+        );
+
+        currentDraw.status = "drawn";
+    }
+
+    async function deleteSavedPairs() {
+        const user = getCurrentUser();
+
+        if (!user?.id) {
+            throw new Error("Usuário não identificado.");
+        }
+
+        await apiJson(
+            "/api/championship-draws?action=pairs",
+            {
+                method: "DELETE",
+                body: JSON.stringify({
+                    action: "pairs",
+                    draw_id: currentDraw.id,
+                    created_by: user.id
+                })
+            }
+        );
+
+        currentDraw.status = "draft";
+        currentPairs = [];
+    }
+
+    function buildPairsClipboardText() {
+        const championshipName =
+            currentDraw?.name || "Campeonato";
+
+        const lines = [
+            `🏆 ${championshipName}`,
+            "",
+            "DUPLAS SORTEADAS",
+            ""
+        ];
+
+        currentPairs.forEach((pair, index) => {
+            lines.push(`Dupla ${index + 1}`);
+            lines.push(
+                `${pair.left.name} / ${pair.right.name}`
+            );
+
+            if (currentDraw?.draw_type === "custom") {
+                lines.push(
+                    `Pontuação: ${pair.totalPoints}`
+                );
+            }
+
+            lines.push("");
+        });
+
+        return lines.join("\n").trim();
+    }
+
+    async function copyCurrentPairs() {
+        if (!currentPairs.length) {
+            throw new Error(
+                "Nenhuma dupla disponível para copiar."
+            );
+        }
+
+        const text = buildPairsClipboardText();
+
+        if (
+            navigator.clipboard &&
+            window.isSecureContext
+        ) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const textarea =
+            document.createElement("textarea");
+
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+
+        document.body.appendChild(textarea);
+
+        textarea.focus();
+        textarea.select();
+
+        const copied =
+            document.execCommand("copy");
+
+        textarea.remove();
+
+        if (!copied) {
+            throw new Error(
+                "Não foi possível copiar as duplas."
+            );
+        }
+    }
+
     function renderPairs(pairs, drawType) {
         if (!pairs.length) {
             return `
@@ -287,11 +524,18 @@
         `;
     }
 
-    function renderDrawSection(draw, players) {
+    function renderDrawSection(
+        draw,
+        players,
+        savedPairs = []
+    ) {
         currentDraw = draw;
+
         currentPlayers =
             Array.isArray(players) ? players : [];
-        currentPairs = [];
+
+        currentPairs =
+            normalizeSavedPairs(savedPairs);
 
         const analysis =
             window.ChampionshipAnalysis
@@ -299,6 +543,9 @@
                     currentPlayers,
                     draw.draw_type
                 );
+
+        const hasConfirmedPairs =
+            currentPairs.length > 0;
 
         return `
         <div
@@ -319,7 +566,8 @@
                 </div>
             </div>
 
-            ${!analysis.canDraw
+            ${!analysis.canDraw &&
+                !hasConfirmedPairs
                 ? `
                         <div
                             class="muted"
@@ -336,9 +584,24 @@
                 id="championshipSortResult"
                 style="margin-top:16px;"
             >
-                <div class="muted">
-                    Nenhum sorteio realizado.
-                </div>
+                ${hasConfirmedPairs
+                ? renderPairs(
+                    currentPairs,
+                    draw.draw_type
+                )
+                : `
+                            <div class="muted">
+                                Nenhum sorteio realizado.
+                            </div>
+                        `
+            }
+            </div>
+
+            <div id="championshipSortActions">
+                ${hasConfirmedPairs
+                ? renderSortActions(true)
+                : ""
+            }
             </div>
         </div>
     `;
@@ -389,9 +652,68 @@
         if (button) {
             button.textContent = "🔄 Refazer sorteio";
         }
+
+        updateSortActions(false);
     }
 
     async function handleSortClick(event) {
+        const confirmButton = event.target.closest(
+            "#btnConfirmChampionshipPairs"
+        );
+
+        if (confirmButton) {
+            confirmButton.disabled = true;
+            confirmButton.textContent = "Salvando...";
+
+            try {
+                await saveCurrentPairs();
+
+                updateSortActions(true);
+
+                alert(
+                    "Sorteio confirmado e salvo ✅"
+                );
+            } catch (err) {
+                alert(
+                    err.message ||
+                    "Não foi possível salvar o sorteio."
+                );
+
+                confirmButton.disabled = false;
+                confirmButton.textContent =
+                    "💾 Confirmar sorteio";
+            }
+
+            return true;
+        }
+
+        const copyButton = event.target.closest(
+            "#btnCopyChampionshipPairs"
+        );
+
+        if (copyButton) {
+            try {
+                await copyCurrentPairs();
+
+                const oldText =
+                    copyButton.textContent;
+
+                copyButton.textContent =
+                    "✅ Duplas copiadas";
+
+                setTimeout(() => {
+                    copyButton.textContent = oldText;
+                }, 1800);
+            } catch (err) {
+                alert(
+                    err.message ||
+                    "Não foi possível copiar as duplas."
+                );
+            }
+
+            return true;
+        }
+
         const button = event.target.closest(
             "#btnChampionshipSort"
         );
@@ -412,6 +734,39 @@
             return true;
         }
 
+        if (
+            currentDraw?.status === "drawn" &&
+            currentPairs.length
+        ) {
+            const confirmed = confirm(
+                "Já existe um sorteio confirmado.\n\n" +
+                "Deseja apagar o sorteio salvo e gerar outro?"
+            );
+
+            if (!confirmed) {
+                return true;
+            }
+
+            button.disabled = true;
+            button.textContent =
+                "Apagando sorteio anterior...";
+
+            try {
+                await deleteSavedPairs();
+            } catch (err) {
+                alert(
+                    err.message ||
+                    "Não foi possível apagar o sorteio anterior."
+                );
+
+                button.disabled = false;
+                button.textContent =
+                    "🔄 Refazer sorteio";
+
+                return true;
+            }
+        }
+
         button.disabled = true;
         button.textContent = "Sorteando...";
 
@@ -423,7 +778,8 @@
                 "Não foi possível realizar o sorteio."
             );
 
-            button.textContent = "🎲 Sortear duplas";
+            button.textContent =
+                "🎲 Sortear duplas";
         } finally {
             button.disabled = false;
         }

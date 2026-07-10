@@ -21,15 +21,32 @@
             throw new Error("Usuário não identificado.");
         }
 
-        const params = new URLSearchParams({
+        const playerParams = new URLSearchParams({
             action: "players",
             draw_id: drawId,
             created_by: user.id
         });
 
-        return apiJson(
-            `/api/championship-draws?${params.toString()}`
-        );
+        const pairParams = new URLSearchParams({
+            action: "pairs",
+            draw_id: drawId,
+            created_by: user.id
+        });
+
+        const [playersData, pairsData] = await Promise.all([
+            apiJson(
+                `/api/championship-draws?${playerParams.toString()}`
+            ),
+            apiJson(
+                `/api/championship-draws?${pairParams.toString()}`
+            )
+        ]);
+
+        return {
+            draw: playersData.draw,
+            players: playersData.players || [],
+            pairs: pairsData.pairs || []
+        };
     }
 
     async function createChampionshipPlayer({
@@ -343,7 +360,11 @@
         return summary;
     }
 
-    function renderChampionshipDetails(draw, players) {
+    function renderChampionshipDetails(
+        draw,
+        players,
+        savedPairs = []
+    ) {
         const wrap = $("championshipDrawsContent");
 
         if (!wrap) return;
@@ -586,9 +607,10 @@
                     </button>
                 </div>
 
-                ${window.ChampionshipSort.renderDrawSection(
+            ${window.ChampionshipSort.renderDrawSection(
                 draw,
-                players
+                players,
+                savedPairs
             )}
 `;
 
@@ -692,7 +714,8 @@
 
             renderChampionshipDetails(
                 data.draw,
-                data.players || []
+                data.players || [],
+                data.pairs || []
             );
         } catch (err) {
             console.error(
