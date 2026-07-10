@@ -23,6 +23,7 @@
     };
 
     let openedDraw = null;
+    let editingPlayer = null;
 
     function $(id) {
         return document.getElementById(id);
@@ -179,6 +180,33 @@
         });
     }
 
+    async function updateChampionshipPlayer({
+        playerId,
+        drawId,
+        name,
+        preferredSide,
+        category
+    }) {
+        const user = getCurrentUser();
+
+        if (!user?.id) {
+            throw new Error("Usuário não identificado.");
+        }
+
+        return apiJson("/api/championship-draws?action=players", {
+            method: "PATCH",
+            body: JSON.stringify({
+                action: "players",
+                id: playerId,
+                draw_id: drawId,
+                created_by: user.id,
+                name,
+                preferred_side: preferredSide,
+                category
+            })
+        });
+    }
+
     async function deleteChampionshipPlayer(playerId, drawId) {
         const user = getCurrentUser();
 
@@ -283,9 +311,8 @@
                 </button>
             </div>
 
-            ${
-                list.length
-                    ? list.map(draw => `
+            ${list.length
+                ? list.map(draw => `
                         <div
                             class="card"
                             style="margin:0 0 12px 0;"
@@ -355,7 +382,7 @@
                             </div>
                         </div>
                     `).join("")
-                    : `
+                : `
                         <div class="card" style="margin:0;">
                             <div class="muted">
                                 Nenhum campeonato cadastrado.
@@ -431,9 +458,8 @@
                             ${getSideLabel(player.preferred_side)}
                         </div>
 
-                        ${
-                            draw.draw_type === "custom"
-                                ? `
+                        ${draw.draw_type === "custom"
+                    ? `
                                     <div
                                         class="muted"
                                         style="margin-top:4px;"
@@ -452,18 +478,31 @@
                                         ${player.points ?? "—"} ponto(s)
                                     </div>
                                 `
-                                : ""
-                        }
+                    : ""
+                }
                     </div>
 
-                    <button
-                        class="secondary btnDeleteChampionshipPlayer"
-                        type="button"
-                        data-id="${player.id}"
-                        data-name="${escapeHtml(player.name)}"
-                    >
-                        Excluir
-                    </button>
+                    <div class="row" style="gap:8px;">
+                        <button
+                            class="secondary btnEditChampionshipPlayer"
+                            type="button"
+                            data-id="${player.id}"
+                            data-name="${escapeHtml(player.name)}"
+                            data-side="${player.preferred_side || "any"}"
+                            data-category="${player.category || ""}"
+                        >
+                            Editar
+                        </button>
+
+                        <button
+                            class="secondary btnDeleteChampionshipPlayer"
+                            type="button"
+                            data-id="${player.id}"
+                            data-name="${escapeHtml(player.name)}"
+                        >
+                            Excluir
+                        </button>
+                    </div>
                 </div>
             `;
         }).join("");
@@ -475,6 +514,7 @@
         if (!wrap) return;
 
         openedDraw = draw;
+        editingPlayer = null;
 
         wrap.innerHTML = `
             <div style="margin-bottom:12px;">
@@ -531,7 +571,9 @@
             </div>
 
             <div class="card" style="margin:0 0 12px 0;">
-                <b>Adicionar jogador</b>
+                <b id="championshipPlayerFormTitle">
+                    Adicionar jogador
+                </b>
 
                 <div
                     class="row"
@@ -565,12 +607,23 @@
 
                     ${renderCategorySelect(draw.draw_type)}
 
-                    <button
-                        id="btnSaveChampionshipPlayer"
-                        type="button"
-                    >
-                        Adicionar
-                    </button>
+                    <div class="row" style="gap:8px;">
+                        <button
+                            id="btnSaveChampionshipPlayer"
+                            type="button"
+                        >
+                            Adicionar
+                        </button>
+
+                        <button
+                            id="btnCancelEditChampionshipPlayer"
+                            class="secondary"
+                            type="button"
+                            style="display:none;"
+                        >
+                            Cancelar edição
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -585,6 +638,80 @@
                 </div>
             </div>
         `;
+
+        $("championshipPlayerName")?.focus();
+    }
+
+    function startPlayerEditing(button) {
+        editingPlayer = {
+            id: button.dataset.id,
+            name: button.dataset.name || "",
+            preferredSide: button.dataset.side || "any",
+            category: button.dataset.category || ""
+        };
+
+        if ($("championshipPlayerFormTitle")) {
+            $("championshipPlayerFormTitle").textContent =
+                "Editar jogador";
+        }
+
+        if ($("championshipPlayerName")) {
+            $("championshipPlayerName").value =
+                editingPlayer.name;
+        }
+
+        if ($("championshipPlayerSide")) {
+            $("championshipPlayerSide").value =
+                editingPlayer.preferredSide;
+        }
+
+        if ($("championshipPlayerCategory")) {
+            $("championshipPlayerCategory").value =
+                editingPlayer.category;
+        }
+
+        if ($("btnSaveChampionshipPlayer")) {
+            $("btnSaveChampionshipPlayer").textContent =
+                "Salvar alterações";
+        }
+
+        if ($("btnCancelEditChampionshipPlayer")) {
+            $("btnCancelEditChampionshipPlayer").style.display =
+                "inline-block";
+        }
+
+        $("championshipPlayerName")?.focus();
+    }
+
+    function cancelPlayerEditing() {
+        editingPlayer = null;
+
+        if ($("championshipPlayerFormTitle")) {
+            $("championshipPlayerFormTitle").textContent =
+                "Adicionar jogador";
+        }
+
+        if ($("championshipPlayerName")) {
+            $("championshipPlayerName").value = "";
+        }
+
+        if ($("championshipPlayerSide")) {
+            $("championshipPlayerSide").value = "any";
+        }
+
+        if ($("championshipPlayerCategory")) {
+            $("championshipPlayerCategory").value = "";
+        }
+
+        if ($("btnSaveChampionshipPlayer")) {
+            $("btnSaveChampionshipPlayer").textContent =
+                "Adicionar";
+        }
+
+        if ($("btnCancelEditChampionshipPlayer")) {
+            $("btnCancelEditChampionshipPlayer").style.display =
+                "none";
+        }
 
         $("championshipPlayerName")?.focus();
     }
@@ -614,9 +741,9 @@
                 <div class="card" style="margin:0;">
                     <div class="muted">
                         ${escapeHtml(
-                            err.message ||
-                            "Não foi possível abrir o campeonato."
-                        )}
+                err.message ||
+                "Não foi possível abrir o campeonato."
+            )}
                     </div>
 
                     <button
@@ -775,6 +902,32 @@
             return;
         }
 
+        // =======================
+        // EDITAR JOGADOR
+        // =======================
+
+        const editPlayerButton = event.target.closest(
+            ".btnEditChampionshipPlayer"
+        );
+
+        if (editPlayerButton) {
+            startPlayerEditing(editPlayerButton);
+            return;
+        }
+
+        const cancelEditPlayerButton = event.target.closest(
+            "#btnCancelEditChampionshipPlayer"
+        );
+
+        if (cancelEditPlayerButton) {
+            cancelPlayerEditing();
+            return;
+        }
+
+        // =======================
+        // SALVAR JOGADOR
+        // =======================
+
         const savePlayerButton = event.target.closest(
             "#btnSaveChampionshipPlayer"
         );
@@ -812,15 +965,30 @@
             }
 
             savePlayerButton.disabled = true;
-            savePlayerButton.textContent = "Adicionando...";
+            savePlayerButton.textContent =
+                editingPlayer?.id
+                    ? "Salvando..."
+                    : "Adicionando...";
 
             try {
-                await createChampionshipPlayer({
-                    drawId: openedDraw.id,
-                    name,
-                    preferredSide,
-                    category
-                });
+                if (editingPlayer?.id) {
+                    await updateChampionshipPlayer({
+                        playerId: editingPlayer.id,
+                        drawId: openedDraw.id,
+                        name,
+                        preferredSide,
+                        category
+                    });
+
+                    alert("Jogador atualizado ✅");
+                } else {
+                    await createChampionshipPlayer({
+                        drawId: openedDraw.id,
+                        name,
+                        preferredSide,
+                        category
+                    });
+                }
 
                 await openChampionship(openedDraw.id);
             } catch (err) {
