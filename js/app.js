@@ -220,6 +220,16 @@
                     playMode,
                     participantIds,
 
+                    pendingPairAId:
+                        s.pendingPairAId ??
+                        s.pending_pair_a_id ??
+                        null,
+
+                    pendingPairBId:
+                        s.pendingPairBId ??
+                        s.pending_pair_b_id ??
+                        null,
+
                     // O ranking ainda usa roster
                     roster: [
                         ...new Set([
@@ -1537,6 +1547,15 @@
 
         saveState();
 
+        await apiJson("/api/sessions", {
+            method: "PATCH",
+            body: JSON.stringify({
+                id: session.id,
+                pending_pair_a_id: pairA.id,
+                pending_pair_b_id: pairB.id
+            })
+        });
+
         updateAllSessionUI();
     }
 
@@ -1875,7 +1894,7 @@
     }
 
     // ---------- Registrar jogo (delegado, funciona mesmo se o botão existir depois) ----------
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
         const btn = ev.target.closest?.("#btnAddMatch");
         if (!btn) return;
 
@@ -1908,7 +1927,17 @@
         if (sess.playMode === "rotation") {
             sess.pendingPairAId = null;
             sess.pendingPairBId = null;
+
             saveState();
+
+            await apiJson("/api/sessions", {
+                method: "PATCH",
+                body: JSON.stringify({
+                    id: sess.id,
+                    pending_pair_a_id: null,
+                    pending_pair_b_id: null
+                })
+            });
         }
 
         sess.nextIndex = (sess.nextIndex || 0) + 1;
@@ -2095,7 +2124,7 @@
         }
     });
 
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
         const btn = ev.target.closest?.(".btnViewSession");
         if (!btn) return;
 
@@ -2185,7 +2214,7 @@
         link.click();
     }
 
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
         if (ev.target.closest("#btnShareBest")) {
             gerarImagemResumo("best");
         }
@@ -3024,7 +3053,7 @@
         }
     });
 
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
         const card = ev.target.closest(".session-share-trigger");
         if (!card) return;
 

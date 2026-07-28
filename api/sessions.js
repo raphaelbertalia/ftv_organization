@@ -11,7 +11,9 @@ export default async function handler(req, res) {
           created_at,
           status,
           play_mode,
-          participant_ids
+          participant_ids,
+          pending_pair_a_id,
+          pending_pair_b_id
         FROM sessions
         ORDER BY created_at DESC
       `);
@@ -93,14 +95,20 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PATCH") {
+      const body = req.body || {};
+
       const {
         id,
         status,
         playMode,
         play_mode,
         participantIds,
-        participant_ids
-      } = req.body || {};
+        participant_ids,
+        pendingPairAId,
+        pending_pair_a_id,
+        pendingPairBId,
+        pending_pair_b_id
+      } = body;
 
       if (!id) {
         return res.status(400).json({
@@ -108,16 +116,38 @@ export default async function handler(req, res) {
         });
       }
 
-      const finalPlayMode = play_mode || playMode;
-      const hasParticipantIds =
-        Array.isArray(participant_ids) ||
-        Array.isArray(participantIds);
+      const finalPlayMode =
+        play_mode ??
+        playMode;
 
-      const finalParticipantIds = Array.isArray(participant_ids)
-        ? participant_ids
-        : Array.isArray(participantIds)
-          ? participantIds
-          : null;
+      const hasParticipantIds =
+        Object.prototype.hasOwnProperty.call(body, "participant_ids") ||
+        Object.prototype.hasOwnProperty.call(body, "participantIds");
+
+      const finalParticipantIds =
+        Array.isArray(participant_ids)
+          ? participant_ids
+          : Array.isArray(participantIds)
+            ? participantIds
+            : null;
+
+      const hasPendingPairA =
+        Object.prototype.hasOwnProperty.call(body, "pending_pair_a_id") ||
+        Object.prototype.hasOwnProperty.call(body, "pendingPairAId");
+
+      const hasPendingPairB =
+        Object.prototype.hasOwnProperty.call(body, "pending_pair_b_id") ||
+        Object.prototype.hasOwnProperty.call(body, "pendingPairBId");
+
+      const finalPendingPairA =
+        pending_pair_a_id ??
+        pendingPairAId ??
+        null;
+
+      const finalPendingPairB =
+        pending_pair_b_id ??
+        pendingPairBId ??
+        null;
 
       if (
         finalPlayMode &&
@@ -128,11 +158,14 @@ export default async function handler(req, res) {
         });
       }
 
-      if (
-        typeof status === "undefined" &&
-        typeof finalPlayMode === "undefined" &&
-        !hasParticipantIds
-      ) {
+      const hasAnyChange =
+        typeof status !== "undefined" ||
+        typeof finalPlayMode !== "undefined" ||
+        hasParticipantIds ||
+        hasPendingPairA ||
+        hasPendingPairB;
+
+      if (!hasAnyChange) {
         return res.status(400).json({
           error: "Nenhuma alteração informada"
         });
@@ -140,24 +173,53 @@ export default async function handler(req, res) {
 
       await pool.query(
         `
-        UPDATE sessions
-        SET
-          status = COALESCE($2, status),
-          play_mode = COALESCE($3, play_mode),
-          participant_ids = CASE
-            WHEN $4::boolean = true THEN $5::jsonb
-            ELSE participant_ids
-          END
-        WHERE id = $1
-        `,
+          UPDATE sessions
+          SET
+            status = CASE
+              WHEN $2::boolean THEN $3
+              ELSE status
+            END,
+
+            play_mode = CASE
+              WHEN $4::boolean THEN $5
+              ELSE play_mode
+            END,
+
+            participant_ids = CASE
+              WHEN $6::boolean THEN $7::jsonb
+              ELSE participant_ids
+            END,
+
+            pending_pair_a_id = CASE
+              WHEN $8::boolean THEN $9
+              ELSE pending_pair_a_id
+            END,
+
+            pending_pair_b_id = CASE
+              WHEN $10::boolean THEN $11
+              ELSE pending_pair_b_id
+            END
+          WHERE id = $1
+    `,
         [
           id,
-          status || null,
-          finalPlayMode || null,
+
+          typeof status !== "undefined",
+          status ?? null,
+
+          typeof finalPlayMode !== "undefined",
+          finalPlayMode ?? null,
+
           hasParticipantIds,
           hasParticipantIds
-            ? JSON.stringify(finalParticipantIds)
-            : null
+            ? JSON.stringify(finalParticipantIds || [])
+            : null,
+
+          hasPendingPairA,
+          finalPendingPairA,
+
+          hasPendingPairB,
+          finalPendingPairB
         ]
       );
 
