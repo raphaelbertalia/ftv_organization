@@ -316,10 +316,82 @@
     return table;
   }
 
+  function renderTopTwo(data) {
+    const el = document.getElementById("rankingTopTwo");
+    if (!el) return;
+
+    const topTwo = (data || [])
+      .filter(player => player.played > 0)
+      .sort((a, b) =>
+        (b.points - a.points) ||
+        (b.diff - a.diff) ||
+        (b.wins - a.wins) ||
+        (b.pointsFor - a.pointsFor) ||
+        a.name.localeCompare(b.name)
+      )
+      .slice(0, 2);
+
+    if (!topTwo.length) {
+      el.innerHTML = "";
+      return;
+    }
+
+    const first = topTwo[0];
+    const second = topTwo[1];
+
+    el.innerHTML = `
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+        gap:12px;
+      ">
+        <div style="
+          padding:16px;
+          border:2px solid #d4af37;
+          border-radius:12px;
+          text-align:center;
+        ">
+          <div style="font-size:30px;">🥇</div>
+          <div style="font-size:18px; font-weight:700;">
+            ${first.name}
+          </div>
+          <div style="font-size:22px; font-weight:700; margin-top:6px;">
+            ${first.points} pts
+          </div>
+          <div class="muted" style="margin-top:4px;">
+            ${first.wins} vitórias • Saldo ${first.diff}
+          </div>
+        </div>
+
+        ${second ? `
+          <div style="
+            padding:16px;
+            border:2px solid #a7a7a7;
+            border-radius:12px;
+            text-align:center;
+          ">
+            <div style="font-size:30px;">🥈</div>
+            <div style="font-size:18px; font-weight:700;">
+              ${second.name}
+            </div>
+            <div style="font-size:22px; font-weight:700; margin-top:6px;">
+              ${second.points} pts
+            </div>
+            <div class="muted" style="margin-top:4px;">
+              ${second.wins} vitórias • Saldo ${second.diff}
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
+
   function renderRanking() {
     const sessions = getSessionsForRanking();
     const data = computeRankingForSessions(sessions, state.matches || []);
     const el = document.getElementById("rankingTable");
+
+    renderTopTwo(data);
 
     const contextEl = document.getElementById("rankingContext");
     const period = getPeriodValue();
@@ -344,6 +416,12 @@
     if (!el) return;
 
     if (!sessions.length) {
+
+      const topTwoEl = document.getElementById("rankingTopTwo");
+
+      if (topTwoEl) {
+        topTwoEl.innerHTML = "";
+      }
       const period = getPeriodValue();
 
       if (period === "cycle" && !getCurrentCycle()) {
