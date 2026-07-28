@@ -1490,6 +1490,446 @@
         return pair;
     }
 
+    function getPlayersFromSessionMatch(session, match) {
+        const pairA = (session.pairs || []).find(
+            pair => String(pair.id) === String(match.pairAId)
+        );
+
+        const pairB = (session.pairs || []).find(
+            pair => String(pair.id) === String(match.pairBId)
+        );
+
+        if (!pairA || !pairB) {
+            return null;
+        }
+
+        return {
+            pairA: [String(pairA.p1), String(pairA.p2)],
+            pairB: [String(pairB.p1), String(pairB.p2)]
+        };
+    }
+
+    function makePlayersKey(player1Id, player2Id) {
+        return [String(player1Id), String(player2Id)]
+            .sort()
+            .join("|");
+    }
+
+    function addMapCount(map, key, amount = 1) {
+        map.set(key, (map.get(key) || 0) + amount);
+    }
+
+    function getRotationStatistics(session) {
+        const participantIds = getCurrentParticipantIds(session);
+
+        const stats = new Map(
+            participantIds.map(playerId => [
+                String(playerId),
+                {
+                    playerId: String(playerId),
+                    played: 0,
+                    lastPlayedIndex: -1
+                }
+            ])
+        );
+
+        const partnerCounts = new Map();
+        const opponentCounts = new Map();
+
+        const matches = getSessionMatches(session);
+
+        matches.forEach((match, matchPosition) => {
+            const matchPlayers =
+                getPlayersFromSessionMatch(session, match);
+
+            if (!matchPlayers) return;
+
+            const scheduleIndex = Number.isInteger(
+                Number(match.scheduleIndex)
+            )
+                ? Number(match.scheduleIndex)
+                : matchPosition;
+
+            const allPlayers = [
+                ...matchPlayers.pairA,
+                ...matchPlayers.pairB
+            ];
+
+            allPlayers.forEach(playerId => {
+                const playerStat = stats.get(String(playerId));
+
+                /*
+                 * O ausente pode ter aparecido antes do rodízio.
+                 * Ele não participa das sugestões, mas o histórico
+                 * continua preservado.
+                 */
+                if (!playerStat) return;
+
+                playerStat.played += 1;
+                playerStat.lastPlayedIndex = scheduleIndex;
+            });
+
+            addMapCount(
+                partnerCounts,
+                makePlayersKey(
+                    matchPlayers.pairA[0],
+                    matchPlayers.pairA[1]
+                )
+            );
+
+            addMapCount(
+                partnerCounts,
+                makePlayersKey(
+                    matchPlayers.pairB[0],
+                    matchPlayers.pairB[1]
+                )
+            );
+
+            matchPlayers.pairA.forEach(playerA => {
+                matchPlayers.pairB.forEach(playerB => {
+                    addMapCount(
+                        opponentCounts,
+                        makePlayersKey(playerA, playerB)
+                    );
+                });
+            });
+        });
+
+        return {
+            participantIds,
+            stats,
+            partnerCounts,
+            opponentCounts,
+            matches
+        };
+    }
+
+    function canPlaySide(player, side) {
+        const playerSide = player?.side || "";
+
+        if (!playerSide) {
+            return true;
+        }
+
+        if (playerSide === "both") {
+            return true;
+        }
+
+        return playerSide === side;
+    }
+
+    function getPairSidePenalty(player1Id, player2Id) {
+        const player1 = (state.players || []).find(
+            player => String(player.id) === String(player1Id)
+        );
+
+        const player2 = (state.players || []).find(
+            player => String(player.id) === String(player2Id)
+        );
+
+        const validNormal =
+            canPlaySide(player1, "left") &&
+            canPlaySide(player2, "right");
+
+        const validInverted =
+            canPlaySide(player2, "left") &&
+            canPlaySide(player1, "right");
+
+        if (validNormal || validInverted) {
+            return 0;
+        }
+
+        /*
+         * Não bloqueia completamente, pois pode haver uma noite
+         * sem combinação perfeita de lados.
+         */
+        return 250;
+    }
+
+    function getCombinationGroups(items, size) {
+        const result = [];
+
+        function combine(startIndex, current) {
+            if (current.length === size) {
+                result.push([...current]);
+                return;
+            }
+
+            for (
+                let index = startIndex;
+                index < items.length;
+                index++
+            ) {
+                current.push(items[index]);
+                combine(index + 1, current);
+                current.pop();
+            }
+        }
+
+        combine(0, []);
+
+        return result;
+    }
+
+    function getFourPlayerPairings(players) {
+        const [a, b, c, d] = players;
+
+        return [
+            {
+                pairA: [a, b],
+                pairB: [c, d]
+            },
+            {
+                pairA: [a, c],
+                pairB: [b, d]
+            },
+            {
+                pairA: [a, d],
+                pairB: [b, c]
+            }
+        ];
+    }
+
+    function calculateRotationCandidateScore(
+        candidate,
+        rotationStats
+    ) {
+        const {
+            stats,
+            partnerCounts,
+            opponentCounts,
+            matches
+        } = rotationStats;
+
+        const selectedPlayers = [
+            ...candidate.pairA,
+            ...candidate.pairB
+        ];
+
+        /*
+         * Simula a quantidade de jogos depois do próximo confronto.
+         * A maior prioridade é deixar todos com números próximos.
+         */
+        const projectedGames = [
+            ...stats.values()
+        ].map(playerStat => {
+            const willPlay = selectedPlayers.includes(
+                playerStat.playerId
+            );
+
+            return playerStat.played + (willPlay ? 1 : 0);
+        });
+
+        const maxProjected = Math.max(...projectedGames);
+        const minProjected = Math.min(...projectedGames);
+
+        let score = 0;
+
+        // Maior peso: equilíbrio de participações.
+        score += (maxProjected - minProjected) * 1000;
+
+        // Entre opções equilibradas, prioriza quem jogou menos.
+        selectedPlayers.forEach(playerId => {
+            score += (stats.get(playerId)?.played || 0) * 80;
+        });
+
+        // Evita repetir parceiros.
+        score += (
+            partnerCounts.get(
+                makePlayersKey(
+                    candidate.pairA[0],
+                    candidate.pairA[1]
+                )
+            ) || 0
+        ) * 120;
+
+        score += (
+            partnerCounts.get(
+                makePlayersKey(
+                    candidate.pairB[0],
+                    candidate.pairB[1]
+                )
+            ) || 0
+        ) * 120;
+
+        // Evita repetir adversários.
+        candidate.pairA.forEach(playerA => {
+            candidate.pairB.forEach(playerB => {
+                score += (
+                    opponentCounts.get(
+                        makePlayersKey(playerA, playerB)
+                    ) || 0
+                ) * 15;
+            });
+        });
+
+        // Respeita esquerda, direita e coringa quando possível.
+        score += getPairSidePenalty(
+            candidate.pairA[0],
+            candidate.pairA[1]
+        );
+
+        score += getPairSidePenalty(
+            candidate.pairB[0],
+            candidate.pairB[1]
+        );
+
+        /*
+         * Pequena penalização para os quatro jogadores do último
+         * jogo voltarem juntos imediatamente.
+         */
+        const lastMatch = matches[matches.length - 1];
+
+        if (lastMatch) {
+            const lastMatchPlayers =
+                getPlayersFromSessionMatch(
+                    getCurrentSession(),
+                    lastMatch
+                );
+
+            if (lastMatchPlayers) {
+                const lastPlayerSet = new Set([
+                    ...lastMatchPlayers.pairA,
+                    ...lastMatchPlayers.pairB
+                ]);
+
+                const repeatedFromLast = selectedPlayers.filter(
+                    playerId => lastPlayerSet.has(playerId)
+                ).length;
+
+                score += repeatedFromLast * 20;
+            }
+        }
+
+        /*
+         * Pequeno fator aleatório apenas para desempatar opções
+         * praticamente iguais.
+         */
+        score += Math.random();
+
+        return score;
+    }
+
+    function suggestNextRotationMatch(session) {
+        if (!session || session.playMode !== "rotation") {
+            return null;
+        }
+
+        const rotationStats = getRotationStatistics(session);
+
+        if (rotationStats.participantIds.length !== 7) {
+            throw new Error(
+                `O rodízio automático espera 7 participantes. A sessão possui ${rotationStats.participantIds.length}.`
+            );
+        }
+
+        const groupsOfFour = getCombinationGroups(
+            rotationStats.participantIds,
+            4
+        );
+
+        const candidates = [];
+
+        groupsOfFour.forEach(group => {
+            getFourPlayerPairings(group).forEach(pairing => {
+                candidates.push({
+                    ...pairing,
+                    score: calculateRotationCandidateScore(
+                        pairing,
+                        rotationStats
+                    )
+                });
+            });
+        });
+
+        candidates.sort(
+            (candidateA, candidateB) =>
+                candidateA.score - candidateB.score
+        );
+
+        return candidates[0] || null;
+    }
+
+    async function prepareAutomaticRotationMatch(session) {
+        if (!session || session.playMode !== "rotation") {
+            return false;
+        }
+
+        const matches = getSessionMatches(session);
+
+        if (matches.length >= 8) {
+            return false;
+        }
+
+        const suggestion = suggestNextRotationMatch(session);
+
+        if (!suggestion) {
+            throw new Error(
+                "Não foi possível sugerir o próximo confronto."
+            );
+        }
+
+        const [
+            playerA1,
+            playerA2
+        ] = suggestion.pairA;
+
+        const [
+            playerB1,
+            playerB2
+        ] = suggestion.pairB;
+
+        /*
+         * Preenche também o editor visual. Assim ainda será
+         * possível alterar manualmente antes de preparar novamente.
+         */
+        if ($("rotationA1")) {
+            $("rotationA1").value = playerA1;
+        }
+
+        if ($("rotationA2")) {
+            $("rotationA2").value = playerA2;
+        }
+
+        if ($("rotationB1")) {
+            $("rotationB1").value = playerB1;
+        }
+
+        if ($("rotationB2")) {
+            $("rotationB2").value = playerB2;
+        }
+
+        const pairA = await findOrCreateSessionPair(
+            session,
+            playerA1,
+            playerA2
+        );
+
+        const pairB = await findOrCreateSessionPair(
+            session,
+            playerB1,
+            playerB2
+        );
+
+        session.pendingPairAId = pairA.id;
+        session.pendingPairBId = pairB.id;
+
+        saveState();
+
+        await apiJson("/api/sessions", {
+            method: "PATCH",
+            body: JSON.stringify({
+                id: session.id,
+                pending_pair_a_id: pairA.id,
+                pending_pair_b_id: pairB.id
+            })
+        });
+
+        updateAllSessionUI();
+
+        return true;
+    }
+
     async function prepareRotationMatch() {
         const session = getCurrentSession();
 
@@ -1940,11 +2380,29 @@
             });
         }
 
-        sess.nextIndex = (sess.nextIndex || 0) + 1;
+        recomputeNextIndex(sess);
         saveState();
 
-        if ($("scoreA")) $("scoreA").value = "";
-        if ($("scoreB")) $("scoreB").value = "";
+        if ($("scoreA")) {
+            $("scoreA").value = "";
+        }
+
+        if ($("scoreB")) {
+            $("scoreB").value = "";
+        }
+
+        if (
+            sess.playMode === "rotation" &&
+            getSessionMatches(sess).length < 8
+        ) {
+            await prepareAutomaticRotationMatch(sess);
+
+            alert(
+                "Jogo salvo ✅\n\nO próximo confronto já foi montado."
+            );
+
+            return;
+        }
 
         updateAllSessionUI();
         alert("Jogo salvo ✅");
@@ -2052,10 +2510,12 @@
                     $("absentPlayerSelect").value = "";
                 }
 
-                updateAllSessionUI();
+                await prepareAutomaticRotationMatch(
+                    getCurrentSession()
+                );
 
                 alert(
-                    "Rodízio com 7 iniciado ✅\n\nAgora monte manualmente o próximo jogo."
+                    "Rodízio com 7 iniciado ✅\n\nO próximo jogo foi montado automaticamente."
                 );
             } catch (err) {
                 alert(err.message || "Erro ao iniciar rodízio.");
