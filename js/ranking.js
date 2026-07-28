@@ -72,6 +72,21 @@
       return dateISO === todayISO();
     }
 
+    if (period === "cycle") {
+      const cycle = (state.cycles || []).find(
+        c => c.status === "em_andamento"
+      );
+
+      if (!cycle) {
+        return false;
+      }
+
+      const start = String(cycle.start_date).slice(0, 10);
+      const end = String(cycle.end_date).slice(0, 10);
+
+      return dateISO >= start && dateISO <= end;
+    }
+
     if (period === "month" || period === "mes" || period === "mês") {
       return dateISO.slice(0, 7) === currentMonthKey();
     }
