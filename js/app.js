@@ -2952,6 +2952,190 @@
         return getSessionById(state.viewSessionId || state.currentSessionId || null);
     }
 
+    function getSessionParticipantIds(session) {
+        const configuredIds = Array.isArray(session?.participantIds)
+            ? session.participantIds
+            : [];
+
+        if (configuredIds.length) {
+            return [...new Set(configuredIds.map(String))];
+        }
+
+        return [
+            ...new Set(
+                (session?.pairs || [])
+                    .flatMap(pair => [pair.p1, pair.p2])
+                    .filter(Boolean)
+                    .map(String)
+            )
+        ];
+    }
+
+    function getSessionModeInfo(session) {
+        const participantCount =
+            getSessionParticipantIds(session).length;
+
+        if (session?.playMode === "rotation") {
+            return {
+                icon: "🔄",
+                label: "Rodízio",
+                participantCount,
+                description:
+                    `Rodízio • ${participantCount} jogadores`
+            };
+        }
+
+        return {
+            icon: "🎮",
+            label: "Duplas fixas",
+            participantCount,
+            description:
+                `Duplas fixas • ${participantCount} jogadores`
+        };
+    }
+
+    function getSessionPlayerParticipation(session) {
+        const participantIds =
+            getSessionParticipantIds(session);
+
+        const participation = new Map(
+            participantIds.map(playerId => [
+                String(playerId),
+                {
+                    playerId: String(playerId),
+                    name: getPlayerName(playerId),
+                    played: 0
+                }
+            ])
+        );
+
+        const matches = getSessionMatches(session);
+
+        matches.forEach(match => {
+            const pairA = (session.pairs || []).find(
+                pair =>
+                    String(pair.id) === String(match.pairAId)
+            );
+
+            const pairB = (session.pairs || []).find(
+                pair =>
+                    String(pair.id) === String(match.pairBId)
+            );
+
+            const playerIds = [
+                pairA?.p1,
+                pairA?.p2,
+                pairB?.p1,
+                pairB?.p2
+            ].filter(Boolean);
+
+            playerIds.forEach(playerId => {
+                const id = String(playerId);
+
+                if (!participation.has(id)) {
+                    participation.set(id, {
+                        playerId: id,
+                        name: getPlayerName(id),
+                        played: 0
+                    });
+                }
+
+                participation.get(id).played += 1;
+            });
+        });
+
+        return [...participation.values()]
+            .sort((a, b) =>
+                (b.played - a.played) ||
+                a.name.localeCompare(b.name)
+            );
+    }
+
+    function getRotationBalanceInfo(participation) {
+        if (!participation.length) {
+            return {
+                label: "Sem dados",
+                icon: "⚪",
+                difference: 0
+            };
+        }
+
+        const gameCounts =
+            participation.map(player => player.played);
+
+        const maxGames = Math.max(...gameCounts);
+        const minGames = Math.min(...gameCounts);
+        const difference = maxGames - minGames;
+
+        if (difference <= 1) {
+            return {
+                label: "Excelente",
+                icon: "🟢",
+                difference
+            };
+        }
+
+        if (difference === 2) {
+            return {
+                label: "Razoável",
+                icon: "🟡",
+                difference
+            };
+        }
+
+        return {
+            label: "Desequilibrado",
+            icon: "🔴",
+            difference
+        };
+    }
+
+    function renderPlayerParticipationTable(session) {
+        const participation =
+            getSessionPlayerParticipation(session);
+
+        if (!participation.length) {
+            return `
+            <div class="muted">
+                Nenhuma participação encontrada.
+            </div>
+        `;
+        }
+
+        const balance =
+            getRotationBalanceInfo(participation);
+
+        return `
+        <div style="
+            display:grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(150px, 1fr));
+            gap:8px;
+            margin-top:12px;
+        ">
+            ${participation.map(player => `
+                <div class="player-item"
+                    style="justify-content:space-between;">
+                    <span>${player.name}</span>
+                    <b>${player.played}</b>
+                </div>
+            `).join("")}
+        </div>
+
+        ${session.playMode === "rotation" ? `
+            <div class="muted" style="margin-top:12px;">
+                ${balance.icon}
+                Equilíbrio do rodízio:
+                <b>${balance.label}</b>
+
+                ${balance.difference > 0
+                    ? ` • diferença máxima de ${balance.difference} jogo(s)`
+                    : ""}
+            </div>
+        ` : ""}
+    `;
+    }
+
     function renderSessionsTab() {
         const list = $("sessionsList");
         const details = $("sessionDetails");
@@ -2974,14 +3158,32 @@
             const table = computePairTableForSession(sess);
             const best = table[0];
             const bestLabel = best ? getPairDisplayName(sess, best.pairId) : "—";
+            const modeInfo =
+                getSessionModeInfo(sess);
+
+            const bestDescription =
+                sess.playMode === "rotation"
+                    ? "Melhor combinação"
+                    : "Melhor dupla";
 
             return `
             <div class="player-item" style="justify-content:space-between; gap:12px;">
                 <div>
                     <b>${sess.name || "Sem nome"}</b>
-                    <div class="muted">${sess.dateISO || "-"} • ${matches.length} jogo(s)</div>
+
                     <div class="muted" style="margin-top:4px;">
-                        🏆 ${bestLabel}
+                        ${sess.dateISO || "-"}
+                        • ${matches.length} jogo(s)
+                    </div>
+
+                    <div class="muted" style="margin-top:5px;">
+                        ${modeInfo.icon}
+                        ${modeInfo.description}
+                    </div>
+
+                    <div class="muted" style="margin-top:5px;">
+                        🏆 ${bestDescription}:
+                        ${bestLabel}
                     </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
@@ -3004,6 +3206,23 @@
         const table = computePairTableForSession(viewed);
         const best = table[0];
         const worst = table[table.length - 1];
+        const viewedModeInfo =
+            getSessionModeInfo(viewed);
+
+        const pairSectionTitle =
+            viewed.playMode === "rotation"
+                ? "Combinações utilizadas"
+                : "Duplas";
+
+        const bestTitle =
+            viewed.playMode === "rotation"
+                ? "Melhor combinação"
+                : "Melhor dupla";
+
+        const worstTitle =
+            viewed.playMode === "rotation"
+                ? "Pior combinação"
+                : "Pior dupla";
 
         details.innerHTML = `
         <div>
@@ -3012,12 +3231,36 @@
                 ${viewed.name || "Sem nome"}
             </div>
             <div class="muted" style="margin-top:6px;">
-                Data: ${viewed.dateISO || "-"} • Jogos: ${matches.length}
+                Data: ${viewed.dateISO || "-"}
+                • Jogos: ${matches.length}
+            </div>
+
+            <div style="
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+                margin-top:10px;
+            ">
+                <span class="pill">
+                    ${viewedModeInfo.icon}
+                    ${viewedModeInfo.label}
+                </span>
+
+                <span class="pill">
+                    👥 ${viewedModeInfo.participantCount}
+                    participante(s)
+                </span>
+
+                <span class="pill">
+                    ${viewed.status === "em_andamento"
+                ? "Sessão ativa"
+                : "Sessão encerrada"}
+                </span>
             </div>
 
             <hr style="margin:16px 0; opacity:.2;">
 
-            <div><b>Duplas</b></div>
+            <div><b>${pairSectionTitle}</b></div>
             <div class="muted" style="margin-top:8px;">
                 ${(viewed.pairs || []).map(pair => getPairDisplayName(viewed, pair.id)).join(" • ")}
             </div>
@@ -3054,12 +3297,30 @@
 
             <hr style="margin:16px 0; opacity:.2;">
 
+            <div>
+                <b>
+                    ${viewed.playMode === "rotation"
+                            ? "Resumo do rodízio"
+                            : "Participação por jogador"}
+                </b>
+            </div>
+
+            <div class="muted" style="margin-top:6px;">
+                Quantidade de partidas disputadas por cada jogador.
+            </div>
+
+            ${renderPlayerParticipationTable(viewed)}
+
+            <hr style="margin:16px 0; opacity:.2;">
+
             ${table.length ? `
                 <div><b>Resumo da sessão</b></div>
 
                 <div style="display:grid; gap:12px; margin-top:12px;">
                     <div class="card session-share-trigger" data-share-kind="best" style="border-color: rgba(34,197,94,.40); cursor:pointer;">
-                        <div style="font-size:14px; color:#22c55e;">🏆 Melhor dupla</div>
+                        <div style="font-size:14px; color:#22c55e;">
+                            🏆 ${bestTitle}
+                        </div
                         <div style="font-size:18px; font-weight:800; margin-top:4px;">
                             ${getPairDisplayName(viewed, best.pairId)}
                         </div>
@@ -3069,7 +3330,9 @@
                     </div>
 
                     <div class="card session-share-trigger" data-share-kind="worst" style="border-color: rgba(239,68,68,.40); cursor:pointer;">
-                        <div style="font-size:14px; color:#ef4444;">🪵 Pior dupla</div>
+                        <div style="font-size:14px; color:#ef4444;">
+                            🪵 ${worstTitle}
+                        </div>
                         <div style="font-size:18px; font-weight:800; margin-top:4px;">
                             ${getPairDisplayName(viewed, worst.pairId)}
                         </div>
