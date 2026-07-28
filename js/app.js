@@ -1247,6 +1247,14 @@
         if ($("sessionActiveLabel")) $("sessionActiveLabel").textContent = `${sess.name} (${sess.dateISO})`;
         fill(selA, sess.pairs || []);
         fill(selB, sess.pairs || []);
+
+        if (sess.pendingPairAId) {
+            selA.value = String(sess.pendingPairAId);
+        }
+
+        if (sess.pendingPairBId) {
+            selB.value = String(sess.pendingPairBId);
+        }
     }
 
     function getPlayerName(playerId) {
@@ -1524,17 +1532,12 @@
             selectedPlayers[3]
         );
 
+        session.pendingPairAId = pairA.id;
+        session.pendingPairBId = pairB.id;
+
         saveState();
 
         renderPairSelects();
-
-        if ($("pairA")) {
-            $("pairA").value = pairA.id;
-        }
-
-        if ($("pairB")) {
-            $("pairB").value = pairB.id;
-        }
 
         if ($("nextGameLabel")) {
             $("nextGameLabel").textContent =
@@ -1906,6 +1909,12 @@
         //        alert("vai salvar"); // ✅ teste
 
         addMatch(pairAId, pairBId, scoreA, scoreB, sess.nextIndex);
+
+        if (sess.playMode === "rotation") {
+            sess.pendingPairAId = null;
+            sess.pendingPairBId = null;
+            saveState();
+        }
 
         sess.nextIndex = (sess.nextIndex || 0) + 1;
         saveState();
