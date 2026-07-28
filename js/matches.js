@@ -129,7 +129,10 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
       ? scheduleIndexArg
       : getMatchesOfSession(session.id).length;
 
-  if (session.schedule?.length) {
+  if (
+    session.playMode !== "rotation" &&
+    session.schedule?.length
+  ) {
     if (scheduleIndex < 0 || scheduleIndex >= session.schedule.length) {
       return alert("Esse jogo está fora da sequência da sessão.");
     }

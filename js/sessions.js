@@ -34,7 +34,9 @@ async function syncSessionToDb(session) {
     body: JSON.stringify({
       id: session.id,
       date_iso: session.dateISO,
-      name: session.name
+      name: session.name,
+      play_mode: session.playMode || "fixed",
+      participant_ids: session.participantIds || []
     })
   });
 
@@ -70,12 +72,25 @@ async function createSession(name, pairs) {
 
   const dateISO = new Date().toISOString().slice(0, 10);
 
+  const participantIds = [
+    ...new Set(
+      pairs.flatMap(pair => [pair.p1, pair.p2])
+    )
+  ];
+
   const session = {
     id,
     name,
     dateISO,
     pairs,
-    roster: pairs.flatMap(p => [p.p1, p.p2]),
+
+    // Compatibilidade com o ranking atual
+    roster: participantIds,
+
+    // Novos controles da sessão
+    playMode: "fixed",
+    participantIds,
+
     schedule: generateSchedule(pairs),
     nextIndex: 0
   };

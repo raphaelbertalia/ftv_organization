@@ -180,17 +180,58 @@
                         position: p.position
                     }));
 
+                let participantIds =
+                    s.participantIds ??
+                    s.participant_ids ??
+                    [];
+
+                if (typeof participantIds === "string") {
+                    try {
+                        participantIds = JSON.parse(participantIds);
+                    } catch (_) {
+                        participantIds = [];
+                    }
+                }
+
+                if (!Array.isArray(participantIds)) {
+                    participantIds = [];
+                }
+
+                const fallbackRoster = [
+                    ...new Set(
+                        sessionPairs.flatMap(pair => [pair.p1, pair.p2])
+                    )
+                ];
+
+                if (!participantIds.length) {
+                    participantIds = fallbackRoster;
+                }
+
+                const playMode =
+                    s.playMode ??
+                    s.play_mode ??
+                    "fixed";
+
                 const normalized = {
                     ...s,
                     dateISO: s.dateISO ?? s.date_iso ?? null,
                     createdAt: s.createdAt ?? s.created_at ?? null,
+
+                    playMode,
+                    participantIds,
+
+                    // O ranking ainda usa roster
+                    roster: participantIds,
+
                     pairs: sessionPairs
                 };
 
-                normalized.roster = sessionPairs.flatMap(pair => [pair.p1, pair.p2]);
-
-                if (sessionPairs.length === 4) {
-                    normalized.schedule = buildScheduleQuartaCH(sessionPairs);
+                if (
+                    normalized.playMode === "fixed" &&
+                    sessionPairs.length === 4
+                ) {
+                    normalized.schedule =
+                        buildScheduleQuartaCH(sessionPairs);
                 } else {
                     normalized.schedule = null;
                 }
