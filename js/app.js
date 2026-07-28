@@ -2830,7 +2830,6 @@
         }
 
         if (sess.playMode === "rotation") {
-
             recomputeNextIndex(sess);
 
             const nextGameNumber = (sess.nextIndex || 0) + 1;
@@ -2840,34 +2839,38 @@
                     `Rodízio • Jogo ${nextGameNumber} de 8`;
             }
 
-            if (
-                sess.pendingPairAId &&
-                sess.pendingPairBId
-            ) {
+            const pairA = (sess.pairs || []).find(
+                pair =>
+                    String(pair.id) ===
+                    String(sess.pendingPairAId || "")
+            );
 
-                if ($("pairA")) {
-                    $("pairA").value = sess.pendingPairAId;
+            const pairB = (sess.pairs || []).find(
+                pair =>
+                    String(pair.id) ===
+                    String(sess.pendingPairBId || "")
+            );
+
+            if (pairA && pairB) {
+                const pairASelect = $("pairA");
+                const pairBSelect = $("pairB");
+
+                if (pairASelect) {
+                    pairASelect.value = String(pairA.id);
                 }
 
-                if ($("pairB")) {
-                    $("pairB").value = sess.pendingPairBId;
+                if (pairBSelect) {
+                    pairBSelect.value = String(pairB.id);
                 }
 
-                const pairA = sess.pairs.find(
-                    p => String(p.id) === String(sess.pendingPairAId)
-                );
-
-                const pairB = sess.pairs.find(
-                    p => String(p.id) === String(sess.pendingPairBId)
-                );
-
-                if (pairA && pairB && $("nextGameLabel")) {
+                if ($("nextGameLabel")) {
                     $("nextGameLabel").textContent =
-                        `Próximo jogo: ${getPlayerName(pairA.p1)} + ${getPlayerName(pairA.p2)} vs ${getPlayerName(pairB.p1)} + ${getPlayerName(pairB.p2)}`;
+                        `Próximo jogo: ` +
+                        `${getPlayerName(pairA.p1)} + ${getPlayerName(pairA.p2)}` +
+                        ` vs ` +
+                        `${getPlayerName(pairB.p1)} + ${getPlayerName(pairB.p2)}`;
                 }
-
             } else {
-
                 if ($("pairA")) {
                     $("pairA").value = "";
                 }
@@ -2880,7 +2883,6 @@
                     $("nextGameLabel").textContent =
                         "Escolha os quatro jogadores e prepare o próximo jogo.";
                 }
-
             }
 
             return;
