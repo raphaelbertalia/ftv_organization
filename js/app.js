@@ -1537,12 +1537,7 @@
 
         saveState();
 
-        renderPairSelects();
-
-        if ($("nextGameLabel")) {
-            $("nextGameLabel").textContent =
-                `Próximo jogo: ${getPlayerName(pairA.p1)} + ${getPlayerName(pairA.p2)} vs ${getPlayerName(pairB.p1)} + ${getPlayerName(pairB.p2)}`;
-        }
+        updateAllSessionUI();
     }
 
     function readPairsFromEditor() {
