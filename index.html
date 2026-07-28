@@ -270,9 +270,9 @@
             <div>
               <div class="muted">Período</div>
               <select id="period">
+                <option value="cycle">Ciclo atual</option>
                 <option value="session">Sessão atual</option>
                 <option value="today">Hoje</option>
-                <option value="cycle">Ciclo atual</option>
                 <option value="month">Este mês</option>
                 <option value="lastMonth">Mês passado</option>
                 <option value="custom">Personalizado</option>
@@ -294,6 +294,7 @@
               <div class="muted">Ordenar por</div>
               <select id="sortBy">
                 <option value="points">Pontos</option>
+                <option value="wins">Vitórias</option>
                 <option value="diff">Saldo</option>
                 <option value="for">Pró</option>
               </select>
@@ -309,6 +310,7 @@
         </div>
 
         <div class="card">
+          <div id="rankingContext" class="muted" style="margin-bottom:12px;"></div>
           <div id="rankingTable"></div>
         </div>
       </section>

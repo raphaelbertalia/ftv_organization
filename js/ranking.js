@@ -59,6 +59,12 @@
     return String(value || "").slice(0, 10);
   }
 
+  function getCurrentCycle() {
+    return (state.cycles || []).find(
+      cycle => cycle.status === "em_andamento"
+    ) || null;
+  }
+
   function isSessionInPeriod(session, period) {
     const dateISO = normalizeDateISO(session?.dateISO);
 
@@ -73,16 +79,14 @@
     }
 
     if (period === "cycle") {
-      const cycle = (state.cycles || []).find(
-        c => c.status === "em_andamento"
-      );
+      const cycle = getCurrentCycle();
 
       if (!cycle) {
         return false;
       }
 
-      const start = String(cycle.start_date).slice(0, 10);
-      const end = String(cycle.end_date).slice(0, 10);
+      const start = normalizeDateISO(cycle.start_date);
+      const end = normalizeDateISO(cycle.end_date);
 
       return dateISO >= start && dateISO <= end;
     }
@@ -316,10 +320,40 @@
     const sessions = getSessionsForRanking();
     const data = computeRankingForSessions(sessions, state.matches || []);
     const el = document.getElementById("rankingTable");
+
+    const contextEl = document.getElementById("rankingContext");
+    const period = getPeriodValue();
+
+    if (contextEl) {
+      if (period === "cycle") {
+        const cycle = getCurrentCycle();
+
+        if (cycle) {
+          const start = normalizeDateISO(cycle.start_date);
+          const end = normalizeDateISO(cycle.end_date);
+
+          contextEl.textContent =
+            `${cycle.name} • ${start.split("-").reverse().join("/")} até ${end.split("-").reverse().join("/")}`;
+        } else {
+          contextEl.textContent = "Nenhum ciclo em andamento.";
+        }
+      } else {
+        contextEl.textContent = "";
+      }
+    }
     if (!el) return;
 
     if (!sessions.length) {
       const period = getPeriodValue();
+
+      if (period === "cycle" && !getCurrentCycle()) {
+        el.innerHTML = `
+          <div class="muted">
+            Não existe um ciclo em andamento.
+          </div>
+        `;
+        return;
+      }
 
       if (period === "session") {
         el.innerHTML = `<div class="muted">Não há sessão ativa no momento.</div>`;
