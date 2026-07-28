@@ -221,7 +221,12 @@
                     participantIds,
 
                     // O ranking ainda usa roster
-                    roster: participantIds,
+                    roster: [
+                        ...new Set([
+                            ...participantIds,
+                            ...sessionPairs.flatMap(pair => [pair.p1, pair.p2])
+                        ].map(String))
+                    ],
 
                     pairs: sessionPairs
                 };
@@ -1244,6 +1249,299 @@
         fill(selB, sess.pairs || []);
     }
 
+    function getPlayerName(playerId) {
+        return (state.players || []).find(
+            player => String(player.id) === String(playerId)
+        )?.name || "?";
+    }
+
+    function getCurrentParticipantIds(session) {
+        const ids = Array.isArray(session?.participantIds)
+            ? session.participantIds
+            : [];
+
+        return [...new Set(ids.map(String))];
+    }
+
+    function fillPlayerSelect(select, participantIds) {
+        if (!select) return;
+
+        const currentValue = select.value;
+
+        select.innerHTML = `
+        <option value="">— selecione —</option>
+    `;
+
+        participantIds
+            .map(playerId => ({
+                id: playerId,
+                name: getPlayerName(playerId)
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach(player => {
+                const option = document.createElement("option");
+                option.value = player.id;
+                option.textContent = player.name;
+                select.appendChild(option);
+            });
+
+        if (
+            currentValue &&
+            participantIds.some(id => String(id) === String(currentValue))
+        ) {
+            select.value = currentValue;
+        }
+    }
+
+    function renderParticipantAdjustment() {
+        const session = getCurrentSession();
+        const card = $("participantAdjustmentCard");
+        const button = $("btnAdjustParticipants");
+        const select = $("absentPlayerSelect");
+
+        if (!card || !button || !select) return;
+
+        if (!session) {
+            card.style.display = "none";
+            button.style.display = "none";
+            return;
+        }
+
+        button.style.display =
+            session.playMode === "fixed"
+                ? "inline-block"
+                : "none";
+
+        const participantIds = getCurrentParticipantIds(session);
+
+        fillPlayerSelect(select, participantIds);
+    }
+
+    function renderRotationSetup() {
+        const session = getCurrentSession();
+        const card = $("rotationSetupCard");
+
+        if (!card) return;
+
+        if (!session || session.playMode !== "rotation") {
+            card.style.display = "none";
+            return;
+        }
+
+        card.style.display = "block";
+
+        const participantIds = getCurrentParticipantIds(session);
+
+        fillPlayerSelect($("rotationA1"), participantIds);
+        fillPlayerSelect($("rotationA2"), participantIds);
+        fillPlayerSelect($("rotationB1"), participantIds);
+        fillPlayerSelect($("rotationB2"), participantIds);
+
+        const participantNames = participantIds
+            .map(getPlayerName)
+            .sort((a, b) => a.localeCompare(b));
+
+        if ($("rotationParticipantsInfo")) {
+            $("rotationParticipantsInfo").textContent =
+                `Rodízio com ${participantIds.length} jogadores: ${participantNames.join(", ")}`;
+        }
+    }
+
+    async function persistSessionRotation(session) {
+        await apiJson("/api/sessions", {
+            method: "PATCH",
+            body: JSON.stringify({
+                id: session.id,
+                play_mode: session.playMode,
+                participant_ids: session.participantIds
+            })
+        });
+    }
+
+    async function activateRotationWithAbsentPlayer(absentPlayerId) {
+        const session = getCurrentSession();
+
+        if (!session) {
+            throw new Error("Nenhuma sessão ativa.");
+        }
+
+        if (session.playMode === "rotation") {
+            throw new Error("Essa sessão já está em modo de rodízio.");
+        }
+
+        const currentParticipants = getCurrentParticipantIds(session);
+
+        if (currentParticipants.length !== 8) {
+            throw new Error(
+                `A sessão precisa ter 8 participantes antes da remoção. Atualmente possui ${currentParticipants.length}.`
+            );
+        }
+
+        if (
+            !currentParticipants.some(
+                id => String(id) === String(absentPlayerId)
+            )
+        ) {
+            throw new Error("O jogador selecionado não pertence à sessão.");
+        }
+
+        const remainingParticipants = currentParticipants.filter(
+            id => String(id) !== String(absentPlayerId)
+        );
+
+        if (remainingParticipants.length !== 7) {
+            throw new Error("Não foi possível formar o rodízio com 7 jogadores.");
+        }
+
+        const confirmed = confirm(
+            `Remover ${getPlayerName(absentPlayerId)} dos próximos jogos e iniciar o rodízio com 7?\n\nOs jogos já registrados serão mantidos.`
+        );
+
+        if (!confirmed) return false;
+
+        session.playMode = "rotation";
+        session.participantIds = remainingParticipants;
+        session.schedule = null;
+
+        /*
+         * roster representa todo mundo que fez ou poderia ter feito
+         * parte da sessão. Não removemos o ausente daqui para preservar
+         * o histórico caso ele já tenha disputado algum jogo.
+         */
+        session.roster = [
+            ...new Set([
+                ...(Array.isArray(session.roster) ? session.roster : []),
+                ...currentParticipants
+            ].map(String))
+        ];
+
+        recomputeNextIndex(session);
+        saveState();
+
+        await persistSessionRotation(session);
+
+        return true;
+    }
+
+    function findExistingSessionPair(session, player1Id, player2Id) {
+        const wanted = [String(player1Id), String(player2Id)]
+            .sort()
+            .join("|");
+
+        return (session.pairs || []).find(pair => {
+            const current = [String(pair.p1), String(pair.p2)]
+                .sort()
+                .join("|");
+
+            return current === wanted;
+        }) || null;
+    }
+
+    async function findOrCreateSessionPair(session, player1Id, player2Id) {
+        const existing = findExistingSessionPair(
+            session,
+            player1Id,
+            player2Id
+        );
+
+        if (existing) {
+            return existing;
+        }
+
+        const pair = {
+            id: uid(),
+            p1: player1Id,
+            p2: player2Id,
+            position: (session.pairs || []).length + 1
+        };
+
+        session.pairs = session.pairs || [];
+        session.pairs.push(pair);
+
+        await apiJson("/api/pairs", {
+            method: "POST",
+            body: JSON.stringify({
+                id: pair.id,
+                session_id: session.id,
+                p1: pair.p1,
+                p2: pair.p2,
+                position: pair.position
+            })
+        });
+
+        return pair;
+    }
+
+    async function prepareRotationMatch() {
+        const session = getCurrentSession();
+
+        if (!session) {
+            throw new Error("Nenhuma sessão ativa.");
+        }
+
+        if (session.playMode !== "rotation") {
+            throw new Error("A sessão não está em modo de rodízio.");
+        }
+
+        const selectedPlayers = [
+            $("rotationA1")?.value || "",
+            $("rotationA2")?.value || "",
+            $("rotationB1")?.value || "",
+            $("rotationB2")?.value || ""
+        ];
+
+        if (selectedPlayers.some(id => !id)) {
+            throw new Error("Selecione os quatro jogadores do próximo jogo.");
+        }
+
+        if (new Set(selectedPlayers.map(String)).size !== 4) {
+            throw new Error("Cada jogador pode aparecer apenas uma vez no jogo.");
+        }
+
+        const participantIds = getCurrentParticipantIds(session);
+
+        const hasInvalidPlayer = selectedPlayers.some(
+            playerId =>
+                !participantIds.some(
+                    participantId =>
+                        String(participantId) === String(playerId)
+                )
+        );
+
+        if (hasInvalidPlayer) {
+            throw new Error("Foi selecionado um jogador que não está no rodízio.");
+        }
+
+        const pairA = await findOrCreateSessionPair(
+            session,
+            selectedPlayers[0],
+            selectedPlayers[1]
+        );
+
+        const pairB = await findOrCreateSessionPair(
+            session,
+            selectedPlayers[2],
+            selectedPlayers[3]
+        );
+
+        saveState();
+
+        renderPairSelects();
+
+        if ($("pairA")) {
+            $("pairA").value = pairA.id;
+        }
+
+        if ($("pairB")) {
+            $("pairB").value = pairB.id;
+        }
+
+        if ($("nextGameLabel")) {
+            $("nextGameLabel").textContent =
+                `Próximo jogo: ${getPlayerName(pairA.p1)} + ${getPlayerName(pairA.p2)} vs ${getPlayerName(pairB.p1)} + ${getPlayerName(pairB.p2)}`;
+        }
+    }
+
     function readPairsFromEditor() {
         const pairs = [];
         const used = new Set();
@@ -1662,6 +1960,92 @@
         });
     }
 
+    if ($("btnAdjustParticipants")) {
+        $("btnAdjustParticipants").addEventListener("click", () => {
+            if (!requireOperator()) return;
+
+            const session = getCurrentSession();
+
+            if (!session) {
+                return alert("Nenhuma sessão ativa.");
+            }
+
+            if (session.playMode !== "fixed") {
+                return alert("A sessão já está em modo de rodízio.");
+            }
+
+            renderParticipantAdjustment();
+
+            if ($("participantAdjustmentCard")) {
+                $("participantAdjustmentCard").style.display = "block";
+            }
+        });
+    }
+
+    if ($("btnCancelParticipantAdjustment")) {
+        $("btnCancelParticipantAdjustment").addEventListener("click", () => {
+            if ($("participantAdjustmentCard")) {
+                $("participantAdjustmentCard").style.display = "none";
+            }
+
+            if ($("absentPlayerSelect")) {
+                $("absentPlayerSelect").value = "";
+            }
+        });
+    }
+
+    if ($("btnActivateRotation")) {
+        $("btnActivateRotation").addEventListener("click", async () => {
+            if (!requireOperator()) return;
+
+            const absentPlayerId =
+                $("absentPlayerSelect")?.value || "";
+
+            if (!absentPlayerId) {
+                return alert("Selecione o jogador ausente.");
+            }
+
+            try {
+                const changed =
+                    await activateRotationWithAbsentPlayer(absentPlayerId);
+
+                if (!changed) return;
+
+                if ($("participantAdjustmentCard")) {
+                    $("participantAdjustmentCard").style.display = "none";
+                }
+
+                if ($("absentPlayerSelect")) {
+                    $("absentPlayerSelect").value = "";
+                }
+
+                updateAllSessionUI();
+
+                alert(
+                    "Rodízio com 7 iniciado ✅\n\nAgora monte manualmente o próximo jogo."
+                );
+            } catch (err) {
+                alert(err.message || "Erro ao iniciar rodízio.");
+            }
+        });
+    }
+
+    if ($("btnPrepareRotationMatch")) {
+        $("btnPrepareRotationMatch").addEventListener("click", async () => {
+            if (!requireOperator()) return;
+
+            try {
+                await prepareRotationMatch();
+
+                alert(
+                    "Próximo jogo preparado ✅\n\nAgora informe o placar e salve normalmente."
+                );
+            } catch (err) {
+                alert(err.message || "Erro ao preparar jogo.");
+            }
+        });
+    }
+
     document.addEventListener("click", async (ev) => {
         const btn = ev.target.closest(".btnDeleteSession");
         if (!btn) return;
@@ -1984,6 +2368,9 @@
         updatePairsEditorLock();
         updateHomeLayout();
         renderCycleGame1Selects();
+
+        renderParticipantAdjustment();
+        renderRotationSetup();
     }
 
     function getSessionMatches(sess) {
@@ -2430,6 +2817,24 @@
             if ($("nextGameLabel")) $("nextGameLabel").textContent = "Sem sessão ativa.";
             if ($("pairA")) $("pairA").value = "";
             if ($("pairB")) $("pairB").value = "";
+            return;
+        }
+
+        if (sess.playMode === "rotation") {
+            recomputeNextIndex(sess);
+
+            const nextGameNumber = (sess.nextIndex || 0) + 1;
+
+            if ($("gameProgress")) {
+                $("gameProgress").textContent =
+                    `Rodízio • Jogo ${nextGameNumber} de 8`;
+            }
+
+            if ($("nextGameLabel")) {
+                $("nextGameLabel").textContent =
+                    "Escolha os quatro jogadores e prepare o próximo jogo.";
+            }
+
             return;
         }
 

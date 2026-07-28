@@ -118,6 +118,28 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
   if (!session) return alert("Inicie uma sessão antes.");
 
   if (!pairAId || !pairBId || pairAId === pairBId) return alert("Selecione duas duplas diferentes.");
+  const pairA = (session.pairs || []).find(
+    pair => String(pair.id) === String(pairAId)
+  );
+
+  const pairB = (session.pairs || []).find(
+    pair => String(pair.id) === String(pairBId)
+  );
+
+  if (!pairA || !pairB) {
+    return alert("Uma das duplas selecionadas não foi encontrada.");
+  }
+
+  const matchPlayers = [
+    pairA.p1,
+    pairA.p2,
+    pairB.p1,
+    pairB.p2
+  ].map(String);
+
+  if (new Set(matchPlayers).size !== 4) {
+    return alert("Um jogador não pode participar das duas duplas do mesmo jogo.");
+  }
   if (!isValidFinalScore(scoreA, scoreB)) {
     return alert("Placar inválido. Vai até 18, mas em 17x17 vence quem abrir 2.");
   }
