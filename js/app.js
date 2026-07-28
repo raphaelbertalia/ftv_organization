@@ -2362,7 +2362,13 @@
 
         //        alert("vai salvar"); // ✅ teste
 
-        addMatch(pairAId, pairBId, scoreA, scoreB, sess.nextIndex);
+        await addMatch(
+            pairAId,
+            pairBId,
+            scoreA,
+            scoreB,
+            sess.nextIndex
+        );
 
         if (sess.playMode === "rotation") {
             sess.pendingPairAId = null;
@@ -2395,13 +2401,37 @@
             sess.playMode === "rotation" &&
             getSessionMatches(sess).length < 8
         ) {
-            await prepareAutomaticRotationMatch(sess);
+            try {
+                const prepared =
+                    await prepareAutomaticRotationMatch(sess);
 
-            alert(
-                "Jogo salvo ✅\n\nO próximo confronto já foi montado."
-            );
+                if (!prepared) {
+                    throw new Error(
+                        "A preparação automática não retornou um confronto."
+                    );
+                }
 
-            return;
+                alert(
+                    "Jogo salvo ✅\n\nO próximo confronto já foi montado."
+                );
+
+                return;
+            } catch (err) {
+                console.error(
+                    "Erro ao montar próximo jogo automático:",
+                    err
+                );
+
+                updateAllSessionUI();
+
+                alert(
+                    "O jogo foi salvo, mas não foi possível montar " +
+                    "o próximo confronto automaticamente.\n\n" +
+                    `Erro: ${err?.message || "erro desconhecido"}`
+                );
+
+                return;
+            }
         }
 
         updateAllSessionUI();

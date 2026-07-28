@@ -189,7 +189,8 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
 
   state.matches.push(match);
   saveState();
-  syncMatchToDb(match);
+
+  return syncMatchToDb(match).then(() => match);
 }
 
 function undoLastMatchOfCurrentSession() {
