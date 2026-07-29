@@ -1058,3 +1058,37 @@ pre {
     min-height: 48px;
   }
 }
+
+/* ===== EXPANDIR / RECOLHER RODÍZIO ===== */
+
+.rotation-setup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rotation-toggle-button {
+  width: auto;
+  flex-shrink: 0;
+}
+
+#rotationSetupContent {
+  margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .rotation-setup-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rotation-toggle-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  #rotationSetupContent {
+    margin-top: 10px;
+  }
+}

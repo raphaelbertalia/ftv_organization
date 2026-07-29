@@ -6,6 +6,8 @@
 (function () {
     const $ = (id) => document.getElementById(id);
 
+    let rotationSetupExpanded = false;
+
     // helpers locais
     function todayISO() {
         const d = new Date();
@@ -1388,11 +1390,22 @@
     function renderRotationSetup() {
         const session = getCurrentSession();
         const card = $("rotationSetupCard");
+        const setupContent = $("rotationSetupContent");
+        const toggleButton = $("btnToggleRotationSetup");
 
         if (!card) return;
 
         if (!session || session.playMode !== "rotation") {
             card.style.display = "none";
+            rotationSetupExpanded = false;
+
+            if (setupContent) {
+                setupContent.style.display = "none";
+            }
+
+            if (toggleButton) {
+                toggleButton.style.display = "none";
+            }
 
             if ($("rotationRestingInfo")) {
                 $("rotationRestingInfo").style.display = "none";
@@ -1405,17 +1418,29 @@
             !!session.pendingPairAId &&
             !!session.pendingPairBId;
 
-        card.style.display =
-            hasPreparedMatch
-                ? "none"
-                : "block";
+        /*
+         * O card permanece visível no rodízio.
+         * Quando já existe jogo preparado, apenas o formulário é recolhido.
+         */
+        card.style.display = "block";
 
-        if (hasPreparedMatch) {
-            if ($("rotationRestingInfo")) {
-                $("rotationRestingInfo").style.display = "none";
-            }
+        if (toggleButton) {
+            toggleButton.style.display =
+                hasPreparedMatch
+                    ? "inline-block"
+                    : "none";
 
-            return;
+            toggleButton.textContent =
+                rotationSetupExpanded
+                    ? "✖ Fechar alteração"
+                    : "✏️ Alterar próximo jogo";
+        }
+
+        if (setupContent) {
+            setupContent.style.display =
+                hasPreparedMatch && !rotationSetupExpanded
+                    ? "none"
+                    : "block";
         }
 
         const participantIds = getCurrentParticipantIds(session);
@@ -1433,7 +1458,51 @@
             $("rotationParticipantsInfo").textContent =
                 `Rodízio com ${participantIds.length} jogadores: ${participantNames.join(", ")}`;
         }
+
+        /*
+         * Quando há jogo preparado, recupera os jogadores das duplas
+         * para que o botão "Alterar próximo jogo" abra tudo preenchido.
+         */
+        if (hasPreparedMatch) {
+            const pairA = (session.pairs || []).find(
+                pair =>
+                    String(pair.id) ===
+                    String(session.pendingPairAId)
+            );
+
+            const pairB = (session.pairs || []).find(
+                pair =>
+                    String(pair.id) ===
+                    String(session.pendingPairBId)
+            );
+
+            if (pairA && pairB) {
+                if ($("rotationA1")) {
+                    $("rotationA1").value = String(pairA.p1);
+                }
+
+                if ($("rotationA2")) {
+                    $("rotationA2").value = String(pairA.p2);
+                }
+
+                if ($("rotationB1")) {
+                    $("rotationB1").value = String(pairB.p1);
+                }
+
+                if ($("rotationB2")) {
+                    $("rotationB2").value = String(pairB.p2);
+                }
+            }
+        }
+
         updateRotationRestingPlayers(session);
+    }
+
+    if ($("btnToggleRotationSetup")) {
+        $("btnToggleRotationSetup").addEventListener("click", () => {
+            rotationSetupExpanded = !rotationSetupExpanded;
+            renderRotationSetup();
+        });
     }
 
     [
@@ -2004,6 +2073,8 @@
         session.pendingPairAId = pairA.id;
         session.pendingPairBId = pairB.id;
 
+        rotationSetupExpanded = false;
+
         saveState();
 
         await apiJson("/api/sessions", {
@@ -2074,6 +2145,8 @@
 
         session.pendingPairAId = pairA.id;
         session.pendingPairBId = pairB.id;
+
+        rotationSetupExpanded = false;
 
         saveState();
 

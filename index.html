@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 
 <body>
@@ -173,71 +173,82 @@
         </div>
 
         <div id="rotationSetupCard" class="card rotation-setup-card" style="display:none;">
+
           <div class="rotation-setup-header">
             <div>
               <b>Montar próximo jogo</b>
 
               <div id="rotationParticipantsInfo" class="muted rotation-participants-info"></div>
             </div>
+
+            <button id="btnToggleRotationSetup" class="secondary rotation-toggle-button" type="button"
+              style="display:none;">
+              ✏️ Alterar próximo jogo
+            </button>
           </div>
 
-          <div class="rotation-match-grid">
+          <div id="rotationSetupContent">
 
-            <div class="rotation-pair-card rotation-pair-a">
-              <div class="rotation-pair-title">
-                Dupla A
-              </div>
+            <div class="rotation-match-grid">
 
-              <div class="rotation-pair-fields">
-                <div>
-                  <div class="muted">Jogador 1</div>
-                  <select id="rotationA1"></select>
+              <div class="rotation-pair-card rotation-pair-a">
+                <div class="rotation-pair-title">
+                  Dupla A
                 </div>
 
-                <div>
-                  <div class="muted">Jogador 2</div>
-                  <select id="rotationA2"></select>
+                <div class="rotation-pair-fields">
+                  <div>
+                    <div class="muted">Jogador 1</div>
+                    <select id="rotationA1"></select>
+                  </div>
+
+                  <div>
+                    <div class="muted">Jogador 2</div>
+                    <select id="rotationA2"></select>
+                  </div>
                 </div>
               </div>
+
+              <div class="rotation-vs">
+                VS
+              </div>
+
+              <div class="rotation-pair-card rotation-pair-b">
+                <div class="rotation-pair-title">
+                  Dupla B
+                </div>
+
+                <div class="rotation-pair-fields">
+                  <div>
+                    <div class="muted">Jogador 1</div>
+                    <select id="rotationB1"></select>
+                  </div>
+
+                  <div>
+                    <div class="muted">Jogador 2</div>
+                    <select id="rotationB2"></select>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            <div class="rotation-vs">
-              VS
+            <div id="rotationRestingInfo" class="rotation-resting-info">
+              <span class="rotation-resting-label">
+                Descansando
+              </span>
+
+              <span id="rotationRestingNames">
+                —
+              </span>
             </div>
 
-            <div class="rotation-pair-card rotation-pair-b">
-              <div class="rotation-pair-title">
-                Dupla B
-              </div>
-
-              <div class="rotation-pair-fields">
-                <div>
-                  <div class="muted">Jogador 1</div>
-                  <select id="rotationB1"></select>
-                </div>
-
-                <div>
-                  <div class="muted">Jogador 2</div>
-                  <select id="rotationB2"></select>
-                </div>
-              </div>
-            </div>
+            <button id="btnPrepareRotationMatch" type="button" class="rotation-prepare-button">
+              Preparar próximo jogo
+            </button>
 
           </div>
 
-          <div id="rotationRestingInfo" class="rotation-resting-info">
-            <span class="rotation-resting-label">
-              Descansando
-            </span>
-
-            <span id="rotationRestingNames">
-              —
-            </span>
-          </div>
-
-          <button id="btnPrepareRotationMatch" type="button" class="rotation-prepare-button">
-            Preparar próximo jogo
-          </button>
         </div>
 
         <div id="matchCard" class="card match-entry-card">
