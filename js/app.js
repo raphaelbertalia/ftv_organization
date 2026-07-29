@@ -1401,7 +1401,22 @@
             return;
         }
 
-        card.style.display = "block";
+        const hasPreparedMatch =
+            !!session.pendingPairAId &&
+            !!session.pendingPairBId;
+
+        card.style.display =
+            hasPreparedMatch
+                ? "none"
+                : "block";
+
+        if (hasPreparedMatch) {
+            if ($("rotationRestingInfo")) {
+                $("rotationRestingInfo").style.display = "none";
+            }
+
+            return;
+        }
 
         const participantIds = getCurrentParticipantIds(session);
 
