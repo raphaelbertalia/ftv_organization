@@ -2916,23 +2916,70 @@
             .slice()
             .sort((a, b) => (a.scheduleIndex ?? 9999) - (b.scheduleIndex ?? 9999) || (a.createdAt - b.createdAt));
 
-        wrap.innerHTML = matchesOrdered.map((m, i) => `
-    <div class="player-item" style="justify-content:space-between; gap:12px;">
-      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
-        <b>Jogo ${(m.scheduleIndex ?? i) + 1}</b>
-        <span>${pairName(m.pairAId)}</span>
-        <b>${m.scoreA} x ${m.scoreB}</b>
-        <span>${pairName(m.pairBId)}</span>
-      </div>
+        wrap.innerHTML = matchesOrdered.map((m, i) => {
+            const scoreA = Number(m.scoreA);
+            const scoreB = Number(m.scoreB);
 
-    <div style="display:flex; gap:8px;">
-    ${canOperate()
-                ? `<button class="secondary btnEditMatch" data-id="${m.id}">✏️</button>`
-                : ""
-            }
-    </div>
-    </div>
-  `).join("");
+            const pairAClass =
+                scoreA > scoreB
+                    ? "is-winner"
+                    : "is-loser";
+
+            const pairBClass =
+                scoreB > scoreA
+                    ? "is-winner"
+                    : "is-loser";
+
+            return `
+                <div class="match-history-item">
+
+                    <div class="match-history-header">
+                        <span class="match-history-number">
+                            Jogo ${(m.scheduleIndex ?? i) + 1}
+                        </span>
+
+                        ${canOperate()
+                            ? `
+                                <button
+                                    class="secondary btnEditMatch match-history-edit"
+                                    type="button"
+                                    data-id="${m.id}"
+                                    aria-label="Editar placar do jogo ${(m.scheduleIndex ?? i) + 1}"
+                                >
+                                    ✏️
+                                </button>
+                            `
+                            : ""
+                        }
+                    </div>
+
+                    <div class="match-history-scoreboard">
+
+                        <div class="match-history-team ${pairAClass}">
+                            <span class="match-history-pair">
+                                ${pairName(m.pairAId)}
+                            </span>
+
+                            <strong class="match-history-score">
+                                ${m.scoreA}
+                            </strong>
+                        </div>
+
+                        <div class="match-history-team ${pairBClass}">
+                            <span class="match-history-pair">
+                                ${pairName(m.pairBId)}
+                            </span>
+
+                            <strong class="match-history-score">
+                                ${m.scoreB}
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </div>
+            `;
+        }).join("");
     }
 
     function recomputeNextIndex(sess) {

@@ -814,3 +814,121 @@ pre {
     margin-top: 2px;
   }
 }
+
+/* ===== HISTÓRICO DA SESSÃO ===== */
+
+#matchHistory {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-history-item {
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.match-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.match-history-number {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.match-history-edit {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 11px;
+}
+
+.match-history-scoreboard {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.match-history-team {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 9px;
+}
+
+.match-history-team.is-winner {
+  background: rgba(34, 197, 94, .07);
+}
+
+.match-history-pair {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.match-history-team.is-winner .match-history-pair,
+.match-history-team.is-winner .match-history-score {
+  color: #86efac;
+}
+
+.match-history-team.is-loser {
+  color: var(--muted);
+}
+
+.match-history-score {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+@media (max-width: 720px) {
+  #historyCard {
+    padding: 13px;
+  }
+
+  .match-history-item {
+    padding: 9px 10px;
+  }
+
+  .match-history-number {
+    font-size: 10px;
+  }
+
+  .match-history-edit {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+  }
+
+  .match-history-scoreboard {
+    margin-top: 5px;
+  }
+
+  .match-history-team {
+    grid-template-columns: minmax(0, 1fr) 38px;
+    min-height: 32px;
+    padding: 3px 7px;
+  }
+
+  .match-history-pair {
+    font-size: 13px;
+  }
+
+  .match-history-score {
+    font-size: 17px;
+  }
+}
