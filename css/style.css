@@ -1504,3 +1504,190 @@ pre {
     margin-top: 0;
   }
 }
+
+/* ===== LOADING GLOBAL COM MIKASA ===== */
+
+.global-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(2, 6, 23, .74);
+  backdrop-filter: blur(4px);
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transition:
+    opacity .18s ease,
+    visibility .18s ease;
+}
+
+.global-loading.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.global-loading-box {
+  width: min(310px, 90vw);
+  padding: 24px 20px 21px;
+
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 18px;
+
+  background:
+    radial-gradient(220px 120px at 50% 15%,
+      rgba(250, 204, 21, .08),
+      transparent 75%),
+    #0f172a;
+
+  box-shadow:
+    0 28px 65px rgba(0, 0, 0, .55);
+
+  text-align: center;
+}
+
+.mikasa-loader {
+  position: relative;
+  width: 110px;
+  height: 112px;
+  margin: 0 auto;
+}
+
+.mikasa-ball-wrap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+
+  width: 72px;
+  height: 72px;
+
+  transform: translateX(-50%);
+
+  animation:
+    mikasa-bounce .85s ease-in-out infinite;
+}
+
+.mikasa-ball {
+  display: block;
+  width: 72px;
+  height: 72px;
+
+  object-fit: cover;
+  border-radius: 50%;
+
+  /*
+   * Recorta as bordas brancas da imagem.
+   * A bola não gira: apenas sobe, desce e comprime.
+   */
+  clip-path: circle(46% at 50% 50%);
+
+  filter:
+    drop-shadow(0 9px 10px rgba(0, 0, 0, .4));
+}
+
+.mikasa-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+
+  width: 58px;
+  height: 10px;
+
+  border-radius: 50%;
+
+  background: rgba(250, 204, 21, .25);
+  box-shadow:
+    0 0 17px rgba(250, 204, 21, .18);
+
+  transform: translateX(-50%);
+
+  animation:
+    mikasa-shadow-pulse .85s ease-in-out infinite;
+}
+
+.global-loading-text {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.3;
+}
+
+.global-loading-subtext {
+  margin-top: 5px;
+
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+/* A bola apenas quica. Não existe rotate nesta animação. */
+@keyframes mikasa-bounce {
+  0% {
+    transform:
+      translateX(-50%) translateY(25px) scaleX(1.07) scaleY(.92);
+  }
+
+  12% {
+    transform:
+      translateX(-50%) translateY(25px) scaleX(1.1) scaleY(.88);
+  }
+
+  45% {
+    transform:
+      translateX(-50%) translateY(-23px) scaleX(.98) scaleY(1.02);
+  }
+
+  55% {
+    transform:
+      translateX(-50%) translateY(-25px) scaleX(.98) scaleY(1.02);
+  }
+
+  88% {
+    transform:
+      translateX(-50%) translateY(23px) scaleX(1.03) scaleY(.96);
+  }
+
+  100% {
+    transform:
+      translateX(-50%) translateY(25px) scaleX(1.07) scaleY(.92);
+  }
+}
+
+@keyframes mikasa-shadow-pulse {
+
+  0%,
+  12%,
+  100% {
+    width: 60px;
+    opacity: .8;
+  }
+
+  45%,
+  55% {
+    width: 32px;
+    opacity: .25;
+  }
+}
+
+/* Respeita quem desabilita animações no aparelho */
+@media (prefers-reduced-motion: reduce) {
+
+  .mikasa-ball-wrap,
+  .mikasa-shadow {
+    animation: none;
+  }
+
+  .mikasa-ball-wrap {
+    transform:
+      translateX(-50%) translateY(12px);
+  }
+}

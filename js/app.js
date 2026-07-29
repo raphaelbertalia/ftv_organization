@@ -6,6 +6,65 @@
 (function () {
     const $ = (id) => document.getElementById(id);
 
+    const Loading = (() => {
+        let activeOperations = 0;
+
+        function show(message = "Processando...") {
+            const overlay = $("globalLoading");
+            const text = $("globalLoadingText");
+
+            activeOperations++;
+
+            if (!overlay) return;
+
+            if (text) {
+                text.textContent = message;
+            }
+
+            overlay.classList.add("is-visible");
+            overlay.setAttribute("aria-hidden", "false");
+
+            document.body.classList.add("app-is-loading");
+        }
+
+        function hide() {
+            const overlay = $("globalLoading");
+
+            activeOperations = Math.max(
+                0,
+                activeOperations - 1
+            );
+
+            if (activeOperations > 0 || !overlay) {
+                return;
+            }
+
+            overlay.classList.remove("is-visible");
+            overlay.setAttribute("aria-hidden", "true");
+
+            document.body.classList.remove("app-is-loading");
+        }
+
+        function forceHide() {
+            const overlay = $("globalLoading");
+
+            activeOperations = 0;
+
+            if (!overlay) return;
+
+            overlay.classList.remove("is-visible");
+            overlay.setAttribute("aria-hidden", "true");
+
+            document.body.classList.remove("app-is-loading");
+        }
+
+        return {
+            show,
+            hide,
+            forceHide
+        };
+    })();
+
     let rotationSetupExpanded = false;
     let sessionGamesExpanded = false;
 
@@ -2524,82 +2583,98 @@
 
         recomputeNextIndex(sess); // garante sess.nextIndex consistente
 
-        //        alert("vai salvar"); // ✅ teste
+        Loading.show("Salvando jogo...");
 
-        await addMatch(
-            pairAId,
-            pairBId,
-            scoreA,
-            scoreB,
-            sess.nextIndex
-        );
+        try {
+            await addMatch(
+                pairAId,
+                pairBId,
+                scoreA,
+                scoreB,
+                sess.nextIndex
+            );
 
-        if (sess.playMode === "rotation") {
-            sess.pendingPairAId = null;
-            sess.pendingPairBId = null;
+            if (sess.playMode === "rotation") {
+                sess.pendingPairAId = null;
+                sess.pendingPairBId = null;
 
+                saveState();
+
+                await apiJson("/api/sessions", {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                        id: sess.id,
+                        pending_pair_a_id: null,
+                        pending_pair_b_id: null
+                    })
+                });
+            }
+
+            recomputeNextIndex(sess);
             saveState();
 
-            await apiJson("/api/sessions", {
-                method: "PATCH",
-                body: JSON.stringify({
-                    id: sess.id,
-                    pending_pair_a_id: null,
-                    pending_pair_b_id: null
-                })
-            });
-        }
-
-        recomputeNextIndex(sess);
-        saveState();
-
-        if ($("scoreA")) {
-            $("scoreA").value = "";
-        }
-
-        if ($("scoreB")) {
-            $("scoreB").value = "";
-        }
-
-        if (
-            sess.playMode === "rotation" &&
-            getSessionMatches(sess).length < 8
-        ) {
-            try {
-                const prepared =
-                    await prepareAutomaticRotationMatch(sess);
-
-                if (!prepared) {
-                    throw new Error(
-                        "A preparação automática não retornou um confronto."
-                    );
-                }
-
-                alert(
-                    "Jogo salvo ✅\n\nO próximo confronto já foi montado."
-                );
-
-                return;
-            } catch (err) {
-                console.error(
-                    "Erro ao montar próximo jogo automático:",
-                    err
-                );
-
-                updateAllSessionUI();
-
-                alert(
-                    "O jogo foi salvo, mas não foi possível montar " +
-                    "o próximo confronto automaticamente.\n\n" +
-                    `Erro: ${err?.message || "erro desconhecido"}`
-                );
-
-                return;
+            if ($("scoreA")) {
+                $("scoreA").value = "";
             }
-        }
 
-        updateAllSessionUI();
-        alert("Jogo salvo ✅");
+            if ($("scoreB")) {
+                $("scoreB").value = "";
+            }
+
+            if (
+                sess.playMode === "rotation" &&
+                getSessionMatches(sess).length < 8
+            ) {
+                try {
+                    const prepared =
+                        await prepareAutomaticRotationMatch(sess);
+
+                    if (!prepared) {
+                        throw new Error(
+                            "A preparação automática não retornou um confronto."
+                        );
+                    }
+
+                    alert(
+                        "Jogo salvo ✅\n\nO próximo confronto já foi montado."
+                    );
+
+                    return;
+                } catch (err) {
+                    console.error(
+                        "Erro ao montar próximo jogo automático:",
+                        err
+                    );
+
+                    updateAllSessionUI();
+
+                    Loading.hide();
+
+                    alert(
+                        "O jogo foi salvo, mas não foi possível montar " +
+                        "o próximo confronto automaticamente.\n\n" +
+                        `Erro: ${err?.message || "erro desconhecido"}`
+                    );
+
+                    return;
+                }
+            }
+
+            updateAllSessionUI();
+
+            Loading.hide();
+
+            alert("Jogo salvo ✅");
+        } catch (err) {
+            console.error("Erro ao salvar jogo:", err);
+
+            Loading.hide();
+
+            alert(
+                err?.message ||
+                "Não foi possível salvar o jogo."
+            );
+        }
     });
 
     if ($("btnUndo")) {
@@ -3932,13 +4007,13 @@
                                     <tr>
                                         <td>
                                             ${index === 0
-                                ? "🥇"
-                                : index === 1
-                                    ? "🥈"
-                                    : index === 2
-                                        ? "🥉"
-                                        : index + 1
-                            }
+                    ? "🥇"
+                    : index === 1
+                        ? "🥈"
+                        : index === 2
+                            ? "🥉"
+                            : index + 1
+                }
                                         </td>
 
                                         <td>
