@@ -3735,11 +3735,87 @@
     function updateNextGameUI() {
         const sess = getCurrentSession();
 
+        const modeBadge = $("sessionModeBadge");
+        const gameProgress = $("gameProgress");
+        const nextGameLabel = $("nextGameLabel");
+
+        function renderNextGame({
+            title = "Próximo jogo",
+            pairA = "",
+            pairB = "",
+            message = "",
+            status = ""
+        }) {
+            if (!nextGameLabel) return;
+
+            nextGameLabel.classList.remove(
+                "is-ready",
+                "is-waiting",
+                "is-finished"
+            );
+
+            if (status) {
+                nextGameLabel.classList.add(status);
+            }
+
+            if (pairA && pairB) {
+                nextGameLabel.innerHTML = `
+                <div class="next-game-title">
+                    ${title}
+                </div>
+
+                <div class="next-game-versus">
+                    <div class="next-game-pair next-game-pair-a">
+                        ${pairA}
+                    </div>
+
+                    <div class="next-game-vs">
+                        VS
+                    </div>
+
+                    <div class="next-game-pair next-game-pair-b">
+                        ${pairB}
+                    </div>
+                </div>
+            `;
+
+                return;
+            }
+
+            nextGameLabel.innerHTML = `
+            <div class="next-game-title">
+                ${title}
+            </div>
+
+            <div class="next-game-message">
+                ${message || "—"}
+            </div>
+        `;
+        }
+
         if (!sess) {
-            if ($("gameProgress")) $("gameProgress").textContent = "";
-            if ($("nextGameLabel")) $("nextGameLabel").textContent = "Sem sessão ativa.";
-            if ($("pairA")) $("pairA").value = "";
-            if ($("pairB")) $("pairB").value = "";
+            if (modeBadge) {
+                modeBadge.textContent = "Sem sessão";
+            }
+
+            if (gameProgress) {
+                gameProgress.textContent = "";
+            }
+
+            renderNextGame({
+                title: "Sessão",
+                message: "Sem sessão ativa.",
+                status: "is-waiting"
+            });
+
+            if ($("pairA")) {
+                $("pairA").value = "";
+            }
+
+            if ($("pairB")) {
+                $("pairB").value = "";
+            }
+
             return;
         }
 
@@ -3748,9 +3824,13 @@
 
             const nextGameNumber = (sess.nextIndex || 0) + 1;
 
-            if ($("gameProgress")) {
-                $("gameProgress").textContent =
-                    `Rodízio • Jogo ${nextGameNumber} de 8`;
+            if (modeBadge) {
+                modeBadge.textContent = "🔄 Rodízio";
+            }
+
+            if (gameProgress) {
+                gameProgress.textContent =
+                    `Jogo ${Math.min(nextGameNumber, 8)} de 8`;
             }
 
             const pairA = (sess.pairs || []).find(
@@ -3777,13 +3857,16 @@
                     pairBSelect.value = String(pairB.id);
                 }
 
-                if ($("nextGameLabel")) {
-                    $("nextGameLabel").textContent =
-                        `Próximo jogo: ` +
-                        `${getPlayerName(pairA.p1)} + ${getPlayerName(pairA.p2)}` +
-                        ` vs ` +
-                        `${getPlayerName(pairB.p1)} + ${getPlayerName(pairB.p2)}`;
-                }
+                renderNextGame({
+                    title: "Próximo jogo",
+                    pairA:
+                        `${getPlayerName(pairA.p1)} + ` +
+                        `${getPlayerName(pairA.p2)}`,
+                    pairB:
+                        `${getPlayerName(pairB.p1)} + ` +
+                        `${getPlayerName(pairB.p2)}`,
+                    status: "is-ready"
+                });
             } else {
                 if ($("pairA")) {
                     $("pairA").value = "";
@@ -3793,47 +3876,109 @@
                     $("pairB").value = "";
                 }
 
-                if ($("nextGameLabel")) {
-                    $("nextGameLabel").textContent =
-                        "Escolha os quatro jogadores e prepare o próximo jogo.";
-                }
+                renderNextGame({
+                    title: "Aguardando próximo jogo",
+                    message:
+                        "Escolha os quatro jogadores abaixo " +
+                        "e prepare o próximo jogo.",
+                    status: "is-waiting"
+                });
             }
 
             return;
         }
 
-        const planned = computeNextPlannedGame(sess);
+        if (modeBadge) {
+            modeBadge.textContent = "🎮 Duplas fixas";
+        }
 
-        if ($("gameProgress")) $("gameProgress").textContent = `Jogo ${(sess.nextIndex || 0) + 1}`;
+        const next = computeNextPlannedGame(sess);
 
-        if (!planned) {
-            if ($("nextGameLabel")) $("nextGameLabel").textContent = "Sem próximo jogo definido.";
+        if (!next) {
+            if (gameProgress) {
+                gameProgress.textContent = "";
+            }
+
+            renderNextGame({
+                title: "Próximo jogo",
+                message: "Não foi possível calcular o próximo jogo.",
+                status: "is-waiting"
+            });
+
             return;
         }
 
-        if (planned.done) {
-            $("nextGameLabel").textContent = planned.label;
+        const nextGameNumber = (sess.nextIndex || 0) + 1;
+
+        if (gameProgress) {
+            gameProgress.textContent =
+                `Jogo ${Math.min(nextGameNumber, 8)} de 8`;
+        }
+
+        if (next.done) {
+            renderNextGame({
+                title: "Sessão concluída",
+                message: "Todos os 8 jogos foram registrados ✅",
+                status: "is-finished"
+            });
+
+            if ($("pairA")) {
+                $("pairA").value = "";
+            }
+
+            if ($("pairB")) {
+                $("pairB").value = "";
+            }
+
             return;
         }
-        if (planned.pending) {
-            $("nextGameLabel").textContent = planned.label;
+
+        if (next.pending) {
+            renderNextGame({
+                title: "Aguardando resultado",
+                message: next.label,
+                status: "is-waiting"
+            });
+
             return;
         }
 
-        const namePair = (pairId) => {
-            const pr = (sess.pairs || []).find(p => p.id === pairId);
-            if (!pr) return "?/?";
-            const p1 = (state.players || []).find(p => p.id === pr.p1)?.name || "?";
-            const p2 = (state.players || []).find(p => p.id === pr.p2)?.name || "?";
-            return `${p1} + ${p2}`;
-        };
+        const pairA = (sess.pairs || []).find(
+            pair => String(pair.id) === String(next.pairAId)
+        );
 
-        if ($("nextGameLabel")) {
-            $("nextGameLabel").textContent = `${planned.label}: ${namePair(planned.pairAId)}  vs  ${namePair(planned.pairBId)}`;
+        const pairB = (sess.pairs || []).find(
+            pair => String(pair.id) === String(next.pairBId)
+        );
+
+        if (!pairA || !pairB) {
+            renderNextGame({
+                title: "Próximo jogo",
+                message: "As duplas do próximo jogo não foram encontradas.",
+                status: "is-waiting"
+            });
+
+            return;
         }
 
-        if ($("pairA")) $("pairA").value = planned.pairAId;
-        if ($("pairB")) $("pairB").value = planned.pairBId;
+        if ($("pairA")) {
+            $("pairA").value = String(pairA.id);
+        }
+
+        if ($("pairB")) {
+            $("pairB").value = String(pairB.id);
+        }
+
+        renderNextGame({
+            title: next.label || "Próximo jogo",
+            pairA:
+                `${getPlayerName(pairA.p1)} + ` +
+                `${getPlayerName(pairA.p2)}`,
+            pairB:
+                `${getPlayerName(pairB.p1)} + ` +
+                `${getPlayerName(pairB.p2)}`,
+            status: "is-ready"
+        });
     }
 
     function applyFullLocalReset() {
