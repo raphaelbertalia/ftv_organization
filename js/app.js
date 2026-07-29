@@ -3359,7 +3359,13 @@
     }
 
     function getViewedSession() {
-        return getSessionById(state.viewSessionId || state.currentSessionId || null);
+        if (!state.viewSessionId) {
+            return null;
+        }
+
+        return getSessionById(
+            state.viewSessionId
+        );
     }
 
     function getSessionParticipantIds(session) {
