@@ -523,193 +523,294 @@ pre {
   }
 }
 
-  /* ===== ANDAMENTO DA SESSÃO ===== */
+/* ===== ANDAMENTO DA SESSÃO ===== */
 
+.session-progress-card {
+  padding: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(500px 180px at 50% 0%,
+      rgba(34, 197, 94, .11),
+      transparent 72%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .055),
+      rgba(255, 255, 255, .02));
+}
+
+.session-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.session-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border: 1px solid rgba(34, 197, 94, .28);
+  border-radius: 999px;
+  background: rgba(34, 197, 94, .09);
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.session-game-progress {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.next-game-display {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(2, 6, 23, .34);
+  text-align: center;
+}
+
+.next-game-display.is-ready {
+  border-color: rgba(34, 197, 94, .24);
+  background:
+    linear-gradient(180deg,
+      rgba(34, 197, 94, .07),
+      rgba(2, 6, 23, .3));
+}
+
+.next-game-display.is-waiting {
+  border-color: rgba(245, 158, 11, .22);
+}
+
+.next-game-display.is-finished {
+  border-color: rgba(34, 197, 94, .36);
+  background: rgba(34, 197, 94, .08);
+}
+
+.next-game-title {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.next-game-versus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-top: 13px;
+}
+
+.next-game-pair {
+  min-width: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.next-game-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(34, 197, 94, .3);
+  border-radius: 50%;
+  background: rgba(34, 197, 94, .1);
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.next-game-message {
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.session-progress-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.session-progress-actions button {
+  width: auto;
+}
+
+@media (max-width: 720px) {
   .session-progress-card {
-    padding: 16px;
-    overflow: hidden;
-    background:
-      radial-gradient(500px 180px at 50% 0%,
-        rgba(34, 197, 94, .11),
-        transparent 72%),
-      linear-gradient(180deg,
-        rgba(255, 255, 255, .055),
-        rgba(255, 255, 255, .02));
+    padding: 13px;
   }
 
   .session-progress-header {
-    display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
   }
 
   .session-mode-badge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 6px 11px;
-    border: 1px solid rgba(34, 197, 94, .28);
-    border-radius: 999px;
-    background: rgba(34, 197, 94, .09);
-    color: #86efac;
-    font-size: 12px;
-    font-weight: 900;
-    letter-spacing: .04em;
-    text-transform: uppercase;
+    min-height: 28px;
+    padding: 5px 9px;
+    font-size: 11px;
   }
 
   .session-game-progress {
-    color: var(--muted);
-    font-size: 13px;
-    font-weight: 800;
-    white-space: nowrap;
+    font-size: 12px;
   }
 
   .next-game-display {
-    margin-top: 14px;
-    padding: 18px;
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    background: rgba(2, 6, 23, .34);
-    text-align: center;
-  }
-
-  .next-game-display.is-ready {
-    border-color: rgba(34, 197, 94, .24);
-    background:
-      linear-gradient(180deg,
-        rgba(34, 197, 94, .07),
-        rgba(2, 6, 23, .3));
-  }
-
-  .next-game-display.is-waiting {
-    border-color: rgba(245, 158, 11, .22);
-  }
-
-  .next-game-display.is-finished {
-    border-color: rgba(34, 197, 94, .36);
-    background: rgba(34, 197, 94, .08);
-  }
-
-  .next-game-title {
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .13em;
-    text-transform: uppercase;
+    margin-top: 12px;
+    padding: 16px 12px;
   }
 
   .next-game-versus {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    gap: 16px;
-    margin-top: 13px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 14px;
   }
 
   .next-game-pair {
-    min-width: 0;
-    color: var(--text);
-    font-size: 18px;
-    font-weight: 900;
-    line-height: 1.25;
-    overflow-wrap: anywhere;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .035);
+    font-size: 20px;
   }
 
   .next-game-vs {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    height: 42px;
-    border: 1px solid rgba(34, 197, 94, .3);
-    border-radius: 50%;
-    background: rgba(34, 197, 94, .1);
-    color: #86efac;
-    font-size: 12px;
-    font-weight: 950;
-  }
-
-  .next-game-message {
-    margin-top: 10px;
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 750;
-    line-height: 1.45;
+    width: 38px;
+    height: 38px;
+    margin: 0 auto;
   }
 
   .session-progress-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 12px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
   }
 
   .session-progress-actions button {
-    width: auto;
+    width: 100%;
+    min-height: 44px;
   }
 
-  @media (max-width: 720px) {
-    .session-progress-card {
-      padding: 13px;
-    }
-
-    .session-progress-header {
-      align-items: center;
-    }
-
-    .session-mode-badge {
-      min-height: 28px;
-      padding: 5px 9px;
-      font-size: 11px;
-    }
-
-    .session-game-progress {
-      font-size: 12px;
-    }
-
-    .next-game-display {
-      margin-top: 12px;
-      padding: 16px 12px;
-    }
-
-    .next-game-versus {
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .next-game-pair {
-      padding: 10px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, .035);
-      font-size: 20px;
-    }
-
-    .next-game-vs {
-      width: 38px;
-      height: 38px;
-      margin: 0 auto;
-    }
-
-    .session-progress-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      width: 100%;
-    }
-
-    .session-progress-actions button {
-      width: 100%;
-      min-height: 44px;
-    }
-
-    .session-progress-actions button:only-child {
-      grid-column: 1 / -1;
-    }
-
-    #btnUndo {
-      grid-column: 1 / -1;
-    }
+  .session-progress-actions button:only-child {
+    grid-column: 1 / -1;
   }
+
+  #btnUndo {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ===== REGISTRO DE JOGO ===== */
+
+.match-entry-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(190px, 1fr) 82px 42px 82px minmax(190px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.match-entry-pair select {
+  width: 100%;
+}
+
+.match-entry-score input {
+  width: 100%;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.match-entry-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.match-entry-save button {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .match-entry-card {
+    padding: 13px;
+  }
+
+  .match-entry-grid {
+    grid-template-columns:
+      minmax(0, 1fr) 44px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .match-entry-pair-a {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .match-entry-score-a {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .match-entry-vs {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
+  }
+
+  .match-entry-score-b {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .match-entry-pair-b {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .match-entry-save {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  .match-entry-pair select,
+  .match-entry-score input,
+  .match-entry-save button {
+    width: 100%;
+  }
+
+  .match-entry-score input {
+    min-height: 48px;
+    font-size: 20px;
+  }
+
+  .match-entry-vs {
+    min-height: 48px;
+    padding-bottom: 12px;
+  }
+
+  .match-entry-save button {
+    min-height: 48px;
+    margin-top: 2px;
+  }
+}

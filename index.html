@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 
 <body>
@@ -204,32 +204,41 @@
           </button>
         </div>
 
-        <div id="matchCard" class="card">
+        <div id="matchCard" class="card match-entry-card">
           <b>Registrar jogo</b>
-          <div class="row" style="margin-top:10px; align-items:end;">
-            <div>
+
+          <div class="match-entry-grid">
+
+            <div class="match-entry-pair match-entry-pair-a">
               <div class="muted">Dupla A</div>
               <select id="pairA"></select>
             </div>
-            <div>
+
+            <div class="match-entry-score match-entry-score-a">
               <div class="muted">Placar A</div>
-              <input id="scoreA" inputmode="numeric" placeholder="18" style="width:80px" />
+              <input id="scoreA" inputmode="numeric" pattern="[0-9]*" placeholder="18" />
             </div>
 
-            <div style="align-self:center; padding:0 8px;"><b>vs</b></div>
+            <div class="match-entry-vs">
+              VS
+            </div>
 
-            <div>
+            <div class="match-entry-score match-entry-score-b">
+              <div class="muted">Placar B</div>
+              <input id="scoreB" inputmode="numeric" pattern="[0-9]*" placeholder="15" />
+            </div>
+
+            <div class="match-entry-pair match-entry-pair-b">
               <div class="muted">Dupla B</div>
               <select id="pairB"></select>
             </div>
-            <div>
-              <div class="muted">Placar B</div>
-              <input id="scoreB" inputmode="numeric" placeholder="15" style="width:80px" />
+
+            <div class="match-entry-save">
+              <button id="btnAddMatch" type="button">
+                Salvar jogo
+              </button>
             </div>
 
-            <div>
-              <button id="btnAddMatch">Salvar jogo</button>
-            </div>
           </div>
         </div>
 
