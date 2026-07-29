@@ -2908,7 +2908,7 @@
                 ?.querySelectorAll(".session-accordion");
 
         const gamesAccordion =
-            accordions?.[1];
+            accordions?.[2];
 
         if (gamesAccordion) {
             gamesAccordion.open = true;
@@ -3712,6 +3712,14 @@
         const playedTable =
             table.filter(row => Number(row.played) > 0);
 
+        const individualRanking =
+            typeof window.computeIndividualRankingForSession === "function"
+                ? window.computeIndividualRankingForSession(
+                    viewed,
+                    state.matches || []
+                )
+                : [];
+
         const best =
             playedTable[0] || null;
 
@@ -3864,6 +3872,102 @@
             </div>
         `;
 
+        const individualRankingHtml = individualRanking.length
+            ? `
+        <div class="session-individual-podium">
+
+            ${individualRanking.slice(0, 3).map((player, index) => {
+                const medal =
+                    index === 0
+                        ? "🥇"
+                        : index === 1
+                            ? "🥈"
+                            : "🥉";
+
+                return `
+                    <div class="
+                        session-individual-podium-item
+                        session-individual-position-${index + 1}
+                    ">
+                        <div class="session-individual-medal">
+                            ${medal}
+                        </div>
+
+                        <strong class="session-individual-name">
+                            ${player.name}
+                        </strong>
+
+                        <div class="session-individual-points">
+                            ${player.points} pts
+                        </div>
+
+                        <div class="muted session-individual-stats">
+                            ${player.played} jogo(s)
+                            • ${player.wins} vitória(s)
+                            • saldo ${player.diff >= 0 ? "+" : ""}${player.diff}
+                        </div>
+                    </div>
+                `;
+            }).join("")}
+
+                    </div>
+
+                    <div class="session-table-scroll">
+                        <table class="table session-individual-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Jogador</th>
+                                    <th>Pts</th>
+                                    <th>J</th>
+                                    <th>V</th>
+                                    <th>D</th>
+                                    <th>Saldo</th>
+                                    <th>Pró</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                ${individualRanking.map((player, index) => `
+                                    <tr>
+                                        <td>
+                                            ${index === 0
+                                ? "🥇"
+                                : index === 1
+                                    ? "🥈"
+                                    : index === 2
+                                        ? "🥉"
+                                        : index + 1
+                            }
+                                        </td>
+
+                                        <td>
+                                            <strong>${player.name}</strong>
+                                        </td>
+
+                                        <td>${player.points}</td>
+                                        <td>${player.played}</td>
+                                        <td>${player.wins}</td>
+                                        <td>${player.losses}</td>
+
+                                        <td>
+                                            ${player.diff >= 0 ? "+" : ""}
+                                            ${player.diff}
+                                        </td>
+
+                                        <td>${player.pointsFor}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                `
+            : `
+        <div class="muted">
+            Sem ranking individual para essa sessão.
+        </div>
+    `;
+
         const rankingHtml = playedTable.length
             ? `
             <div class="session-table-scroll">
@@ -3996,13 +4100,29 @@
                 </div>
 
             </div>
-        </details>
+                </details>
 
-        <details class="session-accordion">
-            <summary>
-                <span>
-                    🎮 Jogos
-                </span>
+                <details class="session-accordion">
+                    <summary>
+                        <span>
+                            🏆 Ranking individual
+                        </span>
+
+                        <span class="session-accordion-hint">
+                            ${individualRanking.length}
+                        </span>
+                    </summary>
+
+                    <div class="session-accordion-content">
+                        ${individualRankingHtml}
+                    </div>
+                </details>
+
+                <details class="session-accordion">
+                    <summary>
+                        <span>
+                            🎮 Jogos
+                        </span>
 
                 <span class="session-accordion-hint">
                     ${matches.length}

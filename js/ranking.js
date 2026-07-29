@@ -499,5 +499,28 @@
     `;
   }
 
+  function computeIndividualRankingForSession(
+    session,
+    allMatches = state.matches || []
+  ) {
+    if (!session) return [];
+
+    return computeRankingForSessions(
+      [session],
+      allMatches
+    )
+      .filter(player => Number(player.played) > 0)
+      .sort((a, b) =>
+        (b.points - a.points) ||
+        (b.diff - a.diff) ||
+        (b.wins - a.wins) ||
+        (b.pointsFor - a.pointsFor) ||
+        a.name.localeCompare(b.name)
+      );
+  }
+
+  window.computeIndividualRankingForSession =
+    computeIndividualRankingForSession;
+
   window.renderRanking = renderRanking;
 })();
