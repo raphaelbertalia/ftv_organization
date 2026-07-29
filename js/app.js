@@ -2746,6 +2746,8 @@
             button.disabled = true;
             button.textContent = "Refazendo...";
 
+            Loading.show("Refazendo último jogo...");
+
             try {
                 const removedMatch =
                     await undoLastMatchOfCurrentSession();
@@ -2780,6 +2782,8 @@
                     $("scoreB").value = "";
                 }
 
+                Loading.forceHide();
+
                 alert(
                     "Último jogo removido ✅\n\n" +
                     "As mesmas duplas foram carregadas para registrar novamente."
@@ -2787,11 +2791,15 @@
             } catch (err) {
                 console.error("Erro ao refazer último jogo:", err);
 
+                Loading.forceHide();
+
                 alert(
                     err?.message ||
                     "Não foi possível refazer o último jogo."
                 );
             } finally {
+                Loading.forceHide();
+
                 button.disabled = false;
                 button.textContent = originalText;
             }
