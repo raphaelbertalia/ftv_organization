@@ -2564,24 +2564,52 @@
         if (!requireOperator()) return;
 
         const sess = getCurrentSession();
-        if (!sess) return alert("Inicia uma sessão do dia antes de registrar jogos.");
+
+        if (!sess) {
+            return alert(
+                "Inicia uma sessão do dia antes de registrar jogos."
+            );
+        }
 
         const pairAId = $("pairA")?.value || "";
         const pairBId = $("pairB")?.value || "";
-        if (!pairAId || !pairBId) return alert("Escolhe Dupla A e Dupla B.");
-        if (pairAId === pairBId) return alert("Não dá pra jogar contra a mesma dupla 😅");
 
-        const scoreA = parseInt(($("scoreA")?.value || ""), 10);
-        const scoreB = parseInt(($("scoreB")?.value || ""), 10);
-        if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB)) {
-            return alert("Coloca os dois placares (ex: 18 e 15).");
+        if (!pairAId || !pairBId) {
+            return alert("Escolhe Dupla A e Dupla B.");
+        }
+
+        if (pairAId === pairBId) {
+            return alert(
+                "Não dá pra jogar contra a mesma dupla 😅"
+            );
+        }
+
+        const scoreA = parseInt(
+            $("scoreA")?.value || "",
+            10
+        );
+
+        const scoreB = parseInt(
+            $("scoreB")?.value || "",
+            10
+        );
+
+        if (
+            !Number.isFinite(scoreA) ||
+            !Number.isFinite(scoreB)
+        ) {
+            return alert(
+                "Coloca os dois placares (ex: 18 e 15)."
+            );
         }
 
         if (!isValidFinalScore(scoreA, scoreB)) {
-            return alert("Placar inválido. Vai até 18, mas em 17x17 vence quem abrir 2.");
+            return alert(
+                "Placar inválido. Vai até 18, mas em 17x17 vence quem abrir 2."
+            );
         }
 
-        recomputeNextIndex(sess); // garante sess.nextIndex consistente
+        recomputeNextIndex(sess);
 
         Loading.show("Salvando jogo...");
 
@@ -2635,25 +2663,30 @@
                         );
                     }
 
+                    Loading.forceHide();
+
                     alert(
-                        "Jogo salvo ✅\n\nO próximo confronto já foi montado."
+                        "Jogo salvo ✅\n\n" +
+                        "O próximo confronto já foi montado."
                     );
 
                     return;
-                } catch (err) {
+                } catch (rotationError) {
                     console.error(
                         "Erro ao montar próximo jogo automático:",
-                        err
+                        rotationError
                     );
 
                     updateAllSessionUI();
 
-                    Loading.hide();
+                    Loading.forceHide();
 
                     alert(
                         "O jogo foi salvo, mas não foi possível montar " +
                         "o próximo confronto automaticamente.\n\n" +
-                        `Erro: ${err?.message || "erro desconhecido"}`
+                        `Erro: ${rotationError?.message ||
+                        "erro desconhecido"
+                        }`
                     );
 
                     return;
@@ -2662,18 +2695,20 @@
 
             updateAllSessionUI();
 
-            Loading.hide();
+            Loading.forceHide();
 
             alert("Jogo salvo ✅");
         } catch (err) {
             console.error("Erro ao salvar jogo:", err);
 
-            Loading.hide();
+            Loading.forceHide();
 
             alert(
                 err?.message ||
                 "Não foi possível salvar o jogo."
             );
+        } finally {
+            Loading.forceHide();
         }
     });
 
