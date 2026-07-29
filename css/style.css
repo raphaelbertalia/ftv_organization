@@ -1092,3 +1092,316 @@ pre {
     margin-top: 10px;
   }
 }
+
+/* ===== ABA SESSÕES ===== */
+
+.sessions-list-card {
+  overflow: hidden;
+}
+
+#sessionsList {
+  display: grid;
+  gap: 8px;
+}
+
+.session-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.session-list-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.session-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.session-list-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.session-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.session-list-best {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.session-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.session-list-actions button {
+  width: auto;
+}
+
+.sessions-back-button {
+  width: auto;
+  margin-bottom: 12px;
+}
+
+.session-details-card {
+  overflow: hidden;
+}
+
+.session-details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+}
+
+.session-details-title {
+  margin: 4px 0 0;
+  font-size: 21px;
+}
+
+.session-details-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.session-accordion {
+  border-top: 1px solid var(--border);
+}
+
+.session-accordion:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.session-accordion summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 2px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 900;
+}
+
+.session-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.session-accordion summary::after {
+  content: "⌄";
+  margin-left: 6px;
+  color: var(--muted);
+  transform: rotate(0deg);
+  transition: transform .15s ease;
+}
+
+.session-accordion[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.session-accordion-hint {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.session-accordion-content {
+  padding: 0 2px 16px;
+}
+
+.session-highlights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.session-highlight-card {
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .025);
+  cursor: pointer;
+}
+
+.session-highlight-card.is-best {
+  border-color: rgba(34, 197, 94, .32);
+  background: rgba(34, 197, 94, .06);
+}
+
+.session-highlight-card.is-worst {
+  border-color: rgba(239, 68, 68, .28);
+  background: rgba(239, 68, 68, .05);
+}
+
+.session-highlight-label {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.session-highlight-card.is-best .session-highlight-label {
+  color: #86efac;
+}
+
+.session-highlight-card.is-worst .session-highlight-label {
+  color: #fca5a5;
+}
+
+.session-highlight-name {
+  display: block;
+  margin-top: 5px;
+  font-size: 17px;
+}
+
+.session-highlight-stats {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.session-summary-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.session-summary-description,
+.session-pairs-used {
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.session-games-list {
+  display: grid;
+  gap: 8px;
+}
+
+.session-game-item {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.session-game-number {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.session-game-team {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+  min-height: 31px;
+  padding: 3px 7px;
+  border-radius: 8px;
+}
+
+.session-game-team.is-winner {
+  background: rgba(34, 197, 94, .07);
+  color: #86efac;
+}
+
+.session-game-team.is-loser {
+  color: var(--muted);
+}
+
+.session-game-team strong {
+  text-align: center;
+  font-size: 17px;
+}
+
+.session-more-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.session-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.session-ranking-table {
+  min-width: 610px;
+}
+
+@media (max-width: 720px) {
+  .session-list-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .session-list-header {
+    justify-content: space-between;
+  }
+
+  .session-list-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    width: 100%;
+  }
+
+  .session-list-actions button {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .session-list-actions .btnDeleteSession {
+    width: 44px;
+  }
+
+  .sessions-back-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .session-details-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .session-highlights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-accordion summary {
+    min-height: 48px;
+  }
+
+  .session-details-title {
+    font-size: 19px;
+  }
+
+  .session-game-team {
+    grid-template-columns: minmax(0, 1fr) 38px;
+  }
+}

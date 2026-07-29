@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
 
 <body>
@@ -327,21 +327,37 @@
       <!-- TAB: Sessões -->
 
       <section id="tab-sessoes" style="display:none;">
-        <div class="card">
-          <b>Sessões</b>
-          <div class="muted" style="margin-top:6px;">
-            Consulte sessões antigas e veja o resumo de cada uma.
+
+        <div id="sessionsListView">
+
+          <div class="card">
+            <b>Sessões</b>
+
+            <div class="muted" style="margin-top:6px;">
+              Consulte sessões antigas e veja o resumo de cada uma.
+            </div>
           </div>
+
+          <div class="card sessions-list-card">
+            <div id="sessionsList"></div>
+          </div>
+
         </div>
 
-        <div class="card">
-          <div id="sessionsList"></div>
+        <div id="sessionDetailsView" style="display:none;">
+
+          <button id="btnBackSessions" class="secondary sessions-back-button" type="button">
+            ← Voltar para sessões
+          </button>
+
+          <div class="card session-details-card">
+            <div id="sessionDetails"></div>
+          </div>
+
         </div>
 
-        <div class="card">
-          <div id="sessionDetails"></div>
-        </div>
       </section>
+
       <!-- TAB: Cycle -->
       <section id="tab-ciclo" style="display:none;">
         <div class="card">

@@ -7,6 +7,7 @@
     const $ = (id) => document.getElementById(id);
 
     let rotationSetupExpanded = false;
+    let sessionGamesExpanded = false;
 
     // helpers locais
     function todayISO() {
@@ -1433,7 +1434,7 @@
             toggleButton.textContent =
                 rotationSetupExpanded
                     ? "✖ Fechar alteração"
-                    : "✏️ Alterar próximo jogo";
+                    : "✏️ Editar duplas";
         }
 
         if (setupContent) {
@@ -1461,7 +1462,7 @@
 
         /*
          * Quando há jogo preparado, recupera os jogadores das duplas
-         * para que o botão "Alterar próximo jogo" abra tudo preenchido.
+         * para que o botão "Editar duplas" abra tudo preenchido.
          */
         if (hasPreparedMatch) {
             const pairA = (session.pairs || []).find(
@@ -2848,14 +2849,71 @@
         }
     });
 
-    document.addEventListener("click", async (ev) => {
-        const btn = ev.target.closest?.(".btnViewSession");
-        if (!btn) return;
+    document.addEventListener("click", (ev) => {
+        const button =
+            ev.target.closest?.(".btnViewSession");
 
-        state.viewSessionId = btn.dataset.id;
+        if (!button) return;
+
+        state.viewSessionId =
+            button.dataset.id;
+
+        sessionGamesExpanded = false;
+
         saveState();
         renderSessionsTab();
         showTab("sessoes");
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    });
+
+    if ($("btnBackSessions")) {
+        $("btnBackSessions").addEventListener("click", () => {
+            state.viewSessionId = null;
+            sessionGamesExpanded = false;
+
+            saveState();
+            renderSessionsTab();
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        });
+    }
+
+    document.addEventListener("click", (ev) => {
+        const button =
+            ev.target.closest?.("#btnToggleSessionGames");
+
+        if (!button) return;
+
+        sessionGamesExpanded =
+            !sessionGamesExpanded;
+
+        renderSessionsTab();
+
+        /*
+         * Como a renderização recria os accordions,
+         * abrimos novamente a área de jogos.
+         */
+        const accordions =
+            $("sessionDetails")
+                ?.querySelectorAll(".session-accordion");
+
+        const gamesAccordion =
+            accordions?.[1];
+
+        if (gamesAccordion) {
+            gamesAccordion.open = true;
+            gamesAccordion.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        }
     });
 
     async function gerarImagemResumo(tipo) {
@@ -3486,82 +3544,178 @@
     }
 
     function renderSessionsTab() {
+        const listView = $("sessionsListView");
+        const detailsView = $("sessionDetailsView");
         const list = $("sessionsList");
         const details = $("sessionDetails");
 
-        if (!list || !details) return;
-
-        const sessions = (state.sessions || [])
-            .slice()
-            .sort((a, b) => (b.dateISO || "").localeCompare(a.dateISO || ""));
-
-        if (!sessions.length) {
-            list.innerHTML = "<div class='muted'>Nenhuma sessão cadastrada.</div>";
-            details.innerHTML = "<div class='muted'>Nada para exibir.</div>";
+        if (!listView || !detailsView || !list || !details) {
             return;
         }
 
-        list.innerHTML = sessions.map(sess => {
-            const matches = getSessionMatches(sess);
-            const isActive = String(sess.id) === String(state.currentSessionId);
-            const table = computePairTableForSession(sess);
+        const sessions = (state.sessions || [])
+            .slice()
+            .sort(
+                (a, b) =>
+                    (b.dateISO || "").localeCompare(a.dateISO || "")
+            );
+
+        const viewed = getViewedSession();
+
+        /*
+         * Quando existe sessão selecionada, exibimos somente os detalhes.
+         * Caso contrário, mostramos somente a lista.
+         */
+        listView.style.display = viewed ? "none" : "block";
+        detailsView.style.display = viewed ? "block" : "none";
+
+        if (!sessions.length) {
+            list.innerHTML = `
+            <div class="muted">
+                Nenhuma sessão cadastrada.
+            </div>
+        `;
+
+            details.innerHTML = "";
+            return;
+        }
+
+        /*
+         * LISTA DE SESSÕES
+         */
+        list.innerHTML = sessions.map(session => {
+            const matches = getSessionMatches(session);
+
+            const isActive =
+                String(session.id) ===
+                String(state.currentSessionId);
+
+            const table =
+                computePairTableForSession(session);
+
             const best = table[0];
-            const bestLabel = best ? getPairDisplayName(sess, best.pairId) : "—";
+
+            const bestLabel = best
+                ? getPairDisplayName(session, best.pairId)
+                : "Sem resultado";
+
             const modeInfo =
-                getSessionModeInfo(sess);
+                getSessionModeInfo(session);
 
             const bestDescription =
-                sess.playMode === "rotation"
+                session.playMode === "rotation"
                     ? "Melhor combinação"
                     : "Melhor dupla";
 
             return `
-            <div class="player-item" style="justify-content:space-between; gap:12px;">
-                <div>
-                    <b>${sess.name || "Sem nome"}</b>
+            <article class="session-list-item">
 
-                    <div class="muted" style="margin-top:4px;">
-                        ${sess.dateISO || "-"}
-                        • ${matches.length} jogo(s)
+                <div class="session-list-main">
+
+                    <div class="session-list-header">
+                        <strong class="session-list-name">
+                            ${session.name || "Sem nome"}
+                        </strong>
+
+                        <span class="pill">
+                            ${isActive ? "ativa" : "encerrada"}
+                        </span>
                     </div>
 
-                    <div class="muted" style="margin-top:5px;">
-                        ${modeInfo.icon}
-                        ${modeInfo.description}
+                    <div class="session-list-meta">
+                        <span>
+                            📅 ${session.dateISO || "-"}
+                        </span>
+
+                        <span>
+                            🎮 ${matches.length} jogo(s)
+                        </span>
+
+                        <span>
+                            ${modeInfo.icon}
+                            ${modeInfo.label}
+                        </span>
+
+                        <span>
+                            👥 ${modeInfo.participantCount}
+                        </span>
                     </div>
 
-                    <div class="muted" style="margin-top:5px;">
+                    <div class="session-list-best">
                         🏆 ${bestDescription}:
-                        ${bestLabel}
+                        <strong>${bestLabel}</strong>
                     </div>
+
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <span class="pill">${isActive ? "ativa" : "encerrada"}</span>
-                    <button class="secondary btnViewSession" data-id="${sess.id}">Abrir</button>
-                    ${isAdmin() ? `<button class="secondary btnDeleteSession" data-id="${sess.id}">🗑️</button>` : ""}
+
+                <div class="session-list-actions">
+
+                    <button
+                        class="secondary btnViewSession"
+                        type="button"
+                        data-id="${session.id}"
+                    >
+                        Abrir
+                    </button>
+
+                    ${isAdmin()
+                    ? `
+                            <button
+                                class="secondary btnDeleteSession"
+                                type="button"
+                                data-id="${session.id}"
+                                aria-label="Excluir sessão"
+                            >
+                                🗑️
+                            </button>
+                        `
+                    : ""
+                }
+
                 </div>
-            </div>
+
+            </article>
         `;
         }).join("");
 
-        const viewed = getViewedSession();
-
+        /*
+         * Nenhuma sessão selecionada:
+         * paramos após renderizar a lista.
+         */
         if (!viewed) {
-            details.innerHTML = "<div class='muted'>Selecione uma sessão.</div>";
+            details.innerHTML = "";
             return;
         }
 
-        const matches = getSessionMatches(viewed);
-        const table = computePairTableForSession(viewed);
-        const best = table[0];
-        const worst = table[table.length - 1];
-        const viewedModeInfo =
+        /*
+         * DETALHES DA SESSÃO
+         */
+        const matches =
+            getSessionMatches(viewed);
+
+        const table =
+            computePairTableForSession(viewed);
+
+        /*
+         * Para melhor/pior combinação, ignoramos linhas que nunca jogaram.
+         * Isso impede uma dupla sem partida de aparecer como pior colocada.
+         */
+        const playedTable =
+            table.filter(row => Number(row.played) > 0);
+
+        const best =
+            playedTable[0] || null;
+
+        const worst =
+            playedTable[playedTable.length - 1] || null;
+
+        const modeInfo =
             getSessionModeInfo(viewed);
 
         const pairSectionTitle =
             viewed.playMode === "rotation"
                 ? "Combinações utilizadas"
-                : "Duplas";
+                : "Duplas da sessão";
 
         const bestTitle =
             viewed.playMode === "rotation"
@@ -3573,156 +3727,319 @@
                 ? "Pior combinação"
                 : "Pior dupla";
 
-        details.innerHTML = `
-        <div>
-            <div class="muted">Sessão selecionada</div>
-            <div style="font-size:20px; font-weight:700; margin-top:4px;">
-                ${viewed.name || "Sem nome"}
-            </div>
-            <div class="muted" style="margin-top:6px;">
-                Data: ${viewed.dateISO || "-"}
-                • Jogos: ${matches.length}
-            </div>
+        const visibleMatches =
+            sessionGamesExpanded
+                ? matches
+                : matches.slice(0, 4);
 
-            <div style="
-                display:flex;
-                gap:8px;
-                flex-wrap:wrap;
-                margin-top:10px;
-            ">
-                <span class="pill">
-                    ${viewedModeInfo.icon}
-                    ${viewedModeInfo.label}
-                </span>
+        const hasMoreMatches =
+            matches.length > 4;
 
-                <span class="pill">
-                    👥 ${viewedModeInfo.participantCount}
-                    participante(s)
-                </span>
+        const gamesHtml = visibleMatches.length
+            ? visibleMatches.map((match, index) => {
+                const scoreA = Number(match.scoreA);
+                const scoreB = Number(match.scoreB);
 
-                <span class="pill">
-                    ${viewed.status === "em_andamento"
-                ? "Sessão ativa"
-                : "Sessão encerrada"}
-                </span>
-            </div>
+                const pairAClass =
+                    scoreA > scoreB
+                        ? "is-winner"
+                        : "is-loser";
 
-            <hr style="margin:16px 0; opacity:.2;">
+                const pairBClass =
+                    scoreB > scoreA
+                        ? "is-winner"
+                        : "is-loser";
 
-            <div><b>${pairSectionTitle}</b></div>
-            <div class="muted" style="margin-top:8px;">
-                ${(viewed.pairs || []).map(pair => getPairDisplayName(viewed, pair.id)).join(" • ")}
-            </div>
+                return `
+                <div class="session-game-item">
 
-            <hr style="margin:16px 0; opacity:.2;">
-
-            <div><b>Jogos da sessão</b></div>
-
-            <div style="margin-top:10px;">
-                ${matches.length
-                ? matches.map((m, index) => `
-                        <div class="player-item" style="margin-bottom:8px;">
-                            <div>
-                                <b>Jogo ${index + 1}</b>
-                                <div class="muted">
-                                    ${getPairDisplayName(viewed, m.pairAId)}
-                                </div>
-                            </div>
-
-                            <div style="font-weight:700;">
-                                ${m.scoreA} x ${m.scoreB}
-                            </div>
-
-                            <div>
-                                <div class="muted">
-                                    ${getPairDisplayName(viewed, m.pairBId)}
-                                </div>
-                            </div>
-                        </div>
-                    `).join("")
-                : "<div class='muted'>Nenhum jogo registrado.</div>"
-            }
-            </div>
-
-            <hr style="margin:16px 0; opacity:.2;">
-
-            <div>
-                <b>
-                    ${viewed.playMode === "rotation"
-                ? "Resumo do rodízio"
-                : "Participação por jogador"}
-                </b>
-            </div>
-
-            <div class="muted" style="margin-top:6px;">
-                Quantidade de partidas disputadas por cada jogador.
-            </div>
-
-            ${renderPlayerParticipationTable(viewed)}
-
-            <hr style="margin:16px 0; opacity:.2;">
-
-            ${table.length ? `
-                <div><b>Resumo da sessão</b></div>
-
-                <div style="display:grid; gap:12px; margin-top:12px;">
-                    <div class="card session-share-trigger" data-share-kind="best" style="border-color: rgba(34,197,94,.40); cursor:pointer;">
-                        <div style="font-size:14px; color:#22c55e;">
-                            🏆 ${bestTitle}
-                        </div
-                        <div style="font-size:18px; font-weight:800; margin-top:4px;">
-                            ${getPairDisplayName(viewed, best.pairId)}
-                        </div>
-                        <div class="muted" style="margin-top:6px;">
-                            ${best.points} pts • ${best.wins} vitórias • saldo ${best.diff} • pró ${best.pointsFor}
-                        </div>
+                    <div class="session-game-number">
+                        Jogo ${Number.isInteger(
+                    Number(match.scheduleIndex)
+                )
+                        ? Number(match.scheduleIndex) + 1
+                        : index + 1
+                    }
                     </div>
 
-                    <div class="card session-share-trigger" data-share-kind="worst" style="border-color: rgba(239,68,68,.40); cursor:pointer;">
-                        <div style="font-size:14px; color:#ef4444;">
-                            🪵 ${worstTitle}
-                        </div>
-                        <div style="font-size:18px; font-weight:800; margin-top:4px;">
-                            ${getPairDisplayName(viewed, worst.pairId)}
-                        </div>
-                        <div class="muted" style="margin-top:6px;">
-                            ${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff} • pró ${worst.pointsFor}
-                        </div>
+                    <div class="session-game-team ${pairAClass}">
+                        <span>
+                            ${getPairDisplayName(
+                        viewed,
+                        match.pairAId
+                    )}
+                        </span>
+
+                        <strong>
+                            ${match.scoreA}
+                        </strong>
+                    </div>
+
+                    <div class="session-game-team ${pairBClass}">
+                        <span>
+                            ${getPairDisplayName(
+                        viewed,
+                        match.pairBId
+                    )}
+                        </span>
+
+                        <strong>
+                            ${match.scoreB}
+                        </strong>
+                    </div>
+
+                </div>
+            `;
+            }).join("")
+            : `
+            <div class="muted">
+                Nenhum jogo registrado.
+            </div>
+        `;
+
+        const summaryHtml = playedTable.length
+            ? `
+            <div class="session-highlights-grid">
+
+                <div
+                    class="session-highlight-card is-best session-share-trigger"
+                    data-share-kind="best"
+                >
+                    <div class="session-highlight-label">
+                        🏆 ${bestTitle}
+                    </div>
+
+                    <strong class="session-highlight-name">
+                        ${getPairDisplayName(
+                viewed,
+                best.pairId
+            )}
+                    </strong>
+
+                    <div class="muted session-highlight-stats">
+                        ${best.points} pts
+                        • ${best.wins} vitória(s)
+                        • saldo ${best.diff}
+                        • pró ${best.pointsFor}
                     </div>
                 </div>
 
-                <hr style="margin:16px 0; opacity:.2;">
+                <div
+                    class="session-highlight-card is-worst session-share-trigger"
+                    data-share-kind="worst"
+                >
+                    <div class="session-highlight-label">
+                        🪵 ${worstTitle}
+                    </div>
 
-                <div><b>Ranking da sessão</b></div>
+                    <strong class="session-highlight-name">
+                        ${getPairDisplayName(
+                viewed,
+                worst.pairId
+            )}
+                    </strong>
 
-                <table class="table" style="margin-top:10px;">
+                    <div class="muted session-highlight-stats">
+                        ${worst.points} pts
+                        • ${worst.wins} vitória(s)
+                        • saldo ${worst.diff}
+                        • pró ${worst.pointsFor}
+                    </div>
+                </div>
+
+            </div>
+        `
+            : `
+            <div class="muted">
+                Sem resultados suficientes para gerar o resumo.
+            </div>
+        `;
+
+        const rankingHtml = table.length
+            ? `
+            <div class="session-table-scroll">
+                <table class="table session-ranking-table">
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Dupla</th>
-                            <th>Pontos</th>
+                            <th>Pts</th>
                             <th>V</th>
+                            <th>J</th>
                             <th>Saldo</th>
                             <th>Pró</th>
                         </tr>
                     </thead>
+
                     <tbody>
-                        ${table.map((r, i) => `
+                        ${table.map((row, index) => `
                             <tr>
-                                <td>${i + 1}</td>
-                                <td>${getPairDisplayName(viewed, r.pairId)}</td>
-                                <td>${r.points}</td>
-                                <td>${r.wins}</td>
-                                <td>${r.diff}</td>
-                                <td>${r.pointsFor}</td>
+                                <td>${index + 1}</td>
+
+                                <td>
+                                    ${getPairDisplayName(
+                viewed,
+                row.pairId
+            )}
+                                </td>
+
+                                <td>${row.points}</td>
+                                <td>${row.wins}</td>
+                                <td>${row.played}</td>
+                                <td>${row.diff}</td>
+                                <td>${row.pointsFor}</td>
                             </tr>
                         `).join("")}
                     </tbody>
                 </table>
-            ` : `
-                <div class="muted">Sem ranking para essa sessão ainda.</div>
-            `}
+            </div>
+        `
+            : `
+            <div class="muted">
+                Sem ranking para essa sessão.
+            </div>
+        `;
+
+        details.innerHTML = `
+        <div class="session-details-header">
+
+            <div>
+                <div class="muted">
+                    Sessão selecionada
+                </div>
+
+                <h2 class="session-details-title">
+                    ${viewed.name || "Sem nome"}
+                </h2>
+
+                <div class="session-details-meta">
+                    <span>
+                        📅 ${viewed.dateISO || "-"}
+                    </span>
+
+                    <span>
+                        🎮 ${matches.length} jogo(s)
+                    </span>
+
+                    <span>
+                        ${modeInfo.icon}
+                        ${modeInfo.label}
+                    </span>
+
+                    <span>
+                        👥 ${modeInfo.participantCount}
+                    </span>
+                </div>
+            </div>
+
+            <span class="pill">
+                ${viewed.status === "em_andamento"
+                ? "Sessão ativa"
+                : "Sessão encerrada"
+            }
+            </span>
+
         </div>
+
+        <details class="session-accordion" open>
+            <summary>
+                <span>
+                    📊 Resumo
+                </span>
+
+                <span class="session-accordion-hint">
+                    Visão geral
+                </span>
+            </summary>
+
+            <div class="session-accordion-content">
+
+                ${summaryHtml}
+
+                <div class="session-summary-section">
+                    <strong>${pairSectionTitle}</strong>
+
+                    <div class="muted session-pairs-used">
+                        ${(viewed.pairs || [])
+                .map(pair =>
+                    getPairDisplayName(
+                        viewed,
+                        pair.id
+                    )
+                )
+                .join(" • ") || "Nenhuma"}
+                    </div>
+                </div>
+
+                <div class="session-summary-section">
+                    <strong>
+                        ${viewed.playMode === "rotation"
+                ? "Resumo do rodízio"
+                : "Participação por jogador"
+            }
+                    </strong>
+
+                    <div class="muted session-summary-description">
+                        Quantidade de partidas disputadas por jogador.
+                    </div>
+
+                    ${renderPlayerParticipationTable(viewed)}
+                </div>
+
+            </div>
+        </details>
+
+        <details class="session-accordion">
+            <summary>
+                <span>
+                    🎮 Jogos
+                </span>
+
+                <span class="session-accordion-hint">
+                    ${matches.length}
+                </span>
+            </summary>
+
+            <div class="session-accordion-content">
+
+                <div class="session-games-list">
+                    ${gamesHtml}
+                </div>
+
+                ${hasMoreMatches
+                ? `
+                        <button
+                            id="btnToggleSessionGames"
+                            class="secondary session-more-button"
+                            type="button"
+                        >
+                            ${sessionGamesExpanded
+                    ? "Mostrar menos jogos"
+                    : `Mostrar todos os ${matches.length} jogos`
+                }
+                        </button>
+                    `
+                : ""
+            }
+
+            </div>
+        </details>
+
+        <details class="session-accordion">
+            <summary>
+                <span>
+                    🏆 Ranking das duplas
+                </span>
+
+                <span class="session-accordion-hint">
+                    ${table.length}
+                </span>
+            </summary>
+
+            <div class="session-accordion-content">
+                ${rankingHtml}
+            </div>
+        </details>
     `;
     }
 
