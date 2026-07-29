@@ -105,12 +105,29 @@ function syncMatchToDb(match) {
   }).catch(err => console.error("Erro ao salvar jogo no banco:", err));
 }
 
-function deleteMatchFromDb(matchId) {
-  return fetch("/api/matches", {
+async function deleteMatchFromDb(matchId) {
+  const response = await fetch("/api/matches", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: matchId })
-  }).catch(err => console.error("Erro ao apagar jogo no banco:", err));
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch (_) {
+    // A API pode eventualmente não devolver JSON.
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ||
+      `Não foi possível remover o jogo. HTTP ${response.status}`
+    );
+  }
+
+  return data;
 }
 
 function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
@@ -193,31 +210,60 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
   return syncMatchToDb(match).then(() => match);
 }
 
-function undoLastMatchOfCurrentSession() {
+async function undoLastMatchOfCurrentSession() {
   const session = getCurrentSession();
-  if (!session) return alert("Sem sessão ativa.");
+
+  if (!session) {
+    throw new Error("Sem sessão ativa.");
+  }
+
   state.matches = state.matches || [];
 
   let lastIdx = -1;
+  let lastScheduleIndex = -Infinity;
   let lastTime = -Infinity;
 
   for (let i = 0; i < state.matches.length; i++) {
-    const m = state.matches[i];
-    if (m.sessionId === session.id && m.createdAt > lastTime) {
-      lastTime = m.createdAt;
+    const match = state.matches[i];
+
+    if (String(match.sessionId) !== String(session.id)) {
+      continue;
+    }
+
+    const scheduleIndex = Number(match.scheduleIndex);
+    const createdAt = Number(match.createdAt) || 0;
+
+    const isLaterSchedule =
+      Number.isInteger(scheduleIndex) &&
+      scheduleIndex > lastScheduleIndex;
+
+    const isSameScheduleButLater =
+      scheduleIndex === lastScheduleIndex &&
+      createdAt > lastTime;
+
+    if (isLaterSchedule || isSameScheduleButLater) {
       lastIdx = i;
+      lastScheduleIndex = Number.isInteger(scheduleIndex)
+        ? scheduleIndex
+        : lastScheduleIndex;
+      lastTime = createdAt;
     }
   }
 
-  if (lastIdx >= 0) {
-    const removed = state.matches[lastIdx];
-    state.matches.splice(lastIdx, 1);
-    saveState();
-    deleteMatchFromDb(removed.id);
-    return;
+  if (lastIdx < 0) {
+    throw new Error("Não há jogo nesta sessão para refazer.");
   }
 
-  alert("Não tem jogo dessa sessão pra desfazer.");
+  const removed = state.matches[lastIdx];
+
+  // Primeiro confirma a exclusão no banco.
+  await deleteMatchFromDb(removed.id);
+
+  // Só remove localmente se o banco respondeu com sucesso.
+  state.matches.splice(lastIdx, 1);
+  saveState();
+
+  return removed;
 }
 
 window.addMatch = addMatch;

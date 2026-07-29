@@ -2439,17 +2439,88 @@
     });
 
     if ($("btnUndo")) {
-        $("btnUndo").addEventListener("click", () => {
-            if (!requireAdmin()) return;
-            const sess = getCurrentSession();
-            if (!sess) return alert("Sem sessão ativa.");
-            if (!confirm("Desfazer o último jogo desta sessão?")) return;
+        $("btnUndo").textContent = "↩️ Refazer último jogo";
 
-            undoLastMatchOfCurrentSession();
-            recomputeNextIndex(sess);
-            saveState();
-            updateAllSessionUI();
-            alert("Último jogo da sessão desfeito.");
+        $("btnUndo").addEventListener("click", async () => {
+            if (!requireAdmin()) return;
+
+            const sess = getCurrentSession();
+
+            if (!sess) {
+                return alert("Sem sessão ativa.");
+            }
+
+            const sessionMatches = getSessionMatches(sess);
+
+            if (!sessionMatches.length) {
+                return alert("Não há jogo nesta sessão para refazer.");
+            }
+
+            const confirmed = confirm(
+                "⚠️ Refazer o último jogo?\n\n" +
+                "O último resultado registrado será removido.\n\n" +
+                "As mesmas duplas serão carregadas novamente para que " +
+                "você informe o placar correto.\n\n" +
+                "Essa ação não poderá ser desfeita."
+            );
+
+            if (!confirmed) return;
+
+            const button = $("btnUndo");
+            const originalText = button.textContent;
+
+            button.disabled = true;
+            button.textContent = "Refazendo...";
+
+            try {
+                const removedMatch =
+                    await undoLastMatchOfCurrentSession();
+
+                recomputeNextIndex(sess);
+
+                await restoreRemovedMatchForRedo(
+                    sess,
+                    removedMatch
+                );
+
+                updateAllSessionUI();
+
+                // O render pode recriar os selects.
+                // Por isso reforçamos os valores depois da atualização.
+                if ($("pairA")) {
+                    $("pairA").value =
+                        String(removedMatch.pairAId);
+                }
+
+                if ($("pairB")) {
+                    $("pairB").value =
+                        String(removedMatch.pairBId);
+                }
+
+                if ($("scoreA")) {
+                    $("scoreA").value = "";
+                    $("scoreA").focus();
+                }
+
+                if ($("scoreB")) {
+                    $("scoreB").value = "";
+                }
+
+                alert(
+                    "Último jogo removido ✅\n\n" +
+                    "As mesmas duplas foram carregadas para registrar novamente."
+                );
+            } catch (err) {
+                console.error("Erro ao refazer último jogo:", err);
+
+                alert(
+                    err?.message ||
+                    "Não foi possível refazer o último jogo."
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
         });
     }
 
@@ -2855,8 +2926,10 @@
       </div>
 
     <div style="display:flex; gap:8px;">
-    ${canOperate() ? `<button class="secondary btnEditMatch" data-id="${m.id}">✏️</button>` : ""}
-    ${isAdmin() ? `<button class="secondary btnDelMatch" data-id="${m.id}">🗑️</button>` : ""}
+    ${canOperate()
+                ? `<button class="secondary btnEditMatch" data-id="${m.id}">✏️</button>`
+                : ""
+            }
     </div>
     </div>
   `).join("");
@@ -2875,6 +2948,70 @@
             // fallback: quantidade de jogos da sessão
             sess.nextIndex = matches.length;
         }
+    }
+
+    async function restoreRemovedMatchForRedo(session, removedMatch) {
+        if (!session || !removedMatch) {
+            return;
+        }
+
+        session.pendingPairAId = removedMatch.pairAId;
+        session.pendingPairBId = removedMatch.pairBId;
+
+        if ($("pairA")) {
+            $("pairA").value = String(removedMatch.pairAId);
+        }
+
+        if ($("pairB")) {
+            $("pairB").value = String(removedMatch.pairBId);
+        }
+
+        if ($("scoreA")) {
+            $("scoreA").value = "";
+        }
+
+        if ($("scoreB")) {
+            $("scoreB").value = "";
+        }
+
+        if (session.playMode === "rotation") {
+            const pairA = (session.pairs || []).find(
+                pair => String(pair.id) === String(removedMatch.pairAId)
+            );
+
+            const pairB = (session.pairs || []).find(
+                pair => String(pair.id) === String(removedMatch.pairBId)
+            );
+
+            if (pairA && pairB) {
+                if ($("rotationA1")) {
+                    $("rotationA1").value = String(pairA.p1);
+                }
+
+                if ($("rotationA2")) {
+                    $("rotationA2").value = String(pairA.p2);
+                }
+
+                if ($("rotationB1")) {
+                    $("rotationB1").value = String(pairB.p1);
+                }
+
+                if ($("rotationB2")) {
+                    $("rotationB2").value = String(pairB.p2);
+                }
+            }
+
+            await apiJson("/api/sessions", {
+                method: "PATCH",
+                body: JSON.stringify({
+                    id: session.id,
+                    pending_pair_a_id: removedMatch.pairAId,
+                    pending_pair_b_id: removedMatch.pairBId
+                })
+            });
+        }
+
+        saveState();
     }
 
     function updateAllSessionUI() {
@@ -3300,8 +3437,8 @@
             <div>
                 <b>
                     ${viewed.playMode === "rotation"
-                            ? "Resumo do rodízio"
-                            : "Participação por jogador"}
+                ? "Resumo do rodízio"
+                : "Participação por jogador"}
                 </b>
             </div>
 
@@ -3748,13 +3885,13 @@
 
     document.addEventListener("click", async (ev) => {
         const btnEdit = ev.target.closest?.(".btnEditMatch");
-        const btnDel = ev.target.closest?.(".btnDelMatch");
-        if (!btnEdit && !btnDel) return;
+
+        if (!btnEdit) return;
 
         const sess = getCurrentSession();
         if (!sess) return alert("Sem sessão ativa.");
 
-        const matchId = (btnEdit || btnDel).dataset.id;
+        const matchId = btnEdit.dataset.id;
         const idx = (state.matches || []).findIndex(m => m.id === matchId);
         if (idx < 0) return alert("Jogo não encontrado.");
 
@@ -3790,20 +3927,6 @@
             return;
         }
 
-        if (btnDel) {
-            if (!requireAdmin()) return;
-            if (!confirm("Apagar esse jogo?")) return;
-
-            state.matches.splice(idx, 1);
-
-            recomputeNextIndex(sess);
-
-            saveState();
-            await window.deleteMatchFromDb(match.id);
-            updateAllSessionUI();
-            alert("Jogo apagado ✅");
-            return;
-        }
     });
 
     document.addEventListener("click", async (ev) => {
