@@ -1335,6 +1335,56 @@
         fillPlayerSelect(select, participantIds);
     }
 
+    function updateRotationRestingPlayers(session) {
+        const restingNames = $("rotationRestingNames");
+        const restingInfo = $("rotationRestingInfo");
+
+        if (!restingNames || !restingInfo) return;
+
+        if (!session || session.playMode !== "rotation") {
+            restingInfo.style.display = "none";
+            restingNames.textContent = "—";
+            return;
+        }
+
+        const participantIds = getCurrentParticipantIds(session);
+
+        const selectedIds = [
+            $("rotationA1")?.value || "",
+            $("rotationA2")?.value || "",
+            $("rotationB1")?.value || "",
+            $("rotationB2")?.value || ""
+        ]
+            .filter(Boolean)
+            .map(String);
+
+        const uniqueSelectedIds = new Set(selectedIds);
+
+        const restingPlayers = participantIds
+            .filter(
+                playerId =>
+                    !uniqueSelectedIds.has(String(playerId))
+            )
+            .map(getPlayerName)
+            .sort((a, b) => a.localeCompare(b));
+
+        restingInfo.style.display = "flex";
+
+        if (uniqueSelectedIds.size < 4) {
+            restingNames.textContent =
+                "Selecione os quatro jogadores";
+            restingInfo.classList.add("is-waiting");
+            return;
+        }
+
+        restingInfo.classList.remove("is-waiting");
+
+        restingNames.textContent =
+            restingPlayers.length
+                ? restingPlayers.join(", ")
+                : "Ninguém";
+    }
+
     function renderRotationSetup() {
         const session = getCurrentSession();
         const card = $("rotationSetupCard");
@@ -1343,6 +1393,11 @@
 
         if (!session || session.playMode !== "rotation") {
             card.style.display = "none";
+
+            if ($("rotationRestingInfo")) {
+                $("rotationRestingInfo").style.display = "none";
+            }
+
             return;
         }
 
@@ -1363,7 +1418,25 @@
             $("rotationParticipantsInfo").textContent =
                 `Rodízio com ${participantIds.length} jogadores: ${participantNames.join(", ")}`;
         }
+        updateRotationRestingPlayers(session);
     }
+
+    [
+        "rotationA1",
+        "rotationA2",
+        "rotationB1",
+        "rotationB2"
+    ].forEach(selectId => {
+        const select = $(selectId);
+
+        if (!select) return;
+
+        select.addEventListener("change", () => {
+            updateRotationRestingPlayers(
+                getCurrentSession()
+            );
+        });
+    });
 
     async function persistSessionRotation(session) {
         await apiJson("/api/sessions", {
@@ -1898,6 +1971,8 @@
         if ($("rotationB2")) {
             $("rotationB2").value = playerB2;
         }
+
+        updateRotationRestingPlayers(session);
 
         const pairA = await findOrCreateSessionPair(
             session,
@@ -2939,7 +3014,7 @@
                         </span>
 
                         ${canOperate()
-                            ? `
+                    ? `
                                 <button
                                     class="secondary btnEditMatch match-history-edit"
                                     type="button"
@@ -2949,8 +3024,8 @@
                                     ✏️
                                 </button>
                             `
-                            : ""
-                        }
+                    : ""
+                }
                     </div>
 
                     <div class="match-history-scoreboard">
@@ -3047,6 +3122,8 @@
                     $("rotationB2").value = String(pairB.p2);
                 }
             }
+
+            updateRotationRestingPlayers(session);
 
             await apiJson("/api/sessions", {
                 method: "PATCH",
