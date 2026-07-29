@@ -2870,20 +2870,23 @@
         });
     });
 
-    if ($("btnBackSessions")) {
-        $("btnBackSessions").addEventListener("click", () => {
-            state.viewSessionId = null;
-            sessionGamesExpanded = false;
+    document.addEventListener("click", (ev) => {
+        const button =
+            ev.target.closest?.("#btnBackSessions");
 
-            saveState();
-            renderSessionsTab();
+        if (!button) return;
 
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
+        state.viewSessionId = null;
+        sessionGamesExpanded = false;
+
+        saveState();
+        renderSessionsTab();
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
         });
-    }
+    });
 
     document.addEventListener("click", (ev) => {
         const button =
@@ -3855,7 +3858,7 @@
             </div>
         `;
 
-        const rankingHtml = table.length
+        const rankingHtml = playedTable.length
             ? `
             <div class="session-table-scroll">
                 <table class="table session-ranking-table">
@@ -3872,7 +3875,7 @@
                     </thead>
 
                     <tbody>
-                        ${table.map((row, index) => `
+                        ${playedTable.map((row, index) => `
                             <tr>
                                 <td>${index + 1}</td>
 
@@ -4032,7 +4035,7 @@
                 </span>
 
                 <span class="session-accordion-hint">
-                    ${table.length}
+                    ${playedTable.length}
                 </span>
             </summary>
 
