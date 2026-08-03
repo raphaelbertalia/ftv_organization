@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 
 <body>
@@ -360,59 +360,104 @@
 
       <!-- TAB: Cycle -->
       <section id="tab-ciclo" style="display:none;">
-        <div class="card">
-          <b>Ciclo Mensal</b>
-          <div class="muted" style="margin-top:6px;">
-            Sorteie as duplas do mês e gerencie o ciclo atual.
+        <div class="card cycle-page-heading">
+          <div>
+            <b>Ciclo Mensal</b>
+            <div class="muted" style="margin-top:6px;">
+              Acompanhe a classificação individual e as rodadas do ciclo atual.
+            </div>
           </div>
         </div>
 
-        <div id="cycleAdminCard" class="card">
-          <div class="row" style="align-items:end; gap:12px; flex-wrap:wrap;">
-            <div>
-              <div class="muted">Nome do ciclo</div>
-              <input id="cycleName" placeholder="Ex: Ciclo Maio" />
-            </div>
+        <div id="cycleOverviewCard" class="card cycle-overview-card">
+          <div id="cycleInfo"></div>
+        </div>
 
+        <div class="card cycle-ranking-card">
+          <div class="cycle-section-header">
             <div>
-              <div class="muted">Início</div>
-              <input id="cycleStartDate" type="date" />
+              <b>Ranking individual</b>
+              <div class="muted" style="margin-top:4px;">Pontuação acumulada nas sessões do ciclo.</div>
             </div>
-
-            <div>
-              <div class="muted">Fim</div>
-              <input id="cycleEndDate" type="date" />
-            </div>
-
-            <button id="btnCreateCycle" type="button">Criar ciclo</button>
-            <button id="btnEndCycle" class="secondary" type="button">Finalizar ciclo</button>
-            <button id="btnDeleteCycle" class="secondary" type="button">Excluir ciclo atual</button>
           </div>
+          <div id="cycleIndividualRanking" style="margin-top:12px;"></div>
         </div>
 
-        <div class="card">
-          <b>Ciclo ativo</b>
-          <div id="cycleInfo" style="margin-top:10px;"></div>
-        </div>
-
-        <div class="card">
-          <b>Duplas do ciclo</b>
-          <div class="muted" style="margin-top:6px;">
-            Use os jogadores ativos e sorteie as duplas do mês.
+        <div class="card cycle-sessions-card">
+          <div class="cycle-section-header">
+            <div>
+              <b>Sessões do ciclo</b>
+              <div class="muted" style="margin-top:4px;">Resumo das rodadas realizadas no período.</div>
+            </div>
           </div>
-
-          <button id="btnDrawCyclePairs" class="secondary" type="button" style="margin-top:10px;">
-            Sortear duplas do ciclo
-          </button>
-
-          <button id="btnSaveCyclePairs" class="secondary" type="button" style="margin-top:10px;">
-            Salvar duplas manualmente
-          </button>
-
-          <div id="cyclePairsManualEditor" style="margin-top:10px;"></div>
-
-          <div id="cyclePairsEditor" style="margin-top:10px;"></div>
+          <div id="cycleSessionsList" style="margin-top:12px;"></div>
         </div>
+
+        <details id="cycleManagementDetails" class="card cycle-management-card">
+          <summary class="cycle-management-summary">
+            <span>⚙️ Gerenciar ciclo</span>
+            <span class="muted">Criar, finalizar, excluir e consultar ciclos</span>
+          </summary>
+
+          <div class="cycle-management-content">
+            <div id="cycleAdminCard" class="cycle-admin-panel">
+              <div class="cycle-admin-grid">
+                <div>
+                  <div class="muted">Nome do ciclo</div>
+                  <input id="cycleName" placeholder="Ex: Ciclo Agosto" />
+                </div>
+
+                <div>
+                  <div class="muted">Início</div>
+                  <input id="cycleStartDate" type="date" />
+                </div>
+
+                <div>
+                  <div class="muted">Fim</div>
+                  <input id="cycleEndDate" type="date" />
+                </div>
+
+                <button id="btnCreateCycle" type="button">Criar ciclo</button>
+              </div>
+
+              <div class="cycle-danger-actions">
+                <button id="btnEndCycle" class="secondary" type="button">Finalizar ciclo</button>
+                <button id="btnDeleteCycle" class="secondary" type="button">Excluir ciclo atual</button>
+              </div>
+            </div>
+
+            <div class="cycle-management-section">
+              <b>Todos os ciclos</b>
+              <div id="cycleHistoryList" style="margin-top:10px;"></div>
+            </div>
+
+            <details class="cycle-pairs-details">
+              <summary>
+                <span>Duplas fixas do ciclo</span>
+                <span class="muted">Recurso legado/opcional</span>
+              </summary>
+
+              <div class="cycle-pairs-content">
+                <div class="muted">
+                  Use apenas quando o ciclo trabalhar com duplas fixas. No formato individual, as duplas podem mudar em cada sessão.
+                </div>
+
+                <div class="cycle-pairs-actions">
+                  <button id="btnDrawCyclePairs" class="secondary" type="button">
+                    Sortear duplas do ciclo
+                  </button>
+
+                  <button id="btnSaveCyclePairs" class="secondary" type="button">
+                    Salvar duplas manualmente
+                  </button>
+                </div>
+
+                <div id="cyclePairsManualEditor" style="margin-top:10px;"></div>
+                <div id="cyclePairsEditor" style="margin-top:10px;"></div>
+              </div>
+            </details>
+          </div>
+        </details>
       </section>
 
       <!-- TAB: RANKING -->
@@ -546,7 +591,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=11"></script>
 </body>
 
 </html>

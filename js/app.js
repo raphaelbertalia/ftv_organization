@@ -826,193 +826,677 @@
     }
 
     // ---------- Ciclo ----------
-    function renderCycleTab() {
-        const info = $("cycleInfo");
-        const editor = $("cyclePairsEditor");
+    function formatDateBR(dateISO) {
+        if (!dateISO) return "—";
 
-        if (!info || !editor) return;
+        const [year, month, day] = String(dateISO).split("-");
 
-        const cycle = getActiveCycle();
-        const allCycles = state.cycles || [];
-
-        if (!cycle) {
-            info.innerHTML = "<div class='muted'>Nenhum ciclo ativo.</div>";
-        } else {
-            info.innerHTML = `
-            <div><b>${cycle.name}</b></div>
-            <div class="muted" style="margin-top:6px;">
-                ${cycle.startDate} até ${cycle.endDate}
-            </div>
-        `;
+        if (!year || !month || !day) {
+            return dateISO;
         }
 
-        const cyclesListHtml = allCycles.length
-            ? allCycles.map(c => `
-            <div class="player-item" style="justify-content:space-between;">
-                <div>
-                    <b>${c.name}</b>
-                    <div class="muted">${c.startDate} até ${c.endDate}</div>
-                </div>
-                <div style="display:flex; gap:8px;">
-                    <span class="pill">${c.status}</span>
-                    <button class="secondary btnDeleteCycleItem" data-id="${c.id}">🗑️</button>
-                </div>
-            </div>
-        `).join("")
-            : "<div class='muted'>Nenhum ciclo cadastrado.</div>";
+        return `${day}/${month}/${year}`;
+    }
 
-        const pairs = cycle?.pairs || [];
+    function getCycleSessions(cycle) {
+        if (!cycle) return [];
 
-        const pairsHtml = pairs.length
-            ? pairs.map((p, i) => {
-                const p1 = state.players.find(pl => pl.id === p.p1)?.name || "?";
-                const p2 = state.players.find(pl => pl.id === p.p2)?.name || "?";
+        return (state.sessions || [])
+            .filter(session => {
+                const date = session.dateISO;
 
-                return `
-                <div class="player-item">
-                    <b>Dupla ${i + 1}</b> — ${p1} + ${p2}
-                </div>
-            `;
-            }).join("")
-            : "<div class='muted'>Nenhuma dupla do ciclo ativo para exibir.</div>";
-
-        const cycleSessions = cycle
-            ? (state.sessions || []).filter(s => {
-                const date = s.dateISO;
-                return date && cycle.startDate && cycle.endDate
-                    && date >= cycle.startDate
-                    && date <= cycle.endDate;
+                return (
+                    date &&
+                    cycle.startDate &&
+                    cycle.endDate &&
+                    date >= cycle.startDate &&
+                    date <= cycle.endDate
+                );
             })
-            : [];
+            .sort((a, b) =>
+                String(b.dateISO || "")
+                    .localeCompare(String(a.dateISO || ""))
+            );
+    }
 
-        const sessionsHtml = cycleSessions.length
-            ? cycleSessions.map(s => {
-                const matches = getSessionMatches(s);
-                const table = computePairTableForSession(s);
-                const best = table[0];
-                const bestLabel = best ? getPairDisplayName(s, best.pairId) : "—";
+    function computeIndividualCycleRanking(cycleSessions) {
+        const stats = new Map();
 
-                return `
-                <div class="player-item" style="justify-content:space-between; gap:12px;">
-                    <div>
-                        <b>${s.name || "Sem nome"}</b>
-                        <div class="muted">${s.dateISO || "-"} • ${matches.length} jogo(s)</div>
-                        <div class="muted">🏆 ${bestLabel}</div>
-                    </div>
-                    <button class="secondary btnViewSession" data-id="${s.id}">Abrir</button>
-                </div>
-            `;
-            }).join("")
-            : "<div class='muted'>Nenhuma sessão dentro do ciclo ativo ainda.</div>";
+        function ensurePlayer(playerId) {
+            if (!playerId) return null;
 
-        const cycleStats = new Map();
+            const normalizedId = String(playerId);
 
-        pairs.forEach(pair => {
-            const p1 = state.players.find(p => p.id === pair.p1)?.name || "?";
-            const p2 = state.players.find(p => p.id === pair.p2)?.name || "?";
-
-            cycleStats.set(pair.id, {
-                pairId: pair.id,
-                label: `${p1} + ${p2}`,
-                played: 0,
-                wins: 0,
-                points: 0,
-                pointsFor: 0,
-                diff: 0
-            });
-        });
-
-        cycleSessions.forEach(sess => {
-            const table = computePairTableForSession(sess);
-
-            table.forEach(row => {
-                const sessionPair = sess.pairs.find(p => p.id === row.pairId);
-                if (!sessionPair) return;
-
-                const cyclePair = pairs.find(p =>
-                    [p.p1, p.p2].sort().join("|") ===
-                    [sessionPair.p1, sessionPair.p2].sort().join("|")
+            if (!stats.has(normalizedId)) {
+                const player = (state.players || []).find(
+                    item => String(item.id) === normalizedId
                 );
 
-                if (!cyclePair) return;
+                stats.set(normalizedId, {
+                    playerId: normalizedId,
+                    name: player?.name || "Jogador",
+                    sessions: new Set(),
+                    played: 0,
+                    wins: 0,
+                    points: 0,
+                    pointsFor: 0,
+                    diff: 0
+                });
+            }
 
-                const stat = cycleStats.get(cyclePair.id);
-                if (!stat) return;
+            return stats.get(normalizedId);
+        }
 
-                stat.played += row.played || 0;
-                stat.wins += row.wins || 0;
-                stat.points += row.points || 0;
-                stat.pointsFor += row.pointsFor || 0;
-                stat.diff += row.diff || 0;
+        cycleSessions.forEach(session => {
+            const pairsById = new Map(
+                (session.pairs || []).map(pair => [
+                    String(pair.id),
+                    pair
+                ])
+            );
+
+            getSessionMatches(session).forEach(match => {
+                const pairA = pairsById.get(
+                    String(match.pairAId)
+                );
+
+                const pairB = pairsById.get(
+                    String(match.pairBId)
+                );
+
+                if (!pairA || !pairB) return;
+
+                const scoreA = Number(match.scoreA);
+                const scoreB = Number(match.scoreB);
+
+                if (
+                    !Number.isFinite(scoreA) ||
+                    !Number.isFinite(scoreB)
+                ) {
+                    return;
+                }
+
+                const aWon = scoreA > scoreB;
+                const bWon = scoreB > scoreA;
+
+                const aPoints = aWon
+                    ? scoreA === 18 && scoreB === 0
+                        ? 4
+                        : 3
+                    : 0;
+
+                const bPoints = bWon
+                    ? scoreB === 18 && scoreA === 0
+                        ? 4
+                        : 3
+                    : 0;
+
+                [pairA.p1, pairA.p2].forEach(playerId => {
+                    const stat = ensurePlayer(playerId);
+
+                    if (!stat) return;
+
+                    stat.sessions.add(String(session.id));
+                    stat.played++;
+                    stat.pointsFor += scoreA;
+                    stat.diff += scoreA - scoreB;
+
+                    if (aWon) {
+                        stat.wins++;
+                        stat.points += aPoints;
+                    }
+                });
+
+                [pairB.p1, pairB.p2].forEach(playerId => {
+                    const stat = ensurePlayer(playerId);
+
+                    if (!stat) return;
+
+                    stat.sessions.add(String(session.id));
+                    stat.played++;
+                    stat.pointsFor += scoreB;
+                    stat.diff += scoreB - scoreA;
+
+                    if (bWon) {
+                        stat.wins++;
+                        stat.points += bPoints;
+                    }
+                });
             });
         });
 
-        const cycleRanking = [...cycleStats.values()]
+        return [...stats.values()]
+            .map(stat => ({
+                ...stat,
+                sessions: stat.sessions.size,
+                losses: Math.max(
+                    0,
+                    stat.played - stat.wins
+                ),
+                efficiency: stat.played
+                    ? Math.round(
+                        (stat.wins / stat.played) * 100
+                    )
+                    : 0
+            }))
             .sort((a, b) =>
                 (b.points - a.points) ||
                 (b.wins - a.wins) ||
                 (b.diff - a.diff) ||
-                (b.pointsFor - a.pointsFor)
+                (b.pointsFor - a.pointsFor) ||
+                a.name.localeCompare(b.name)
+            );
+    }
+
+    function renderCycleTab() {
+        const info = $("cycleInfo");
+        const rankingWrap = $("cycleIndividualRanking");
+        const sessionsWrap = $("cycleSessionsList");
+        const historyWrap = $("cycleHistoryList");
+        const legacyEditor = $("cyclePairsEditor");
+
+        if (
+            !info ||
+            !rankingWrap ||
+            !sessionsWrap ||
+            !historyWrap ||
+            !legacyEditor
+        ) {
+            return;
+        }
+
+        const cycle = getActiveCycle();
+
+        const allCycles = (state.cycles || [])
+            .slice()
+            .sort((a, b) =>
+                String(b.startDate || "")
+                    .localeCompare(String(a.startDate || ""))
             );
 
-        const cycleRankingHtml = cycleRanking.length
-            ? `
-                <table class="table" style="margin-top:10px;">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Dupla</th>
-                            <th>Pts</th>
-                            <th>V</th>
-                            <th>J</th>
-                            <th>Saldo</th>
-                            <th>Pró</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${cycleRanking.map((r, i) => `
-                            <tr>
-                                <td>${i + 1}</td>
-                                <td>${r.label}</td>
-                                <td>${r.points}</td>
-                                <td>${r.wins}</td>
-                                <td>${r.played}</td>
-                                <td>${r.diff}</td>
-                                <td>${r.pointsFor}</td>
-                            </tr>
-                        `).join("")}
-                    </tbody>
-                </table>
-            `
-            : "<div class='muted'>Sem ranking do ciclo ainda.</div>";
+        const cycleSessions =
+            getCycleSessions(cycle);
 
-        editor.innerHTML = `
-            <div><b>Todos os ciclos</b></div>
-            <div style="margin-top:10px;">
-                ${cyclesListHtml}
-            </div>
+        const individualRanking =
+            computeIndividualCycleRanking(cycleSessions);
 
-            <hr style="margin:16px 0; opacity:.2;">
+        const totalMatches =
+            cycleSessions.reduce(
+                (total, session) =>
+                    total + getSessionMatches(session).length,
+                0
+            );
 
-            <div><b>Duplas do ciclo ativo</b></div>
-            <div style="margin-top:10px;">
-                ${pairsHtml}
-            </div>
+        const totalPlayers =
+            individualRanking.length;
 
-            <hr style="margin:16px 0; opacity:.2;">
+        const leader =
+            individualRanking[0] || null;
 
-            <div><b>Ranking do ciclo / Churras</b></div>
-            <div style="margin-top:10px;">
-                ${cycleRankingHtml}
-            </div>
+        /*
+         * RESUMO DO CICLO
+         */
+        if (!cycle) {
+            info.innerHTML = `
+            <div class="cycle-empty-state">
 
-            <hr style="margin:16px 0; opacity:.2;">
-            
-            <div><b>Resultados do ciclo ativo</b></div>
-            <div style="margin-top:10px;">
-                ${sessionsHtml}
+                <div class="cycle-empty-icon">
+                    🏆
+                </div>
+
+                <div>
+                    <b>Nenhum ciclo ativo</b>
+
+                    <div
+                        class="muted"
+                        style="margin-top:4px;"
+                    >
+                        Abra “Gerenciar ciclo” para criar
+                        o próximo ciclo mensal.
+                    </div>
+                </div>
+
             </div>
         `;
+        } else {
+            info.innerHTML = `
+            <div class="cycle-overview-main">
+
+                <div>
+                    <div class="cycle-overview-eyebrow">
+                        Ciclo atual
+                    </div>
+
+                    <div class="cycle-overview-title">
+                        ${cycle.name || "Ciclo mensal"}
+                    </div>
+
+                    <div class="cycle-overview-period">
+                        ${formatDateBR(cycle.startDate)}
+                        →
+                        ${formatDateBR(cycle.endDate)}
+                    </div>
+                </div>
+
+                <span class="cycle-status-badge is-active">
+                    Em andamento
+                </span>
+
+            </div>
+
+            <div class="cycle-overview-stats">
+
+                <div class="cycle-stat-item">
+                    <strong>${cycleSessions.length}</strong>
+                    <span>Sessões</span>
+                </div>
+
+                <div class="cycle-stat-item">
+                    <strong>${totalMatches}</strong>
+                    <span>Jogos</span>
+                </div>
+
+                <div class="cycle-stat-item">
+                    <strong>${totalPlayers}</strong>
+                    <span>Jogadores</span>
+                </div>
+
+                <div
+                    class="
+                        cycle-stat-item
+                        cycle-stat-leader
+                    "
+                >
+                    <strong>
+                        ${leader ? leader.name : "—"}
+                    </strong>
+
+                    <span>
+                        ${leader
+                    ? `${leader.points} pts • líder`
+                    : "Líder do ciclo"
+                }
+                    </span>
+                </div>
+
+            </div>
+        `;
+        }
+
+        /*
+         * RANKING INDIVIDUAL
+         */
+        if (!cycle) {
+            rankingWrap.innerHTML = `
+            <div class="muted">
+                Crie um ciclo para acompanhar
+                a classificação individual.
+            </div>
+        `;
+        } else if (!individualRanking.length) {
+            rankingWrap.innerHTML = `
+            <div class="cycle-empty-inline">
+                Ainda não há jogos registrados
+                dentro deste ciclo.
+            </div>
+        `;
+        } else {
+            const visibleRanking =
+                individualRanking.slice(0, 5);
+
+            const medals = [
+                "🥇",
+                "🥈",
+                "🥉"
+            ];
+
+            rankingWrap.innerHTML = `
+            <div class="cycle-ranking-list">
+
+                ${visibleRanking.map((row, index) => `
+                    <div
+                        class="
+                            cycle-ranking-row
+                            ${index < 3
+                    ? `is-top-${index + 1}`
+                    : ""
+                }
+                        "
+                    >
+
+                        <div class="cycle-ranking-position">
+                            ${medals[index] ||
+                `${index + 1}º`
+                }
+                        </div>
+
+                        <div class="cycle-ranking-player">
+
+                            <strong>
+                                ${row.name}
+                            </strong>
+
+                            <span>
+                                ${row.wins}V
+                                •
+                                ${row.losses}D
+                                •
+                                ${row.efficiency}%
+                            </span>
+
+                        </div>
+
+                        <div class="cycle-ranking-points">
+
+                            <strong>
+                                ${row.points}
+                            </strong>
+
+                            <span>pts</span>
+
+                        </div>
+
+                    </div>
+                `).join("")}
+
+            </div>
+
+            ${individualRanking.length > 5
+                    ? `
+                        <details class="cycle-full-ranking">
+
+                            <summary>
+                                Ver classificação completa
+                                (${individualRanking.length})
+                            </summary>
+
+                            <div class="cycle-ranking-table-wrap">
+
+                                <table class="table cycle-ranking-table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Jogador</th>
+                                            <th>Pts</th>
+                                            <th>V</th>
+                                            <th>J</th>
+                                            <th>Saldo</th>
+                                            <th>Aprov.</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        ${individualRanking.map(
+                        (row, index) => `
+                                                <tr>
+
+                                                    <td>
+                                                        ${index + 1}
+                                                    </td>
+
+                                                    <td>
+                                                        <b>${row.name}</b>
+                                                    </td>
+
+                                                    <td>
+                                                        ${row.points}
+                                                    </td>
+
+                                                    <td>
+                                                        ${row.wins}
+                                                    </td>
+
+                                                    <td>
+                                                        ${row.played}
+                                                    </td>
+
+                                                    <td>
+                                                        ${row.diff > 0
+                                ? "+"
+                                : ""
+                            }${row.diff}
+                                                    </td>
+
+                                                    <td>
+                                                        ${row.efficiency}%
+                                                    </td>
+
+                                                </tr>
+                                            `
+                    ).join("")}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </details>
+                    `
+                    : ""
+                }
+        `;
+        }
+
+        /*
+         * SESSÕES DO CICLO
+         */
+        if (!cycle) {
+            sessionsWrap.innerHTML = `
+            <div class="muted">
+                Nenhuma sessão para exibir.
+            </div>
+        `;
+        } else if (!cycleSessions.length) {
+            sessionsWrap.innerHTML = `
+            <div class="cycle-empty-inline">
+                Nenhuma sessão encontrada entre
+                ${formatDateBR(cycle.startDate)}
+                e
+                ${formatDateBR(cycle.endDate)}.
+            </div>
+        `;
+        } else {
+            sessionsWrap.innerHTML = `
+            <div class="cycle-session-list">
+
+                ${cycleSessions.map(session => {
+                const matches =
+                    getSessionMatches(session);
+
+                const sessionRanking =
+                    computeIndividualCycleRanking([
+                        session
+                    ]);
+
+                const sessionLeader =
+                    sessionRanking[0] || null;
+
+                const sessionStatus =
+                    session.status === "encerrada"
+                        ? "Encerrada"
+                        : "Em andamento";
+
+                return `
+                        <article class="cycle-session-item">
+
+                            <div class="cycle-session-date">
+
+                                <strong>
+                                    ${formatDateBR(
+                    session.dateISO
+                ).slice(0, 5)
+                    }
+                                </strong>
+
+                                <span>
+                                    ${sessionStatus}
+                                </span>
+
+                            </div>
+
+                            <div class="cycle-session-info">
+
+                                <strong>
+                                    ${session.name ||
+                    "Sessão sem nome"
+                    }
+                                </strong>
+
+                                <span>
+                                    ${matches.length} jogo(s)
+
+                                    ${sessionLeader
+                        ? `
+                                                • 🏆
+                                                ${sessionLeader.name}
+                                                (${sessionLeader.points} pts)
+                                            `
+                        : ""
+                    }
+                                </span>
+
+                            </div>
+
+                            <button
+                                class="
+                                    secondary
+                                    btnViewSession
+                                "
+                                data-id="${session.id}"
+                                type="button"
+                            >
+                                Abrir
+                            </button>
+
+                        </article>
+                    `;
+            }).join("")}
+
+            </div>
+        `;
+        }
+
+        /*
+         * HISTÓRICO DE CICLOS
+         */
+        historyWrap.innerHTML = allCycles.length
+            ? `
+            <div class="cycle-history-list">
+
+                ${allCycles.map(item => `
+                    <div class="cycle-history-item">
+
+                        <div>
+
+                            <b>
+                                ${item.name ||
+                "Ciclo sem nome"
+                }
+                            </b>
+
+                            <div class="muted">
+                                ${formatDateBR(item.startDate)}
+                                →
+                                ${formatDateBR(item.endDate)}
+                            </div>
+
+                        </div>
+
+                        <div class="cycle-history-actions">
+
+                            <span class="pill">
+                                ${item.status ===
+                    "em_andamento"
+                    ? "em andamento"
+                    : "encerrado"
+                }
+                            </span>
+
+                            <button
+                                class="
+                                    secondary
+                                    btnDeleteCycleItem
+                                "
+                                data-id="${item.id}"
+                                type="button"
+                                aria-label="Excluir ciclo"
+                            >
+                                🗑️
+                            </button>
+
+                        </div>
+
+                    </div>
+                `).join("")}
+
+            </div>
+        `
+            : `
+            <div class="muted">
+                Nenhum ciclo cadastrado.
+            </div>
+        `;
+
+        /*
+         * DUPLAS FIXAS LEGADAS
+         */
+        const pairs =
+            cycle?.pairs || [];
+
+        legacyEditor.innerHTML = pairs.length
+            ? `
+            <div class="cycle-legacy-pairs">
+
+                ${pairs.map((pair, index) => {
+                const player1 =
+                    (state.players || []).find(
+                        player =>
+                            String(player.id) ===
+                            String(pair.p1)
+                    );
+
+                const player2 =
+                    (state.players || []).find(
+                        player =>
+                            String(player.id) ===
+                            String(pair.p2)
+                    );
+
+                const player1Name =
+                    player1?.name || "?";
+
+                const player2Name =
+                    player2?.name || "?";
+
+                return `
+                        <div class="cycle-legacy-pair">
+
+                            <span>
+                                Dupla ${index + 1}
+                            </span>
+
+                            <strong>
+                                ${player1Name}
+                                +
+                                ${player2Name}
+                            </strong>
+
+                        </div>
+                    `;
+            }).join("")}
+
+            </div>
+        `
+            : `
+            <div class="muted">
+                Nenhuma dupla fixa salva
+                para o ciclo ativo.
+            </div>
+        `;
+
         renderCyclePairsManualEditor();
     }
 

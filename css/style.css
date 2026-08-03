@@ -1691,3 +1691,497 @@ pre {
       translateX(-50%) translateY(12px);
   }
 }
+/* ===== CICLO MENSAL — DASHBOARD INDIVIDUAL ===== */
+
+.cycle-page-heading,
+.cycle-overview-card,
+.cycle-ranking-card,
+.cycle-sessions-card,
+.cycle-management-card {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cycle-overview-card {
+  background:
+    radial-gradient(520px 180px at 85% 0%, rgba(34, 197, 94, .12), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .02));
+}
+
+.cycle-overview-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cycle-overview-eyebrow {
+  color: #86efac;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.cycle-overview-title {
+  margin-top: 5px;
+  font-size: 25px;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.cycle-overview-period {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.cycle-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cycle-status-badge.is-active {
+  border: 1px solid rgba(34, 197, 94, .3);
+  background: rgba(34, 197, 94, .1);
+  color: #86efac;
+}
+
+.cycle-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(180px, 1.5fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cycle-stat-item {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, .28);
+}
+
+.cycle-stat-item strong,
+.cycle-stat-item span {
+  display: block;
+}
+
+.cycle-stat-item strong {
+  font-size: 19px;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.cycle-stat-item span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cycle-stat-leader {
+  border-color: rgba(250, 204, 21, .2);
+  background: rgba(250, 204, 21, .045);
+}
+
+.cycle-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cycle-ranking-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cycle-ranking-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.cycle-ranking-row.is-top-1 {
+  border-color: rgba(250, 204, 21, .24);
+  background: rgba(250, 204, 21, .05);
+}
+
+.cycle-ranking-row.is-top-2,
+.cycle-ranking-row.is-top-3 {
+  background: rgba(255, 255, 255, .04);
+}
+
+.cycle-ranking-position {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.cycle-ranking-player {
+  min-width: 0;
+}
+
+.cycle-ranking-player strong,
+.cycle-ranking-player span,
+.cycle-ranking-points strong,
+.cycle-ranking-points span {
+  display: block;
+}
+
+.cycle-ranking-player strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cycle-ranking-player span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.cycle-ranking-points {
+  min-width: 54px;
+  text-align: right;
+}
+
+.cycle-ranking-points strong {
+  color: #86efac;
+  font-size: 21px;
+  font-weight: 950;
+}
+
+.cycle-ranking-points span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cycle-full-ranking,
+.cycle-pairs-details {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .02);
+  overflow: hidden;
+}
+
+.cycle-full-ranking > summary,
+.cycle-pairs-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+.cycle-full-ranking > summary::-webkit-details-marker,
+.cycle-pairs-details > summary::-webkit-details-marker,
+.cycle-management-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cycle-full-ranking > summary::after,
+.cycle-pairs-details > summary::after,
+.cycle-management-summary::after {
+  content: "▾";
+  color: var(--muted);
+  transition: transform .15s ease;
+}
+
+.cycle-full-ranking[open] > summary::after,
+.cycle-pairs-details[open] > summary::after,
+.cycle-management-card[open] > .cycle-management-summary::after {
+  transform: rotate(180deg);
+}
+
+.cycle-ranking-table-wrap {
+  padding: 0 10px 10px;
+  overflow-x: auto;
+}
+
+.cycle-session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cycle-session-item {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.cycle-session-date strong,
+.cycle-session-date span,
+.cycle-session-info strong,
+.cycle-session-info span {
+  display: block;
+}
+
+.cycle-session-date strong {
+  font-size: 16px;
+}
+
+.cycle-session-date span,
+.cycle-session-info span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.cycle-session-info {
+  min-width: 0;
+}
+
+.cycle-session-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cycle-session-item button {
+  width: auto;
+}
+
+.cycle-management-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cycle-management-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 950;
+}
+
+.cycle-management-summary .muted {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cycle-management-content {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.cycle-admin-panel,
+.cycle-management-section {
+  padding-top: 14px;
+}
+
+.cycle-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.cycle-admin-grid input {
+  width: 100%;
+}
+
+.cycle-admin-grid button {
+  width: auto;
+}
+
+.cycle-danger-actions,
+.cycle-pairs-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.cycle-danger-actions button,
+.cycle-pairs-actions button {
+  width: auto;
+}
+
+.cycle-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cycle-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.cycle-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cycle-history-actions button {
+  width: auto;
+  padding: 8px 10px;
+}
+
+.cycle-pairs-content {
+  padding: 0 12px 12px;
+}
+
+.cycle-legacy-pairs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cycle-legacy-pair {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.cycle-legacy-pair span,
+.cycle-legacy-pair strong {
+  display: block;
+}
+
+.cycle-legacy-pair span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cycle-legacy-pair strong {
+  margin-top: 3px;
+}
+
+.cycle-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+}
+
+.cycle-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .035);
+  font-size: 25px;
+}
+
+.cycle-empty-inline {
+  padding: 13px;
+  border: 1px dashed rgba(148, 163, 184, .22);
+  border-radius: 14px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+@media (max-width: 720px) {
+  .cycle-overview-main {
+    align-items: center;
+  }
+
+  .cycle-overview-title {
+    font-size: 21px;
+  }
+
+  .cycle-overview-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cycle-stat-leader {
+    grid-column: 1 / -1;
+  }
+
+  .cycle-ranking-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    padding: 10px;
+  }
+
+  .cycle-session-item {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .cycle-session-item button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .cycle-management-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cycle-management-summary .muted {
+    display: none;
+  }
+
+  .cycle-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cycle-admin-grid button,
+  .cycle-danger-actions button,
+  .cycle-pairs-actions button {
+    width: 100%;
+  }
+
+  .cycle-danger-actions,
+  .cycle-pairs-actions {
+    flex-direction: column;
+  }
+
+  .cycle-history-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cycle-history-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .cycle-legacy-pairs {
+    grid-template-columns: 1fr;
+  }
+}
