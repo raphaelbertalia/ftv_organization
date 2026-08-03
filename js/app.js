@@ -1030,8 +1030,11 @@
         const totalPlayers =
             individualRanking.length;
 
-        const leader =
+        const firstPlace =
             individualRanking[0] || null;
+
+        const secondPlace =
+            individualRanking[1] || null;
 
         /*
          * RESUMO DO CICLO
@@ -1101,22 +1104,48 @@
                     <span>Jogadores</span>
                 </div>
 
-                <div
-                    class="
-                        cycle-stat-item
-                        cycle-stat-leader
-                    "
-                >
+            </div>
+
+            <div class="cycle-top-two">
+
+                <div class="cycle-top-player is-first">
+
+                    <div class="cycle-top-player-position">
+                        🥇 1º colocado
+                    </div>
+
                     <strong>
-                        ${leader ? leader.name : "—"}
+                        ${firstPlace ? firstPlace.name : "—"}
                     </strong>
 
                     <span>
-                        ${leader
-                    ? `${leader.points} pts • líder`
-                    : "Líder do ciclo"
-                }
+                        ${
+                            firstPlace
+                                ? `${firstPlace.points} pts • ${firstPlace.wins} vitórias`
+                                : "Sem classificação"
+                        }
                     </span>
+
+                </div>
+
+                <div class="cycle-top-player is-second">
+
+                    <div class="cycle-top-player-position">
+                        🥈 2º colocado
+                    </div>
+
+                    <strong>
+                        ${secondPlace ? secondPlace.name : "—"}
+                    </strong>
+
+                    <span>
+                        ${
+                            secondPlace
+                                ? `${secondPlace.points} pts • ${secondPlace.wins} vitórias`
+                                : "Sem classificação"
+                        }
+                    </span>
+
                 </div>
 
             </div>
@@ -1146,18 +1175,25 @@
 
             const medals = [
                 "🥇",
-                "🥈",
-                "🥉"
+                "🥈"
             ];
 
             rankingWrap.innerHTML = `
             <div class="cycle-ranking-list">
 
                 ${visibleRanking.map((row, index) => `
+
+                    ${index === 2
+                    ? `
+                                <div class="cycle-ranking-cut"></div>
+                            `
+                    : ""
+                }
+
                     <div
                         class="
                             cycle-ranking-row
-                            ${index < 3
+                            ${index < 2
                     ? `is-top-${index + 1}`
                     : ""
                 }

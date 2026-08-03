@@ -1691,6 +1691,7 @@ pre {
       translateX(-50%) translateY(12px);
   }
 }
+
 /* ===== CICLO MENSAL — DASHBOARD INDIVIDUAL ===== */
 
 .cycle-page-heading,
@@ -1758,7 +1759,7 @@ pre {
 
 .cycle-overview-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(180px, 1.5fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
 }
@@ -1884,8 +1885,8 @@ pre {
   overflow: hidden;
 }
 
-.cycle-full-ranking > summary,
-.cycle-pairs-details > summary {
+.cycle-full-ranking>summary,
+.cycle-pairs-details>summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1896,23 +1897,23 @@ pre {
   list-style: none;
 }
 
-.cycle-full-ranking > summary::-webkit-details-marker,
-.cycle-pairs-details > summary::-webkit-details-marker,
+.cycle-full-ranking>summary::-webkit-details-marker,
+.cycle-pairs-details>summary::-webkit-details-marker,
 .cycle-management-summary::-webkit-details-marker {
   display: none;
 }
 
-.cycle-full-ranking > summary::after,
-.cycle-pairs-details > summary::after,
+.cycle-full-ranking>summary::after,
+.cycle-pairs-details>summary::after,
 .cycle-management-summary::after {
   content: "▾";
   color: var(--muted);
   transition: transform .15s ease;
 }
 
-.cycle-full-ranking[open] > summary::after,
-.cycle-pairs-details[open] > summary::after,
-.cycle-management-card[open] > .cycle-management-summary::after {
+.cycle-full-ranking[open]>summary::after,
+.cycle-pairs-details[open]>summary::after,
+.cycle-management-card[open]>.cycle-management-summary::after {
   transform: rotate(180deg);
 }
 
@@ -2117,6 +2118,57 @@ pre {
   font-weight: 750;
 }
 
+.cycle-top-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cycle-top-player {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, .28);
+}
+
+.cycle-top-player.is-first {
+  border-color: rgba(250, 204, 21, .3);
+  background: rgba(250, 204, 21, .055);
+}
+
+.cycle-top-player.is-second {
+  border-color: rgba(203, 213, 225, .25);
+  background: rgba(203, 213, 225, .045);
+}
+
+.cycle-top-player-position {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cycle-top-player strong,
+.cycle-top-player span {
+  display: block;
+}
+
+.cycle-top-player strong {
+  margin-top: 5px;
+  font-size: 19px;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.cycle-top-player span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
 @media (max-width: 720px) {
   .cycle-overview-main {
     align-items: center;
@@ -2183,5 +2235,27 @@ pre {
 
   .cycle-legacy-pairs {
     grid-template-columns: 1fr;
+  }
+
+  .cycle-ranking-cut {
+    margin: 14px 0;
+    border-top: 2px dashed rgba(255, 255, 255, .12);
+  }
+
+  .cycle-top-two {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .cycle-top-player {
+    padding: 11px 9px;
+  }
+
+  .cycle-top-player strong {
+    font-size: 16px;
+  }
+
+  .cycle-top-player span {
+    font-size: 10px;
   }
 }
