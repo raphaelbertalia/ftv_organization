@@ -859,6 +859,47 @@
             );
     }
 
+    function countCycleWednesdays(startDate, endDate) {
+        if (!startDate || !endDate) return 0;
+
+        const parseDate = (dateISO) => {
+            const [year, month, day] = String(dateISO)
+                .split("-")
+                .map(Number);
+
+            return new Date(
+                Date.UTC(year, month - 1, day)
+            );
+        };
+
+        const start = parseDate(startDate);
+        const end = parseDate(endDate);
+
+        if (
+            Number.isNaN(start.getTime()) ||
+            Number.isNaN(end.getTime()) ||
+            start > end
+        ) {
+            return 0;
+        }
+
+        let total = 0;
+        const current = new Date(start);
+
+        while (current <= end) {
+            // Domingo = 0, quarta-feira = 3
+            if (current.getUTCDay() === 3) {
+                total++;
+            }
+
+            current.setUTCDate(
+                current.getUTCDate() + 1
+            );
+        }
+
+        return total;
+    }
+
     function computeIndividualCycleRanking(cycleSessions) {
         const stats = new Map();
 
@@ -1017,6 +1058,36 @@
         const cycleSessions =
             getCycleSessions(cycle);
 
+        const totalCycleRounds =
+            cycle
+                ? countCycleWednesdays(
+                    cycle.startDate,
+                    cycle.endDate
+                )
+                : 0;
+
+        const completedRoundDates = new Set(
+            cycleSessions
+                .map(session => session.dateISO)
+                .filter(Boolean)
+        );
+
+        const completedRounds =
+            Math.min(
+                completedRoundDates.size,
+                totalCycleRounds
+            );
+
+        const cycleProgress =
+            totalCycleRounds > 0
+                ? Math.min(
+                    100,
+                    Math.round(
+                        (completedRounds / totalCycleRounds) * 100
+                    )
+                )
+                : 0;
+
         const individualRanking =
             computeIndividualCycleRanking(cycleSessions);
 
@@ -1087,6 +1158,44 @@
 
             </div>
 
+            <div class="cycle-progress">
+
+                <div class="cycle-progress-header">
+
+                    <span>Progresso do ciclo</span>
+
+                    <strong>
+                        ${cycleProgress}%
+                    </strong>
+
+                </div>
+
+                <div
+                    class="cycle-progress-track"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="${cycleProgress}"
+                >
+                    <div
+                        class="cycle-progress-fill"
+                        style="width:${cycleProgress}%;"
+                    ></div>
+                </div>
+
+                <div class="cycle-progress-caption">
+                    ${completedRounds}
+                    de
+                    ${totalCycleRounds}
+                    ${
+                        totalCycleRounds === 1
+                            ? "quarta realizada"
+                            : "quartas realizadas"
+                    }
+                </div>
+
+            </div>
+
             <div class="cycle-overview-stats">
 
                 <div class="cycle-stat-item">
@@ -1119,11 +1228,10 @@
                     </strong>
 
                     <span>
-                        ${
-                            firstPlace
-                                ? `${firstPlace.points} pts • ${firstPlace.wins} vitórias`
-                                : "Sem classificação"
-                        }
+                        ${firstPlace
+                    ? `${firstPlace.points} pts • ${firstPlace.wins} vitórias`
+                    : "Sem classificação"
+                }
                     </span>
 
                 </div>
@@ -1139,11 +1247,10 @@
                     </strong>
 
                     <span>
-                        ${
-                            secondPlace
-                                ? `${secondPlace.points} pts • ${secondPlace.wins} vitórias`
-                                : "Sem classificação"
-                        }
+                        ${secondPlace
+                    ? `${secondPlace.points} pts • ${secondPlace.wins} vitórias`
+                    : "Sem classificação"
+                }
                     </span>
 
                 </div>
@@ -1376,9 +1483,7 @@
                             <div class="cycle-session-info">
 
                                 <strong>
-                                    ${session.name ||
-                    "Sessão sem nome"
-                    }
+                                    Quarta ${formatDateBR(session.dateISO).slice(0, 5)}
                                 </strong>
 
                                 <span>
@@ -1386,8 +1491,8 @@
 
                                     ${sessionLeader
                         ? `
-                                                • 🏆
-                                                ${sessionLeader.name}
+                                                • Destaque:
+                                                <b>${sessionLeader.name}</b>
                                                 (${sessionLeader.points} pts)
                                             `
                         : ""
