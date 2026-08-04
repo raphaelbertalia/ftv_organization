@@ -1029,6 +1029,120 @@
             );
     }
 
+    function computeCycleRankingMovement(
+        currentRanking,
+        cycleSessions
+    ) {
+        const movementByPlayer = new Map();
+
+        if (!currentRanking.length) {
+            return movementByPlayer;
+        }
+
+        /*
+         * getCycleSessions retorna da mais recente para a mais antiga.
+         * Removemos a sessão mais recente para reconstruir a
+         * classificação existente antes da última rodada.
+         */
+        const sessionsBeforeLatest =
+            cycleSessions.slice(1);
+
+        const previousRanking =
+            computeIndividualCycleRanking(
+                sessionsBeforeLatest
+            );
+
+        const previousPositions = new Map(
+            previousRanking.map((row, index) => [
+                String(row.playerId),
+                index + 1
+            ])
+        );
+
+        currentRanking.forEach((row, index) => {
+            const currentPosition = index + 1;
+
+            const previousPosition =
+                previousPositions.get(
+                    String(row.playerId)
+                );
+
+            /*
+             * Ainda não havia ranking anterior.
+             * Consideramos manutenção para evitar uma falsa subida.
+             */
+            if (!previousPosition) {
+                movementByPlayer.set(
+                    String(row.playerId),
+                    {
+                        type: "stable",
+                        difference: 0,
+                        previousPosition: null,
+                        currentPosition,
+                        label: "Manteve"
+                    }
+                );
+
+                return;
+            }
+
+            const difference =
+                previousPosition - currentPosition;
+
+            if (difference > 0) {
+                movementByPlayer.set(
+                    String(row.playerId),
+                    {
+                        type: "up",
+                        difference,
+                        previousPosition,
+                        currentPosition,
+                        label:
+                            difference === 1
+                                ? "Subiu 1 posição"
+                                : `Subiu ${difference} posições`
+                    }
+                );
+
+                return;
+            }
+
+            if (difference < 0) {
+                const positionsLost =
+                    Math.abs(difference);
+
+                movementByPlayer.set(
+                    String(row.playerId),
+                    {
+                        type: "down",
+                        difference: positionsLost,
+                        previousPosition,
+                        currentPosition,
+                        label:
+                            positionsLost === 1
+                                ? "Caiu 1 posição"
+                                : `Caiu ${positionsLost} posições`
+                    }
+                );
+
+                return;
+            }
+
+            movementByPlayer.set(
+                String(row.playerId),
+                {
+                    type: "stable",
+                    difference: 0,
+                    previousPosition,
+                    currentPosition,
+                    label: "Manteve"
+                }
+            );
+        });
+
+        return movementByPlayer;
+    }
+
     function renderCycleTab() {
         const info = $("cycleInfo");
         const rankingWrap = $("cycleIndividualRanking");
@@ -1090,6 +1204,12 @@
 
         const individualRanking =
             computeIndividualCycleRanking(cycleSessions);
+
+        const rankingMovement =
+            computeCycleRankingMovement(
+                individualRanking,
+                cycleSessions
+            );
 
         const totalMatches =
             cycleSessions.reduce(
@@ -1187,11 +1307,10 @@
                     ${completedRounds}
                     de
                     ${totalCycleRounds}
-                    ${
-                        totalCycleRounds === 1
-                            ? "quarta realizada"
-                            : "quartas realizadas"
-                    }
+                    ${totalCycleRounds === 1
+                    ? "quarta realizada"
+                    : "quartas realizadas"
+                }
                 </div>
 
             </div>
@@ -1288,36 +1407,78 @@
             rankingWrap.innerHTML = `
             <div class="cycle-ranking-list">
 
-                ${visibleRanking.map((row, index) => `
+            ${visibleRanking.map((row, index) => {
+                const movement =
+                    rankingMovement.get(
+                        String(row.playerId)
+                    ) || {
+                        type: "stable",
+                        difference: 0,
+                        label: "Manteve"
+                    };
 
-                    ${index === 2
-                    ? `
-                                <div class="cycle-ranking-cut"></div>
+                const movementSymbol =
+                    movement.type === "up"
+                        ? "▲"
+                        : movement.type === "down"
+                            ? "▼"
+                            : "●";
+
+                const movementText =
+                    movement.type === "stable"
+                        ? movementSymbol
+                        : `${movementSymbol}${movement.difference}`;
+
+                return `
+
+                    ${
+                        index === 2
+                            ? `
+                                <div class="cycle-ranking-divider">
+                                    <span>🎯</span>
+                                </div>
                             `
-                    : ""
-                }
+                            : ""
+                    }
 
                     <div
                         class="
                             cycle-ranking-row
-                            ${index < 2
-                    ? `is-top-${index + 1}`
-                    : ""
-                }
+                            ${
+                                index < 2
+                                    ? `is-top-${index + 1}`
+                                    : ""
+                            }
                         "
                     >
 
                         <div class="cycle-ranking-position">
-                            ${medals[index] ||
-                `${index + 1}º`
-                }
+                            ${
+                                medals[index] ||
+                                `${index + 1}º`
+                            }
                         </div>
 
                         <div class="cycle-ranking-player">
 
-                            <strong>
-                                ${row.name}
-                            </strong>
+                            <div class="cycle-ranking-name-line">
+
+                                <strong>
+                                    ${row.name}
+                                </strong>
+
+                                <span
+                                    class="
+                                        cycle-ranking-movement
+                                        is-${movement.type}
+                                    "
+                                    title="${movement.label}"
+                                    aria-label="${movement.label}"
+                                >
+                                    ${movementText}
+                                </span>
+
+                            </div>
 
                             <span>
                                 ${row.wins}V
@@ -1340,7 +1501,8 @@
                         </div>
 
                     </div>
-                `).join("")}
+                `;
+            }).join("")}
 
             </div>
 

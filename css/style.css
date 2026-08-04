@@ -2231,6 +2231,109 @@ pre {
   font-weight: 750;
 }
 
+/* ===========================
+   Linha de corte
+=========================== */
+
+.cycle-ranking-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.cycle-ranking-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed rgba(255, 255, 255, .12);
+}
+
+.cycle-ranking-divider span {
+  position: relative;
+  z-index: 1;
+
+  padding: 0 10px;
+
+  background: var(--card);
+
+  color: var(--muted);
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  letter-spacing: .08em;
+
+  text-transform: uppercase;
+}
+
+/* ===== EVOLUÇÃO NO RANKING DO CICLO ===== */
+
+.cycle-ranking-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cycle-ranking-name-line strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cycle-ranking-movement {
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 25px;
+  height: 21px;
+  margin: 0 !important;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+  line-height: 1;
+}
+
+.cycle-ranking-movement.is-up {
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, .28);
+  background: rgba(34, 197, 94, .1);
+}
+
+.cycle-ranking-movement.is-stable {
+  color: #fde047 !important;
+  border-color: rgba(250, 204, 21, .25);
+  background: rgba(250, 204, 21, .08);
+}
+
+.cycle-ranking-movement.is-down {
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, .28);
+  background: rgba(239, 68, 68, .09);
+}
+
+@media (max-width: 720px) {
+  .cycle-ranking-name-line {
+    gap: 6px;
+  }
+
+  .cycle-ranking-movement {
+    min-width: 22px;
+    height: 19px;
+    padding: 0 5px;
+    font-size: 9px !important;
+  }
+}
+
 @media (max-width: 720px) {
   .cycle-overview-main {
     align-items: center;
@@ -2238,14 +2341,6 @@ pre {
 
   .cycle-overview-title {
     font-size: 21px;
-  }
-
-  .cycle-overview-stats {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .cycle-stat-leader {
-    grid-column: 1 / -1;
   }
 
   .cycle-ranking-row {
