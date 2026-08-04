@@ -1961,6 +1961,17 @@ pre {
   min-width: 0;
 }
 
+.cycle-session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 5px;
+}
+
+.cycle-session-meta span {
+  margin-top: 0;
+}
+
 .cycle-session-info strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1969,6 +1980,7 @@ pre {
 
 .cycle-session-item button {
   width: auto;
+  white-space: nowrap;
 }
 
 .cycle-management-card {
@@ -2157,8 +2169,9 @@ pre {
 
 .cycle-top-player strong {
   margin-top: 5px;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 950;
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
@@ -2167,6 +2180,16 @@ pre {
   color: var(--muted);
   font-size: 11px;
   font-weight: 750;
+}
+
+/* ===== STATUS DA LIDERANÇA ===== */
+
+.cycle-leadership-status {
+  margin-top: 12px;
+  color: #fde047;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .03em;
 }
 
 /* ===== PROGRESSO DO CICLO ===== */
@@ -2201,7 +2224,7 @@ pre {
 }
 
 .cycle-progress-track {
-  height: 9px;
+  height: 11px;
   margin-top: 9px;
   overflow: hidden;
   border-radius: 999px;
@@ -2236,39 +2259,8 @@ pre {
 =========================== */
 
 .cycle-ranking-divider {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 14px 0;
-}
-
-.cycle-ranking-divider::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px dashed rgba(255, 255, 255, .12);
-}
-
-.cycle-ranking-divider span {
-  position: relative;
-  z-index: 1;
-
-  padding: 0 10px;
-
-  background: var(--card);
-
-  color: var(--muted);
-
-  font-size: 10px;
-
-  font-weight: 800;
-
-  letter-spacing: .08em;
-
-  text-transform: uppercase;
+  margin: 12px 2px;
+  border-top: 1px dashed rgba(255, 255, 255, .18);
 }
 
 /* ===== EVOLUÇÃO NO RANKING DO CICLO ===== */
@@ -2292,13 +2284,13 @@ pre {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  min-width: 25px;
-  height: 21px;
+  min-width: 30px;
+  height: 24px;
   margin: 0 !important;
-  padding: 0 6px;
+  padding: 0 7px;
   border: 1px solid transparent;
   border-radius: 999px;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 950 !important;
   line-height: 1;
 }
@@ -2327,10 +2319,10 @@ pre {
   }
 
   .cycle-ranking-movement {
-    min-width: 22px;
-    height: 19px;
-    padding: 0 5px;
-    font-size: 9px !important;
+    min-width: 27px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: 11px !important;
   }
 }
 
@@ -2421,6 +2413,6 @@ pre {
   }
 
   .cycle-progress-track {
-    height: 8px;
+    height: 9px;
   }
 }

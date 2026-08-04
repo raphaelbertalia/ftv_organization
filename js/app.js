@@ -1227,6 +1227,15 @@
         const secondPlace =
             individualRanking[1] || null;
 
+        const leadershipStatus =
+            firstPlace && secondPlace
+                ? firstPlace.points === secondPlace.points
+                    ? "🔥 Empate na liderança"
+                    : "👑 Líder isolado"
+                : firstPlace
+                    ? "👑 Líder isolado"
+                    : "Classificação em aberto";
+
         /*
          * RESUMO DO CICLO
          */
@@ -1334,6 +1343,10 @@
 
             </div>
 
+            <div class="cycle-leadership-status">
+                ${leadershipStatus}
+            </div>
+
             <div class="cycle-top-two">
 
                 <div class="cycle-top-player is-first">
@@ -1431,32 +1444,27 @@
 
                 return `
 
-                    ${
-                        index === 2
-                            ? `
-                                <div class="cycle-ranking-divider">
-                                    <span>🎯</span>
-                                </div>
+                    ${index === 2
+                        ? `
+                                <div class="cycle-ranking-divider"></div>>
                             `
-                            : ""
+                        : ""
                     }
 
                     <div
                         class="
                             cycle-ranking-row
-                            ${
-                                index < 2
-                                    ? `is-top-${index + 1}`
-                                    : ""
-                            }
+                            ${index < 2
+                        ? `is-top-${index + 1}`
+                        : ""
+                    }
                         "
                     >
 
                         <div class="cycle-ranking-position">
-                            ${
-                                medals[index] ||
-                                `${index + 1}º`
-                            }
+                            ${medals[index] ||
+                    `${index + 1}º`
+                    }
                         </div>
 
                         <div class="cycle-ranking-player">
@@ -1627,41 +1635,44 @@
                 return `
                         <article class="cycle-session-item">
 
-                            <div class="cycle-session-date">
+                        <div class="cycle-session-date">
 
-                                <strong>
-                                    ${formatDateBR(
-                    session.dateISO
-                ).slice(0, 5)
-                    }
-                                </strong>
+                            <strong>
+                                ${formatDateBR(session.dateISO).slice(0, 5)}
+                            </strong>
+
+                            <span>
+                                ${sessionStatus}
+                            </span>
+
+                        </div>
+
+                        <div class="cycle-session-info">
+
+                            <strong>
+                                📅 Quarta ${formatDateBR(session.dateISO).slice(0, 5)}
+                            </strong>
+
+                            <div class="cycle-session-meta">
 
                                 <span>
-                                    ${sessionStatus}
+                                    🏐 ${matches.length} jogo(s)
                                 </span>
+
+                                ${
+                                    sessionLeader
+                                        ? `
+                                            <span>
+                                                🥇 ${sessionLeader.name}
+                                                • ${sessionLeader.points} pts
+                                            </span>
+                                        `
+                                        : ""
+                                }
 
                             </div>
 
-                            <div class="cycle-session-info">
-
-                                <strong>
-                                    Quarta ${formatDateBR(session.dateISO).slice(0, 5)}
-                                </strong>
-
-                                <span>
-                                    ${matches.length} jogo(s)
-
-                                    ${sessionLeader
-                        ? `
-                                                • Destaque:
-                                                <b>${sessionLeader.name}</b>
-                                                (${sessionLeader.points} pts)
-                                            `
-                        : ""
-                    }
-                                </span>
-
-                            </div>
+                        </div>
 
                             <button
                                 class="
@@ -1671,7 +1682,7 @@
                                 data-id="${session.id}"
                                 type="button"
                             >
-                                Abrir
+                                ➜ Abrir
                             </button>
 
                         </article>
@@ -4569,7 +4580,7 @@
                         type="button"
                         data-id="${session.id}"
                     >
-                        Abrir
+                        ➜ Abrir
                     </button>
 
                     ${isAdmin()
