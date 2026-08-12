@@ -1659,16 +1659,15 @@
                                     🏐 ${matches.length} jogo(s)
                                 </span>
 
-                                ${
-                                    sessionLeader
-                                        ? `
+                                ${sessionLeader
+                        ? `
                                             <span>
                                                 🥇 ${sessionLeader.name}
                                                 • ${sessionLeader.points} pts
                                             </span>
                                         `
-                                        : ""
-                                }
+                        : ""
+                    }
 
                             </div>
 
@@ -3105,6 +3104,8 @@
             if (sel1) sel1.value = left.id;
             if (sel2) sel2.value = right.id;
         }
+
+        renderCycleGame1Selects();
     }
 
     if ($("btnStartSession")) {
@@ -3131,40 +3132,56 @@
 
             let pairs;
 
-            const cycle = getActiveCycle();
-
-            if (cycle && cycle.pairs && cycle.pairs.length === 4) {
-                const game1A = $("cycleGame1PairA")?.value || "";
-                const game1B = $("cycleGame1PairB")?.value || "";
-
-                if (!game1A || !game1B) {
-                    return alert("Escolha as duas duplas do Jogo 1.");
-                }
-
-                if (game1A === game1B) {
-                    return alert("O Jogo 1 precisa ter duas duplas diferentes.");
-                }
-
-                const pairA = cycle.pairs.find(p => p.id === game1A);
-                const pairB = cycle.pairs.find(p => p.id === game1B);
-
-                const remaining = cycle.pairs.filter(
-                    p => p.id !== game1A && p.id !== game1B
-                );
-
-                pairs = [
-                    { ...pairA, id: uid() },
-                    { ...pairB, id: uid() },
-                    { ...remaining[0], id: uid() },
-                    { ...remaining[1], id: uid() }
-                ];
-            } else {
-                try {
-                    pairs = readPairsFromEditor();
-                } catch (e) {
-                    return alert(e.message || "Erro nas duplas.");
-                }
+            try {
+                pairs = readPairsFromEditor();
+            } catch (e) {
+                return alert(e.message || "Erro nas duplas.");
             }
+
+            const firstPairIndex =
+                $("cycleGame1PairA")?.value ?? "";
+
+            const secondPairIndex =
+                $("cycleGame1PairB")?.value ?? "";
+
+            if (
+                firstPairIndex === "" ||
+                secondPairIndex === ""
+            ) {
+                return alert(
+                    "Escolha as duas duplas que irão começar o Jogo 1."
+                );
+            }
+
+            if (firstPairIndex === secondPairIndex) {
+                return alert(
+                    "Escolha duas duplas diferentes para o Jogo 1."
+                );
+            }
+
+            const firstIndex = Number(firstPairIndex);
+            const secondIndex = Number(secondPairIndex);
+
+            const firstPair = pairs[firstIndex];
+            const secondPair = pairs[secondIndex];
+
+            if (!firstPair || !secondPair) {
+                return alert(
+                    "Não foi possível identificar as duplas escolhidas."
+                );
+            }
+
+            const remainingPairs = pairs.filter(
+                (_, index) =>
+                    index !== firstIndex &&
+                    index !== secondIndex
+            );
+
+            pairs = [
+                firstPair,
+                secondPair,
+                ...remainingPairs
+            ];
 
             // createSession (sessions.js) deve salvar: {id,name,dateISO,pairs,roster...} e setar currentSessionId
             await createSession(name, pairs);
@@ -4234,8 +4251,6 @@
     }
 
     function renderCycleGame1Selects() {
-        const cycle = getActiveCycle();
-
         const boxA = $("cycleStartGameBox");
         const boxB = $("cycleStartGameBoxB");
         const selA = $("cycleGame1PairA");
@@ -4243,7 +4258,23 @@
 
         if (!boxA || !boxB || !selA || !selB) return;
 
-        if (!cycle || !cycle.pairs || cycle.pairs.length !== 4 || getCurrentSession()) {
+        if (getCurrentSession()) {
+            boxA.style.display = "none";
+            boxB.style.display = "none";
+            return;
+        }
+
+        let pairs;
+
+        try {
+            pairs = readPairsFromEditor();
+        } catch (_) {
+            boxA.style.display = "none";
+            boxB.style.display = "none";
+            return;
+        }
+
+        if (pairs.length !== 4) {
             boxA.style.display = "none";
             boxB.style.display = "none";
             return;
@@ -4252,18 +4283,44 @@
         boxA.style.display = "block";
         boxB.style.display = "block";
 
-        const fill = (sel) => {
-            sel.innerHTML = `<option value="">— selecione —</option>`;
+        const getPairLabel = (pair) => {
+            const p1 = (state.players || []).find(
+                p => String(p.id) === String(pair.p1)
+            )?.name || "?";
 
-            cycle.pairs.forEach(pair => {
-                const p1 = state.players.find(p => p.id === pair.p1)?.name || "?";
-                const p2 = state.players.find(p => p.id === pair.p2)?.name || "?";
+            const p2 = (state.players || []).find(
+                p => String(p.id) === String(pair.p2)
+            )?.name || "?";
 
-                const opt = document.createElement("option");
-                opt.value = pair.id;
-                opt.textContent = `${p1} + ${p2}`;
-                sel.appendChild(opt);
+            return `${p1} + ${p2}`;
+        };
+
+        const fill = (select) => {
+            const previousValue = select.value;
+
+            select.innerHTML = `
+            <option value="">
+                — selecione —
+            </option>
+        `;
+
+            pairs.forEach((pair, index) => {
+                const option = document.createElement("option");
+
+                // usamos a posição, porque readPairsFromEditor gera novos IDs
+                option.value = String(index);
+                option.textContent =
+                    `Dupla ${index + 1} — ${getPairLabel(pair)}`;
+
+                select.appendChild(option);
             });
+
+            if (
+                previousValue &&
+                Number(previousValue) < pairs.length
+            ) {
+                select.value = previousValue;
+            }
         };
 
         fill(selA);
