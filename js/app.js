@@ -3076,10 +3076,10 @@
             .join("::");
     }
 
-    function getRecentPairPenalties() {
+    function getPairPenalties() {
         const penaltiesByPair = new Map();
 
-        const recentSessions = (state.sessions || [])
+        const sessionsWithPairs = (state.sessions || [])
             .filter(session =>
                 Array.isArray(session.pairs) &&
                 session.pairs.length > 0
@@ -3090,12 +3090,10 @@
                 const dateB = b.createdAt || b.dateISO || "";
 
                 return String(dateB).localeCompare(String(dateA));
-            })
-            .slice(0, RECENT_PAIR_PENALTIES.length);
+            });
 
-        recentSessions.forEach((session, sessionIndex) => {
-            const penalty = RECENT_PAIR_PENALTIES[sessionIndex];
-
+        // Penalidade por qualquer parceria existente no histórico
+        sessionsWithPairs.forEach(session => {
             (session.pairs || []).forEach(pair => {
                 if (!pair.p1 || !pair.p2) return;
 
@@ -3104,10 +3102,31 @@
 
                 penaltiesByPair.set(
                     key,
-                    currentPenalty + penalty
+                    currentPenalty + 10
                 );
             });
         });
+
+        // Penalidade adicional para as quatro sessões mais recentes
+        sessionsWithPairs
+            .slice(0, RECENT_PAIR_PENALTIES.length)
+            .forEach((session, sessionIndex) => {
+                const recentPenalty =
+                    RECENT_PAIR_PENALTIES[sessionIndex];
+
+                (session.pairs || []).forEach(pair => {
+                    if (!pair.p1 || !pair.p2) return;
+
+                    const key = getPairKey(pair.p1, pair.p2);
+                    const currentPenalty =
+                        penaltiesByPair.get(key) || 0;
+
+                    penaltiesByPair.set(
+                        key,
+                        currentPenalty + recentPenalty
+                    );
+                });
+            });
 
         return penaltiesByPair;
     }
@@ -3139,7 +3158,7 @@
     }
 
     function findBestPairFormation(leftPlayers, rightPlayers) {
-        const penaltiesByPair = getRecentPairPenalties();
+        const penaltiesByPair = getPairPenalties();
         const rightPermutations = generatePermutations(rightPlayers);
 
         let lowestScore = Infinity;
@@ -3498,8 +3517,28 @@
     }
 
     if ($("btnDrawPairs")) {
-        $("btnDrawPairs").addEventListener("click", () => {
-            drawPairsBySide();
+        $("btnDrawPairs").addEventListener("click", async () => {
+            Loading.show("Buscando as melhores duplas...");
+
+            try {
+                // Permite que o navegador exiba a Mikasa antes do cálculo
+                await new Promise(resolve => {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(resolve);
+                    });
+                });
+
+                drawPairsBySide();
+            } catch (err) {
+                console.error("Erro ao sortear duplas:", err);
+
+                alert(
+                    err?.message ||
+                    "Não foi possível sortear as duplas."
+                );
+            } finally {
+                Loading.forceHide();
+            }
         });
     }
 
