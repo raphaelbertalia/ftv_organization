@@ -1695,6 +1695,7 @@ pre {
 /* ===== CICLO MENSAL — DASHBOARD INDIVIDUAL ===== */
 
 .cycle-page-heading,
+.cycle-list-card,
 .cycle-overview-card,
 .cycle-ranking-card,
 .cycle-sessions-card,
@@ -1702,6 +1703,78 @@ pre {
   max-width: 860px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.cycle-back-button {
+  display: block;
+  width: auto;
+  max-width: 860px;
+  margin: 0 auto 12px;
+}
+
+.cycle-browser-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cycle-browser-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.cycle-browser-main {
+  min-width: 0;
+}
+
+.cycle-browser-header,
+.cycle-browser-stats,
+.cycle-browser-actions {
+  display: flex;
+  align-items: center;
+}
+
+.cycle-browser-header {
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.cycle-browser-header strong {
+  font-size: 16px;
+}
+
+.cycle-browser-period {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cycle-browser-stats {
+  gap: 12px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.cycle-browser-actions {
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.cycle-browser-actions button {
+  width: auto;
+}
+
+.cycle-status-badge.is-finished {
+  border: 1px solid rgba(148, 163, 184, .28);
+  background: rgba(148, 163, 184, .09);
+  color: #cbd5e1;
 }
 
 .cycle-overview-card {
@@ -2327,6 +2400,19 @@ pre {
 }
 
 @media (max-width: 720px) {
+  .cycle-browser-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cycle-browser-actions {
+    width: 100%;
+  }
+
+  .cycle-browser-actions .btnViewCycle {
+    flex: 1;
+  }
+
   .cycle-overview-main {
     align-items: center;
   }

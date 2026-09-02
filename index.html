@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
 </head>
 
 <body>
@@ -369,6 +369,25 @@
           </div>
         </div>
 
+        <div id="cycleListView">
+          <div class="card cycle-list-card">
+            <div class="cycle-section-header">
+              <div>
+                <b>Todos os ciclos</b>
+                <div class="muted" style="margin-top:4px;">
+                  Consulte o ciclo atual e o histórico dos ciclos encerrados.
+                </div>
+              </div>
+            </div>
+            <div id="cycleList" style="margin-top:12px;"></div>
+          </div>
+        </div>
+
+        <div id="cycleDetailsView" style="display:none;">
+          <button id="btnBackCycles" class="secondary cycle-back-button" type="button">
+            ← Voltar para ciclos
+          </button>
+
         <div id="cycleOverviewCard" class="card cycle-overview-card">
           <div id="cycleInfo"></div>
         </div>
@@ -391,6 +410,8 @@
             </div>
           </div>
           <div id="cycleSessionsList" style="margin-top:12px;"></div>
+        </div>
+
         </div>
 
         <details id="cycleManagementDetails" class="card cycle-management-card">
@@ -424,11 +445,6 @@
                 <button id="btnEndCycle" class="secondary" type="button">Finalizar ciclo</button>
                 <button id="btnDeleteCycle" class="secondary" type="button">Excluir ciclo atual</button>
               </div>
-            </div>
-
-            <div class="cycle-management-section">
-              <b>Todos os ciclos</b>
-              <div id="cycleHistoryList" style="margin-top:10px;"></div>
             </div>
 
             <details class="cycle-pairs-details">
@@ -591,7 +607,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=15"></script>
+  <script src="js/app.js?v=16"></script>
 </body>
 
 </html>

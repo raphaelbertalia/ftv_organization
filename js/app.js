@@ -171,6 +171,7 @@
 
     async function hydrateStateFromDb() {
         const previousViewSessionId = state.viewSessionId ?? null;
+        const previousViewCycleId = state.viewCycleId ?? null;
 
         state.sessions = [];
         state.matches = [];
@@ -178,6 +179,7 @@
         state.currentSessionId = null;
         state.currentCycleId = null;
         state.viewSessionId = null;
+        state.viewCycleId = null;
 
         try {
             const data = await apiJson("/api/bootstrap");
@@ -226,6 +228,14 @@
             );
 
             state.currentCycleId = activeCycle ? activeCycle.id : null;
+
+            const viewedCycleStillExists = state.cycles.some(
+                cycle => String(cycle.id) === String(previousViewCycleId)
+            );
+
+            if (viewedCycleStillExists) {
+                state.viewCycleId = previousViewCycleId;
+            }
 
             state.sessions = rawSessions.map(s => {
                 const sessionId = s.id;
@@ -1147,20 +1157,25 @@
         const info = $("cycleInfo");
         const rankingWrap = $("cycleIndividualRanking");
         const sessionsWrap = $("cycleSessionsList");
-        const historyWrap = $("cycleHistoryList");
         const legacyEditor = $("cyclePairsEditor");
+        const listView = $("cycleListView");
+        const detailsView = $("cycleDetailsView");
+        const listWrap = $("cycleList");
 
         if (
             !info ||
             !rankingWrap ||
             !sessionsWrap ||
-            !historyWrap ||
-            !legacyEditor
+            !legacyEditor ||
+            !listView ||
+            !detailsView ||
+            !listWrap
         ) {
             return;
         }
 
-        const cycle = getActiveCycle();
+        const cycle = getViewedCycle();
+        const cycleIsActive = cycle?.status === "em_andamento";
 
         const allCycles = (state.cycles || [])
             .slice()
@@ -1168,6 +1183,88 @@
                 String(b.startDate || "")
                     .localeCompare(String(a.startDate || ""))
             );
+
+        listView.style.display = cycle ? "none" : "block";
+        detailsView.style.display = cycle ? "block" : "none";
+
+        listWrap.innerHTML = allCycles.length
+            ? `
+                <div class="cycle-browser-list">
+                    ${allCycles.map(item => {
+                        const itemSessions = getCycleSessions(item);
+                        const itemMatches = itemSessions.reduce(
+                            (total, session) =>
+                                total + getSessionMatches(session).length,
+                            0
+                        );
+                        const itemRanking =
+                            computeIndividualCycleRanking(itemSessions);
+                        const champion = itemRanking[0] || null;
+                        const isActive =
+                            item.status === "em_andamento";
+
+                        return `
+                            <article class="cycle-browser-item">
+                                <div class="cycle-browser-main">
+                                    <div class="cycle-browser-header">
+                                        <strong>${item.name || "Ciclo sem nome"}</strong>
+                                        <span class="pill ${isActive ? "is-active" : ""}">
+                                            ${isActive ? "em andamento" : "encerrado"}
+                                        </span>
+                                    </div>
+
+                                    <div class="cycle-browser-period">
+                                        📅 ${formatDateBR(item.startDate)}
+                                        → ${formatDateBR(item.endDate)}
+                                    </div>
+
+                                    <div class="cycle-browser-stats">
+                                        <span>🏐 ${itemSessions.length} sessão(ões)</span>
+                                        <span>🎮 ${itemMatches} jogo(s)</span>
+                                        <span>👥 ${itemRanking.length} jogador(es)</span>
+                                        <span>🏆 ${champion ? champion.name : "Em aberto"}</span>
+                                    </div>
+                                </div>
+
+                                <div class="cycle-browser-actions">
+                                    <button
+                                        class="secondary btnViewCycle"
+                                        data-id="${item.id}"
+                                        type="button"
+                                    >
+                                        ➜ Abrir
+                                    </button>
+
+                                    ${isAdmin()
+                                        ? `
+                                            <button
+                                                class="secondary btnDeleteCycleItem"
+                                                data-id="${item.id}"
+                                                type="button"
+                                                aria-label="Excluir ciclo"
+                                            >
+                                                🗑️
+                                            </button>
+                                        `
+                                        : ""
+                                    }
+                                </div>
+                            </article>
+                        `;
+                    }).join("")}
+                </div>
+            `
+            : `
+                <div class="cycle-empty-state">
+                    <div class="cycle-empty-icon">🏆</div>
+                    <div>
+                        <b>Nenhum ciclo cadastrado</b>
+                        <div class="muted" style="margin-top:4px;">
+                            Abra “Gerenciar ciclo” para criar o primeiro ciclo mensal.
+                        </div>
+                    </div>
+                </div>
+            `;
 
         const cycleSessions =
             getCycleSessions(cycle);
@@ -1267,7 +1364,7 @@
 
                 <div>
                     <div class="cycle-overview-eyebrow">
-                        Ciclo atual
+                        ${cycleIsActive ? "Ciclo atual" : "Ciclo encerrado"}
                     </div>
 
                     <div class="cycle-overview-title">
@@ -1281,8 +1378,8 @@
                     </div>
                 </div>
 
-                <span class="cycle-status-badge is-active">
-                    Em andamento
+                <span class="cycle-status-badge ${cycleIsActive ? "is-active" : "is-finished"}">
+                    ${cycleIsActive ? "Em andamento" : "Encerrado"}
                 </span>
 
             </div>
@@ -1693,71 +1790,10 @@
         }
 
         /*
-         * HISTÓRICO DE CICLOS
-         */
-        historyWrap.innerHTML = allCycles.length
-            ? `
-            <div class="cycle-history-list">
-
-                ${allCycles.map(item => `
-                    <div class="cycle-history-item">
-
-                        <div>
-
-                            <b>
-                                ${item.name ||
-                "Ciclo sem nome"
-                }
-                            </b>
-
-                            <div class="muted">
-                                ${formatDateBR(item.startDate)}
-                                →
-                                ${formatDateBR(item.endDate)}
-                            </div>
-
-                        </div>
-
-                        <div class="cycle-history-actions">
-
-                            <span class="pill">
-                                ${item.status ===
-                    "em_andamento"
-                    ? "em andamento"
-                    : "encerrado"
-                }
-                            </span>
-
-                            <button
-                                class="
-                                    secondary
-                                    btnDeleteCycleItem
-                                "
-                                data-id="${item.id}"
-                                type="button"
-                                aria-label="Excluir ciclo"
-                            >
-                                🗑️
-                            </button>
-
-                        </div>
-
-                    </div>
-                `).join("")}
-
-            </div>
-        `
-            : `
-            <div class="muted">
-                Nenhum ciclo cadastrado.
-            </div>
-        `;
-
-        /*
          * DUPLAS FIXAS LEGADAS
          */
         const pairs =
-            cycle?.pairs || [];
+            getActiveCycle()?.pairs || [];
 
         legacyEditor.innerHTML = pairs.length
             ? `
@@ -3993,6 +4029,38 @@
     });
 
     document.addEventListener("click", (ev) => {
+        const button = ev.target.closest?.(".btnViewCycle");
+
+        if (!button) return;
+
+        state.viewCycleId = button.dataset.id;
+
+        saveState();
+        renderCycleTab();
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    });
+
+    document.addEventListener("click", (ev) => {
+        const button = ev.target.closest?.("#btnBackCycles");
+
+        if (!button) return;
+
+        state.viewCycleId = null;
+
+        saveState();
+        renderCycleTab();
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    });
+
+    document.addEventListener("click", (ev) => {
         const button =
             ev.target.closest?.("#btnToggleSessionGames");
 
@@ -4419,6 +4487,16 @@
 
     function getActiveCycle() {
         return (state.cycles || []).find(c => c.id === state.currentCycleId) || null;
+    }
+
+    function getViewedCycle() {
+        if (!state.viewCycleId) {
+            return null;
+        }
+
+        return (state.cycles || []).find(
+            cycle => String(cycle.id) === String(state.viewCycleId)
+        ) || null;
     }
 
     function renderCycleGame1Selects() {
