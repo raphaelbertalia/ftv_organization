@@ -3102,7 +3102,7 @@
 
                 penaltiesByPair.set(
                     key,
-                    currentPenalty + 10
+                    currentPenalty + 1000
                 );
             });
         });
