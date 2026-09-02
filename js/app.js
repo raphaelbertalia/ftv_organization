@@ -3068,16 +3068,133 @@
             .map(({ item }) => item);
     }
 
+    const RECENT_PAIR_PENALTIES = [100, 60, 30, 10];
+
+    function getPairKey(playerIdA, playerIdB) {
+        return [String(playerIdA), String(playerIdB)]
+            .sort()
+            .join("::");
+    }
+
+    function getRecentPairPenalties() {
+        const penaltiesByPair = new Map();
+
+        const recentSessions = (state.sessions || [])
+            .filter(session =>
+                Array.isArray(session.pairs) &&
+                session.pairs.length > 0
+            )
+            .slice()
+            .sort((a, b) => {
+                const dateA = a.createdAt || a.dateISO || "";
+                const dateB = b.createdAt || b.dateISO || "";
+
+                return String(dateB).localeCompare(String(dateA));
+            })
+            .slice(0, RECENT_PAIR_PENALTIES.length);
+
+        recentSessions.forEach((session, sessionIndex) => {
+            const penalty = RECENT_PAIR_PENALTIES[sessionIndex];
+
+            (session.pairs || []).forEach(pair => {
+                if (!pair.p1 || !pair.p2) return;
+
+                const key = getPairKey(pair.p1, pair.p2);
+                const currentPenalty = penaltiesByPair.get(key) || 0;
+
+                penaltiesByPair.set(
+                    key,
+                    currentPenalty + penalty
+                );
+            });
+        });
+
+        return penaltiesByPair;
+    }
+
+    function generatePermutations(players) {
+        if (players.length <= 1) {
+            return [players];
+        }
+
+        const permutations = [];
+
+        players.forEach((player, index) => {
+            const remainingPlayers = players.filter(
+                (_, currentIndex) => currentIndex !== index
+            );
+
+            const remainingPermutations =
+                generatePermutations(remainingPlayers);
+
+            remainingPermutations.forEach(permutation => {
+                permutations.push([
+                    player,
+                    ...permutation
+                ]);
+            });
+        });
+
+        return permutations;
+    }
+
+    function findBestPairFormation(leftPlayers, rightPlayers) {
+        const penaltiesByPair = getRecentPairPenalties();
+        const rightPermutations = generatePermutations(rightPlayers);
+
+        let lowestScore = Infinity;
+        let bestFormations = [];
+
+        rightPermutations.forEach(permutation => {
+            const formation = leftPlayers.map((leftPlayer, index) => ({
+                left: leftPlayer,
+                right: permutation[index]
+            }));
+
+            const score = formation.reduce((total, pair) => {
+                const key = getPairKey(
+                    pair.left.id,
+                    pair.right.id
+                );
+
+                return total + (penaltiesByPair.get(key) || 0);
+            }, 0);
+
+            if (score < lowestScore) {
+                lowestScore = score;
+                bestFormations = [formation];
+                return;
+            }
+
+            if (score === lowestScore) {
+                bestFormations.push(formation);
+            }
+        });
+
+        return bestFormations[
+            Math.floor(Math.random() * bestFormations.length)
+        ];
+    }
+
     function drawPairsBySide() {
         if (getCurrentSession()) {
             return alert("Já existe uma sessão ativa.");
         }
 
-        const activePlayers = (state.players || []).filter(p => p.active);
+        const activePlayers = (state.players || [])
+            .filter(player => player.active);
 
-        const lefts = shuffleArray(activePlayers.filter(p => p.side === "left"));
-        const rights = shuffleArray(activePlayers.filter(p => p.side === "right"));
-        const boths = shuffleArray(activePlayers.filter(p => p.side === "both"));
+        const lefts = shuffleArray(
+            activePlayers.filter(player => player.side === "left")
+        );
+
+        const rights = shuffleArray(
+            activePlayers.filter(player => player.side === "right")
+        );
+
+        const boths = shuffleArray(
+            activePlayers.filter(player => player.side === "both")
+        );
 
         while (lefts.length < 4 && boths.length) {
             lefts.push(boths.pop());
@@ -3088,22 +3205,37 @@
         }
 
         if (lefts.length < 4 || rights.length < 4) {
-            return alert("Não deu pra formar 4 duplas. Precisa de 4 jogadores para cada lado, usando coringas se necessário.");
+            return alert(
+                "Não deu pra formar 4 duplas. Precisa de 4 jogadores para cada lado, usando coringas se necessário."
+            );
         }
 
         const finalLefts = shuffleArray(lefts).slice(0, 4);
         const finalRights = shuffleArray(rights).slice(0, 4);
 
-        for (let i = 1; i <= 4; i++) {
-            const left = finalLefts[i - 1];
-            const right = finalRights[i - 1];
+        const bestFormation = findBestPairFormation(
+            finalLefts,
+            finalRights
+        );
 
-            const sel1 = $(`p${i}_1`);
-            const sel2 = $(`p${i}_2`);
-
-            if (sel1) sel1.value = left.id;
-            if (sel2) sel2.value = right.id;
+        if (!bestFormation?.length) {
+            return alert("Não foi possível sortear as duplas.");
         }
+
+        bestFormation.forEach((pair, index) => {
+            const position = index + 1;
+
+            const sel1 = $(`p${position}_1`);
+            const sel2 = $(`p${position}_2`);
+
+            if (sel1) {
+                sel1.value = pair.left.id;
+            }
+
+            if (sel2) {
+                sel2.value = pair.right.id;
+            }
+        });
 
         renderCycleGame1Selects();
     }
