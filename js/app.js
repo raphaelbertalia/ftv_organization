@@ -3068,7 +3068,7 @@
             .map(({ item }) => item);
     }
 
-    const RECENT_PAIR_PENALTIES = [100, 60, 30, 10];
+    const RECENT_PAIR_PENALTIES = [1000000, 100000, 10000, 1000];
 
     function getPairKey(playerIdA, playerIdB) {
         return [String(playerIdA), String(playerIdB)]
@@ -3102,7 +3102,7 @@
 
                 penaltiesByPair.set(
                     key,
-                    currentPenalty + 1000
+                    currentPenalty + 10
                 );
             });
         });
