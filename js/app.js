@@ -67,6 +67,7 @@
 
     let rotationSetupExpanded = false;
     let sessionGamesExpanded = false;
+    let pendingSummaryShare = null;
 
     // helpers locais
     function todayISO() {
@@ -157,6 +158,7 @@
         const matches = getSessionMatches(session);
         const table = computePairTableForSession(session)
             .filter(row => Number(row.played) > 0);
+        const trends = getHistoricalPlayerTrends(session.dateISO);
 
         const rankingLines = table.map((row, index) => {
             const pairName = getPairDisplayName(
@@ -181,6 +183,13 @@
             "*Classificação da noite*",
             ...rankingLines,
             "",
+            trends.rising
+                ? `📈 Em alta: ${trends.rising.name}`
+                : "📈 Em alta: histórico em formação",
+            trends.falling
+                ? `🧱 Quebrou o fechadinho: ${trends.falling.name}`
+                : "🧱 Fechadinho intacto",
+            "",
             "🔥 Resenha encerrada. Até a próxima quarta!"
         ].join("\n");
     }
@@ -188,6 +197,7 @@
     function buildCycleShareMessage(cycle) {
         const sessions = getCycleSessions(cycle);
         const ranking = computeIndividualCycleRanking(sessions);
+        const trends = getHistoricalPlayerTrends(cycle.endDate);
         const totalMatches = sessions.reduce(
             (total, session) =>
                 total + getSessionMatches(session).length,
@@ -214,10 +224,468 @@
             "*Classificação final*",
             ...rankingLines,
             "",
+            trends.rising
+                ? `📈 Em alta: ${trends.rising.name}`
+                : "📈 Em alta: histórico em formação",
+            trends.falling
+                ? `🧱 Quebrou o fechadinho: ${trends.falling.name}`
+                : "🧱 Fechadinho intacto",
+            "",
             ranking[0]
                 ? `👑 Campeão do ciclo: *${ranking[0].name}*`
                 : "Classificação encerrada sem jogos registrados."
         ].join("\n");
+    }
+
+    function escapeSummaryHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    async function getResenhaPhrase(kind) {
+        try {
+            const data = await apiJson(
+                `/api/resenha-message?kind=${kind}`
+            );
+
+            return data?.message || "";
+        } catch (_) {
+            return kind === "best"
+                ? "Hoje foi domínio total!"
+                : "Hoje não deu... mas a resenha está garantida!";
+        }
+    }
+
+    function getHistoricalPlayerTrends(referenceDateISO = null) {
+        const historyByPlayer = new Map();
+
+        const sessions = (state.sessions || [])
+            .filter(session => {
+                if (!getSessionMatches(session).length) return false;
+                if (!referenceDateISO) return true;
+
+                return String(session.dateISO || "") <=
+                    String(referenceDateISO);
+            })
+            .slice()
+            .sort((a, b) =>
+                String(a.dateISO || "")
+                    .localeCompare(String(b.dateISO || ""))
+            );
+
+        sessions.forEach(session => {
+            const sessionRanking =
+                computeIndividualCycleRanking([session]);
+
+            sessionRanking.forEach(row => {
+                const id = String(row.playerId);
+
+                if (!historyByPlayer.has(id)) {
+                    historyByPlayer.set(id, {
+                        playerId: id,
+                        name: row.name,
+                        performances: []
+                    });
+                }
+
+                historyByPlayer.get(id).performances.push({
+                    efficiency: Number(row.efficiency) || 0,
+                    pointsPerGame: row.played
+                        ? Number(row.points) / Number(row.played)
+                        : 0
+                });
+            });
+        });
+
+        const candidates = [...historyByPlayer.values()]
+            .filter(player => player.performances.length >= 4)
+            .map(player => {
+                const performances = player.performances;
+                const recent = performances.slice(-2);
+                const previous = performances.slice(-4, -2);
+                const average = (items, field) =>
+                    items.reduce(
+                        (total, item) => total + item[field],
+                        0
+                    ) / items.length;
+
+                return {
+                    ...player,
+                    efficiencyDelta: Math.round(
+                        average(recent, "efficiency") -
+                        average(previous, "efficiency")
+                    ),
+                    pointsDelta:
+                        average(recent, "pointsPerGame") -
+                        average(previous, "pointsPerGame")
+                };
+            });
+
+        const rising = candidates
+            .filter(player => player.efficiencyDelta > 0)
+            .sort((a, b) =>
+                (b.efficiencyDelta - a.efficiencyDelta) ||
+                (b.pointsDelta - a.pointsDelta)
+            )[0] || null;
+
+        const falling = candidates
+            .filter(player => player.efficiencyDelta < 0)
+            .sort((a, b) =>
+                (a.efficiencyDelta - b.efficiencyDelta) ||
+                (a.pointsDelta - b.pointsDelta)
+            )[0] || null;
+
+        return { rising, falling };
+    }
+
+    function canvasToSummaryFile(canvas, fileName) {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(blob => {
+                if (!blob) {
+                    reject(new Error("Não foi possível gerar a imagem."));
+                    return;
+                }
+
+                resolve(new File(
+                    [blob],
+                    fileName,
+                    { type: "image/png" }
+                ));
+            }, "image/png");
+        });
+    }
+
+    async function createSummaryImage({
+        eyebrow,
+        title,
+        period,
+        stats,
+        winnerLabel,
+        winnerName,
+        winnerStats,
+        winnerPhrase,
+        loserLabel,
+        loserName,
+        loserStats,
+        loserPhrase,
+        trends,
+        ranking
+    }) {
+        if (typeof html2canvas !== "function") {
+            throw new Error("Gerador de imagem não carregado.");
+        }
+
+        const card = document.createElement("div");
+        card.className = "summary-capture-card";
+
+        card.innerHTML = `
+            <div class="summary-capture-glow"></div>
+
+            <div class="summary-capture-content">
+                <div class="summary-capture-brand">QUARTA CH</div>
+                <div class="summary-capture-eyebrow">${escapeSummaryHtml(eyebrow)}</div>
+                <div class="summary-capture-title">${escapeSummaryHtml(title)}</div>
+                <div class="summary-capture-period">${escapeSummaryHtml(period)}</div>
+
+                <div class="summary-capture-stats">
+                    ${stats.map(item => `
+                        <div>
+                            <strong>${escapeSummaryHtml(item.value)}</strong>
+                            <span>${escapeSummaryHtml(item.label)}</span>
+                        </div>
+                    `).join("")}
+                </div>
+
+                <div class="summary-capture-highlights">
+                    <section class="summary-capture-highlight is-winner">
+                        <div class="summary-capture-highlight-label">
+                            🏆 ${escapeSummaryHtml(winnerLabel)}
+                        </div>
+                        <strong>${escapeSummaryHtml(winnerName)}</strong>
+                        <span>${escapeSummaryHtml(winnerStats)}</span>
+                        <blockquote>“${escapeSummaryHtml(winnerPhrase)}”</blockquote>
+                    </section>
+
+                    <section class="summary-capture-highlight is-loser">
+                        <div class="summary-capture-highlight-label">
+                            🪵 ${escapeSummaryHtml(loserLabel)}
+                        </div>
+                        <strong>${escapeSummaryHtml(loserName)}</strong>
+                        <span>${escapeSummaryHtml(loserStats)}</span>
+                        <blockquote>“${escapeSummaryHtml(loserPhrase)}”</blockquote>
+                    </section>
+                </div>
+
+                <div class="summary-capture-trends">
+                    <section class="summary-capture-trend is-rising">
+                        <span>📈 EM ALTA</span>
+                        <strong>${escapeSummaryHtml(
+                            trends?.rising?.name || "Histórico em formação"
+                        )}</strong>
+                        <small>${trends?.rising
+                            ? `+${trends.rising.efficiencyDelta} pontos de aproveitamento`
+                            : "São necessárias 4 participações"
+                        }</small>
+                    </section>
+
+                    <section class="summary-capture-trend is-falling">
+                        <span>🧱 QUEBROU O FECHADINHO</span>
+                        <strong>${escapeSummaryHtml(
+                            trends?.falling?.name || "Fechadinho intacto"
+                        )}</strong>
+                        <small>${trends?.falling
+                            ? `${trends.falling.efficiencyDelta} pontos de aproveitamento`
+                            : "Ninguém caiu de rendimento"
+                        }</small>
+                    </section>
+                </div>
+
+                <div class="summary-capture-ranking">
+                    <div class="summary-capture-ranking-title">CLASSIFICAÇÃO</div>
+                    ${ranking.map((row, index) => `
+                        <div class="summary-capture-ranking-row">
+                            <span>${getRankingPositionEmoji(index)}</span>
+                            <strong>${escapeSummaryHtml(row.name)}</strong>
+                            <b>${escapeSummaryHtml(row.points)} pts</b>
+                        </div>
+                    `).join("")}
+                </div>
+
+                <div class="summary-capture-footer">
+                    FUTVÔLEI • RESENHA • QUARTA CH
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(card);
+
+        try {
+            const canvas = await html2canvas(card, {
+                scale: 1,
+                backgroundColor: null,
+                useCORS: true
+            });
+
+            return canvas;
+        } finally {
+            document.body.removeChild(card);
+        }
+    }
+
+    function showSummarySharePreview(file, message, title) {
+        const modal = $("summaryShareModal");
+        const preview = $("summarySharePreview");
+
+        if (!modal || !preview) {
+            throw new Error("Prévia de compartilhamento não encontrada.");
+        }
+
+        if (pendingSummaryShare?.previewUrl) {
+            URL.revokeObjectURL(pendingSummaryShare.previewUrl);
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+
+        pendingSummaryShare = {
+            file,
+            message,
+            title,
+            previewUrl
+        };
+
+        preview.src = previewUrl;
+        modal.classList.add("is-visible");
+        modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("app-is-loading");
+    }
+
+    function closeSummarySharePreview() {
+        const modal = $("summaryShareModal");
+        const preview = $("summarySharePreview");
+
+        modal?.classList.remove("is-visible");
+        modal?.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("app-is-loading");
+
+        if (preview) {
+            preview.removeAttribute("src");
+        }
+
+        if (pendingSummaryShare?.previewUrl) {
+            URL.revokeObjectURL(pendingSummaryShare.previewUrl);
+        }
+
+        pendingSummaryShare = null;
+    }
+
+    function downloadPendingSummaryImage() {
+        if (!pendingSummaryShare) return;
+
+        const link = document.createElement("a");
+        link.href = pendingSummaryShare.previewUrl;
+        link.download = pendingSummaryShare.file.name;
+        link.click();
+    }
+
+    async function sendPendingSummaryImage() {
+        if (!pendingSummaryShare) return;
+
+        const { file, message, title } = pendingSummaryShare;
+
+        if (
+            navigator.share &&
+            navigator.canShare?.({ files: [file] })
+        ) {
+            try {
+                await navigator.share({
+                    title,
+                    text: message,
+                    files: [file]
+                });
+
+                closeSummarySharePreview();
+                return;
+            } catch (err) {
+                if (err?.name === "AbortError") return;
+
+                console.warn("Falha ao compartilhar imagem:", err);
+            }
+        }
+
+        downloadPendingSummaryImage();
+        alert(
+            "A imagem foi baixada. O WhatsApp será aberto com o texto pronto; depois é só anexar a imagem no grupo."
+        );
+
+        await shareSummary(message, title);
+    }
+
+    async function prepareSessionSummaryImage(session) {
+        const table = computePairTableForSession(session)
+            .filter(row => Number(row.played) > 0);
+
+        if (!table.length) {
+            return alert("Essa sessão ainda não possui resultados.");
+        }
+
+        Loading.show("Criando arte da sessão...");
+
+        try {
+            const [winnerPhrase, loserPhrase] = await Promise.all([
+                getResenhaPhrase("best"),
+                getResenhaPhrase("worst")
+            ]);
+
+            const best = table[0];
+            const worst = table[table.length - 1];
+            const matches = getSessionMatches(session);
+            const canvas = await createSummaryImage({
+                eyebrow: "RESUMO DA SESSÃO",
+                title: session.name || "Quarta CH",
+                period: formatDateBR(session.dateISO),
+                stats: [
+                    { value: matches.length, label: "JOGOS" },
+                    { value: table.length, label: "DUPLAS" },
+                    { value: session.roster?.length || 0, label: "JOGADORES" }
+                ],
+                winnerLabel: "MELHOR DUPLA",
+                winnerName: getPairDisplayName(session, best.pairId),
+                winnerStats: `${best.points} pts • ${best.wins} vitórias • saldo ${best.diff}`,
+                winnerPhrase,
+                loserLabel: "LENHA DA NOITE",
+                loserName: getPairDisplayName(session, worst.pairId),
+                loserStats: `${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff}`,
+                loserPhrase,
+                trends: getHistoricalPlayerTrends(session.dateISO),
+                ranking: table.map(row => ({
+                    name: getPairDisplayName(session, row.pairId),
+                    points: row.points
+                }))
+            });
+
+            const file = await canvasToSummaryFile(
+                canvas,
+                `resumo-sessao-${session.dateISO || "quarta-ch"}.png`
+            );
+
+            Loading.forceHide();
+            showSummarySharePreview(
+                file,
+                buildSessionShareMessage(session),
+                `Resumo da sessão — ${session.name || "Quarta CH"}`
+            );
+        } catch (err) {
+            Loading.forceHide();
+            alert(err?.message || "Não foi possível criar a arte da sessão.");
+        }
+    }
+
+    async function prepareCycleSummaryImage(cycle) {
+        const sessions = getCycleSessions(cycle);
+        const ranking = computeIndividualCycleRanking(sessions);
+
+        if (!ranking.length) {
+            return alert("Esse ciclo ainda não possui resultados.");
+        }
+
+        Loading.show("Criando arte do ciclo...");
+
+        try {
+            const [winnerPhrase, loserPhrase] = await Promise.all([
+                getResenhaPhrase("best"),
+                getResenhaPhrase("worst")
+            ]);
+
+            const best = ranking[0];
+            const worst = ranking[ranking.length - 1];
+            const totalMatches = sessions.reduce(
+                (total, session) =>
+                    total + getSessionMatches(session).length,
+                0
+            );
+            const canvas = await createSummaryImage({
+                eyebrow: "RESUMO DO CICLO",
+                title: cycle.name || "Ciclo mensal",
+                period: `${formatDateBR(cycle.startDate)} → ${formatDateBR(cycle.endDate)}`,
+                stats: [
+                    { value: sessions.length, label: "SESSÕES" },
+                    { value: totalMatches, label: "JOGOS" },
+                    { value: ranking.length, label: "JOGADORES" }
+                ],
+                winnerLabel: "CAMPEÃO DO CICLO",
+                winnerName: best.name,
+                winnerStats: `${best.points} pts • ${best.wins} vitórias • saldo ${best.diff}`,
+                winnerPhrase,
+                loserLabel: "LANTERNA DO CICLO",
+                loserName: worst.name,
+                loserStats: `${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff}`,
+                loserPhrase,
+                trends: getHistoricalPlayerTrends(cycle.endDate),
+                ranking: ranking.slice(0, 5).map(row => ({
+                    name: row.name,
+                    points: row.points
+                }))
+            });
+
+            const file = await canvasToSummaryFile(
+                canvas,
+                `resumo-ciclo-${cycle.startDate || "quarta-ch"}.png`
+            );
+
+            Loading.forceHide();
+            showSummarySharePreview(
+                file,
+                buildCycleShareMessage(cycle),
+                `Resumo do ciclo — ${cycle.name || "Quarta CH"}`
+            );
+        } catch (err) {
+            Loading.forceHide();
+            alert(err?.message || "Não foi possível criar a arte do ciclo.");
+        }
     }
 
     async function apiJson(url, options = {}) {
@@ -3566,8 +4034,6 @@
 
             if (!confirm(`Finalizar o ciclo "${cycle.name}"?`)) return;
 
-            const shareMessage = buildCycleShareMessage(cycle);
-
             try {
                 await apiJson("/api/monthly-cycles", {
                     method: "PATCH",
@@ -3582,10 +4048,7 @@
 
                 alert("Ciclo finalizado ✅");
 
-                await shareSummary(
-                    shareMessage,
-                    `Ciclo finalizado — ${cycle.name || "Quarta CH"}`
-                );
+                await prepareCycleSummaryImage(cycle);
             } catch (err) {
                 alert(err.message || "Erro ao finalizar ciclo");
             }
@@ -3950,8 +4413,6 @@
             const matches = getSessionMatches(sess);
             if (matches.length < 8) return alert("A sessão ainda não terminou.");
 
-            const shareMessage = buildSessionShareMessage(sess);
-
             await apiJson("/api/sessions", {
                 method: "PATCH",
                 body: JSON.stringify({
@@ -3970,10 +4431,7 @@
 
             alert(`Sessão "${sess.name}" encerrada ✅`);
 
-            await shareSummary(
-                shareMessage,
-                `Resumo da sessão — ${sess.name || "Quarta CH"}`
-            );
+            await prepareSessionSummaryImage(sess);
         });
     }
 
@@ -6105,10 +6563,7 @@
             return alert("Não foi possível localizar a sessão.");
         }
 
-        await shareSummary(
-            buildSessionShareMessage(session),
-            `Resumo da sessão — ${session.name || "Quarta CH"}`
-        );
+        await prepareSessionSummaryImage(session);
     });
 
     document.addEventListener("click", async (ev) => {
@@ -6123,10 +6578,28 @@
             return alert("Não foi possível localizar o ciclo.");
         }
 
-        await shareSummary(
-            buildCycleShareMessage(cycle),
-            `Resumo do ciclo — ${cycle.name || "Quarta CH"}`
-        );
+        await prepareCycleSummaryImage(cycle);
+    });
+
+    document.addEventListener("click", async (ev) => {
+        if (ev.target.closest?.("#btnSendSummaryImage")) {
+            await sendPendingSummaryImage();
+            return;
+        }
+
+        if (ev.target.closest?.("#btnDownloadSummaryImage")) {
+            downloadPendingSummaryImage();
+            return;
+        }
+
+        if (ev.target.closest?.("#btnCloseSummaryShare")) {
+            closeSummarySharePreview();
+            return;
+        }
+
+        if (ev.target.id === "summaryShareModal") {
+            closeSummarySharePreview();
+        }
     });
 
     // default tab

@@ -361,6 +361,309 @@ pre {
 
 /* ===== CARD IMAGEM RESENHA ===== */
 
+.summary-share-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(2, 6, 23, .88);
+  backdrop-filter: blur(8px);
+}
+
+.summary-share-modal.is-visible {
+  display: flex;
+}
+
+.summary-share-dialog {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: #0b1220;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .5);
+}
+
+.summary-share-dialog-header,
+.summary-share-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.summary-share-dialog-header {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.summary-share-close {
+  width: 42px;
+  min-width: 42px;
+}
+
+.summary-share-preview-wrap {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #020617;
+}
+
+.summary-share-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.summary-share-dialog-actions {
+  margin-top: 14px;
+}
+
+.summary-share-dialog-actions button:first-child {
+  flex: 1;
+}
+
+.summary-share-dialog-actions button:last-child {
+  width: auto;
+}
+
+.summary-capture-card {
+  position: fixed;
+  top: 0;
+  left: -12000px;
+  width: 1080px;
+  min-height: 1350px;
+  overflow: hidden;
+  padding: 72px;
+  color: #fff;
+  background:
+    radial-gradient(700px 500px at 10% 0%, rgba(34, 197, 94, .26), transparent 70%),
+    radial-gradient(600px 500px at 100% 100%, rgba(239, 68, 68, .18), transparent 70%),
+    linear-gradient(150deg, #020617 0%, #0b1220 48%, #111827 100%);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.summary-capture-glow {
+  position: absolute;
+  inset: 0;
+  border: 18px solid rgba(255, 255, 255, .035);
+  pointer-events: none;
+}
+
+.summary-capture-content {
+  position: relative;
+  z-index: 1;
+}
+
+.summary-capture-brand {
+  color: #86efac;
+  font-size: 30px;
+  font-weight: 950;
+  letter-spacing: 8px;
+}
+
+.summary-capture-eyebrow {
+  margin-top: 42px;
+  color: #94a3b8;
+  font-size: 23px;
+  font-weight: 900;
+  letter-spacing: 5px;
+}
+
+.summary-capture-title {
+  margin-top: 12px;
+  font-size: 58px;
+  font-weight: 950;
+  line-height: 1.06;
+}
+
+.summary-capture-period {
+  margin-top: 16px;
+  color: #cbd5e1;
+  font-size: 25px;
+}
+
+.summary-capture-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.summary-capture-stats>div {
+  padding: 24px;
+  border: 2px solid rgba(255, 255, 255, .09);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .045);
+}
+
+.summary-capture-stats strong,
+.summary-capture-stats span {
+  display: block;
+}
+
+.summary-capture-stats strong {
+  font-size: 42px;
+}
+
+.summary-capture-stats span {
+  margin-top: 7px;
+  color: #94a3b8;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.summary-capture-highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.summary-capture-highlight {
+  min-width: 0;
+  padding: 28px;
+  border: 2px solid;
+  border-radius: 26px;
+}
+
+.summary-capture-highlight.is-winner {
+  border-color: rgba(250, 204, 21, .42);
+  background: linear-gradient(145deg, rgba(250, 204, 21, .15), rgba(22, 163, 74, .1));
+}
+
+.summary-capture-highlight.is-loser {
+  border-color: rgba(248, 113, 113, .36);
+  background: linear-gradient(145deg, rgba(248, 113, 113, .14), rgba(127, 29, 29, .1));
+}
+
+.summary-capture-highlight-label {
+  color: #cbd5e1;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 2px;
+}
+
+.summary-capture-highlight strong,
+.summary-capture-highlight span {
+  display: block;
+}
+
+.summary-capture-highlight strong {
+  margin-top: 15px;
+  font-size: 35px;
+  line-height: 1.12;
+}
+
+.summary-capture-highlight span {
+  margin-top: 11px;
+  color: #cbd5e1;
+  font-size: 19px;
+  line-height: 1.35;
+}
+
+.summary-capture-highlight blockquote {
+  min-height: 90px;
+  margin: 24px 0 0;
+  color: #fff;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.summary-capture-trends {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.summary-capture-trend {
+  padding: 20px 24px;
+  border: 2px solid rgba(255, 255, 255, .08);
+  border-radius: 22px;
+  background: rgba(2, 6, 23, .28);
+}
+
+.summary-capture-trend span,
+.summary-capture-trend strong,
+.summary-capture-trend small {
+  display: block;
+}
+
+.summary-capture-trend span {
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: 2px;
+}
+
+.summary-capture-trend strong {
+  margin-top: 9px;
+  font-size: 28px;
+}
+
+.summary-capture-trend small {
+  margin-top: 7px;
+  color: #cbd5e1;
+  font-size: 17px;
+}
+
+.summary-capture-trend.is-rising span {
+  color: #86efac;
+}
+
+.summary-capture-trend.is-falling span {
+  color: #fca5a5;
+}
+
+.summary-capture-ranking {
+  margin-top: 26px;
+  padding: 26px;
+  border: 2px solid rgba(255, 255, 255, .08);
+  border-radius: 24px;
+  background: rgba(2, 6, 23, .32);
+}
+
+.summary-capture-ranking-title {
+  margin-bottom: 13px;
+  color: #94a3b8;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 4px;
+}
+
+.summary-capture-ranking-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  min-height: 53px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+  font-size: 22px;
+}
+
+.summary-capture-ranking-row strong {
+  overflow-wrap: anywhere;
+}
+
+.summary-capture-ranking-row b {
+  color: #86efac;
+}
+
+.summary-capture-footer {
+  margin-top: 34px;
+  color: #64748b;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-align: center;
+}
+
 .share-card {
   position: fixed;
   top: -9999px;
@@ -1364,6 +1667,25 @@ pre {
 }
 
 @media (max-width: 720px) {
+  .summary-share-modal {
+    padding: 10px;
+  }
+
+  .summary-share-dialog {
+    max-height: calc(100vh - 20px);
+    padding: 12px;
+  }
+
+  .summary-share-dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary-share-dialog-actions button,
+  .summary-share-dialog-actions button:last-child {
+    width: 100%;
+  }
+
   .session-list-item {
     align-items: stretch;
     flex-direction: column;
