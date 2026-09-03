@@ -1188,6 +1188,16 @@ pre {
   font-size: 13px;
 }
 
+.session-details-share-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 14px;
+}
+
+.session-details-share-actions button {
+  width: auto;
+}
+
 .session-accordion {
   border-top: 1px solid var(--border);
 }
@@ -1387,6 +1397,10 @@ pre {
   .session-details-header {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .session-details-share-actions button {
+    width: 100%;
   }
 
   .session-highlights-grid {
@@ -2210,6 +2224,16 @@ pre {
   margin-top: 10px;
 }
 
+.cycle-share-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.cycle-share-actions button {
+  width: auto;
+}
+
 .cycle-top-player {
   min-width: 0;
   padding: 14px;
@@ -2480,6 +2504,10 @@ pre {
   .cycle-top-two {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+  }
+
+  .cycle-share-actions button {
+    width: 100%;
   }
 
   .cycle-top-player {

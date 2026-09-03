@@ -123,6 +123,103 @@
         return true;
     }
 
+    function getRankingPositionEmoji(index) {
+        return ["🥇", "🥈", "🥉"][index] || `${index + 1}º`;
+    }
+
+    async function shareSummary(message, title = "Quarta CH") {
+        if (!message) return;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title,
+                    text: message
+                });
+                return;
+            } catch (err) {
+                if (err?.name === "AbortError") {
+                    return;
+                }
+
+                console.warn(
+                    "Compartilhamento nativo indisponível:",
+                    err
+                );
+            }
+        }
+
+        window.location.href =
+            `https://wa.me/?text=${encodeURIComponent(message)}`;
+    }
+
+    function buildSessionShareMessage(session) {
+        const matches = getSessionMatches(session);
+        const table = computePairTableForSession(session)
+            .filter(row => Number(row.played) > 0);
+
+        const rankingLines = table.map((row, index) => {
+            const pairName = getPairDisplayName(
+                session,
+                row.pairId
+            );
+
+            const balance = Number(row.diff) > 0
+                ? `+${row.diff}`
+                : row.diff;
+
+            return `${getRankingPositionEmoji(index)} ${pairName} — ` +
+                `${row.points} pts | ${row.wins}V | saldo ${balance}`;
+        });
+
+        return [
+            "🏐 *QUARTA CH — RESUMO DA SESSÃO*",
+            "",
+            `📅 ${session.name || formatDateBR(session.dateISO)}`,
+            `🎮 ${matches.length} jogos realizados`,
+            "",
+            "*Classificação da noite*",
+            ...rankingLines,
+            "",
+            "🔥 Resenha encerrada. Até a próxima quarta!"
+        ].join("\n");
+    }
+
+    function buildCycleShareMessage(cycle) {
+        const sessions = getCycleSessions(cycle);
+        const ranking = computeIndividualCycleRanking(sessions);
+        const totalMatches = sessions.reduce(
+            (total, session) =>
+                total + getSessionMatches(session).length,
+            0
+        );
+
+        const rankingLines = ranking.map((row, index) => {
+            const balance = Number(row.diff) > 0
+                ? `+${row.diff}`
+                : row.diff;
+
+            return `${getRankingPositionEmoji(index)} ${row.name} — ` +
+                `${row.points} pts | ${row.wins}V | ` +
+                `${row.played}J | saldo ${balance}`;
+        });
+
+        return [
+            "🏆 *QUARTA CH — CICLO FINALIZADO*",
+            "",
+            `📋 ${cycle.name || "Ciclo mensal"}`,
+            `📅 ${formatDateBR(cycle.startDate)} → ${formatDateBR(cycle.endDate)}`,
+            `🏐 ${sessions.length} sessões | 🎮 ${totalMatches} jogos`,
+            "",
+            "*Classificação final*",
+            ...rankingLines,
+            "",
+            ranking[0]
+                ? `👑 Campeão do ciclo: *${ranking[0].name}*`
+                : "Classificação encerrada sem jogos registrados."
+        ].join("\n");
+    }
+
     async function apiJson(url, options = {}) {
         const res = await fetch(url, {
             headers: {
@@ -1484,6 +1581,16 @@
 
                 </div>
 
+            </div>
+
+            <div class="cycle-share-actions">
+                <button
+                    class="btnShareCycleSummary"
+                    data-id="${cycle.id}"
+                    type="button"
+                >
+                    📲 Compartilhar resumo
+                </button>
             </div>
         `;
         }
@@ -3459,6 +3566,8 @@
 
             if (!confirm(`Finalizar o ciclo "${cycle.name}"?`)) return;
 
+            const shareMessage = buildCycleShareMessage(cycle);
+
             try {
                 await apiJson("/api/monthly-cycles", {
                     method: "PATCH",
@@ -3472,6 +3581,11 @@
                 renderCycleTab();
 
                 alert("Ciclo finalizado ✅");
+
+                await shareSummary(
+                    shareMessage,
+                    `Ciclo finalizado — ${cycle.name || "Quarta CH"}`
+                );
             } catch (err) {
                 alert(err.message || "Erro ao finalizar ciclo");
             }
@@ -3836,6 +3950,8 @@
             const matches = getSessionMatches(sess);
             if (matches.length < 8) return alert("A sessão ainda não terminou.");
 
+            const shareMessage = buildSessionShareMessage(sess);
+
             await apiJson("/api/sessions", {
                 method: "PATCH",
                 body: JSON.stringify({
@@ -3853,6 +3969,11 @@
             showTab("sessoes");
 
             alert(`Sessão "${sess.name}" encerrada ✅`);
+
+            await shareSummary(
+                shareMessage,
+                `Resumo da sessão — ${sess.name || "Quarta CH"}`
+            );
         });
     }
 
@@ -5276,6 +5397,16 @@
 
         </div>
 
+        <div class="session-details-share-actions">
+            <button
+                class="btnShareSessionSummary"
+                data-id="${viewed.id}"
+                type="button"
+            >
+                📲 Compartilhar resumo
+            </button>
+        </div>
+
         <details class="session-accordion" open>
             <summary>
                 <span>
@@ -5962,6 +6093,40 @@
         if (!tipo) return;
 
         gerarImagemResumo(tipo);
+    });
+
+    document.addEventListener("click", async (ev) => {
+        const button = ev.target.closest?.(".btnShareSessionSummary");
+        if (!button) return;
+
+        const session = getSessionById(button.dataset.id);
+
+        if (!session) {
+            return alert("Não foi possível localizar a sessão.");
+        }
+
+        await shareSummary(
+            buildSessionShareMessage(session),
+            `Resumo da sessão — ${session.name || "Quarta CH"}`
+        );
+    });
+
+    document.addEventListener("click", async (ev) => {
+        const button = ev.target.closest?.(".btnShareCycleSummary");
+        if (!button) return;
+
+        const cycle = (state.cycles || []).find(
+            item => String(item.id) === String(button.dataset.id)
+        );
+
+        if (!cycle) {
+            return alert("Não foi possível localizar o ciclo.");
+        }
+
+        await shareSummary(
+            buildCycleShareMessage(cycle),
+            `Resumo do ciclo — ${cycle.name || "Quarta CH"}`
+        );
     });
 
     // default tab
