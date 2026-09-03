@@ -427,7 +427,7 @@
                             trends?.rising?.name || "Histórico em formação"
                         )}</strong>
                         <small>${trends?.rising
-                            ? `+${trends.rising.efficiencyDelta} pontos de aproveitamento`
+                            ? `Aumento de ${trends.rising.efficiencyDelta}% no aproveitamento`
                             : "São necessárias 4 participações"
                         }</small>
                     </section>
@@ -438,7 +438,7 @@
                             trends?.falling?.name || "Fechadinho intacto"
                         )}</strong>
                         <small>${trends?.falling
-                            ? `${trends.falling.efficiencyDelta} pontos de aproveitamento`
+                            ? `Queda de ${Math.abs(trends.falling.efficiencyDelta)}% no aproveitamento`
                             : "Ninguém caiu de rendimento"
                         }</small>
                     </section>
