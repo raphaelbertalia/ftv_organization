@@ -36,13 +36,32 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Usuário ou senha inválidos" });
     }
 
+    const groupsResult = await pool.query(
+      `
+        SELECT
+          g.id,
+          g.name,
+          g.slug,
+          ug.role
+        FROM user_groups ug
+        INNER JOIN groups g
+          ON g.id = ug.group_id
+        WHERE ug.user_id = $1
+          AND ug.active = true
+          AND g.active = true
+        ORDER BY g.name ASC
+      `,
+      [user.id]
+    );
+
     return res.status(200).json({
       ok: true,
       user: {
         id: user.id,
         username: user.username,
         role: user.role
-      }
+      },
+      groups: groupsResult.rows || []
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

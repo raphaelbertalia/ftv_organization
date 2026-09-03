@@ -83,6 +83,20 @@
         return state.auth?.user || null;
     }
 
+    function getCurrentGroupId() {
+        return state.auth?.currentGroupId || null;
+    }
+
+    function getCurrentGroup() {
+        const groupId = getCurrentGroupId();
+
+        if (!groupId) return null;
+
+        return (state.auth?.groups || []).find(
+            group => String(group.id) === String(groupId)
+        ) || null;
+    }
+
     function isAdmin() {
         return getCurrentUser()?.role === "admin";
     }
@@ -94,10 +108,6 @@
     function canOperate() {
         const role = getCurrentUser()?.role;
         return role === "admin" || role === "user";
-    }
-
-    function canView() {
-        return !!getCurrentUser();
     }
 
     function requireAdmin() {
@@ -424,23 +434,23 @@
                     <section class="summary-capture-trend is-rising">
                         <span>📈 EM ALTA</span>
                         <strong>${escapeSummaryHtml(
-                            trends?.rising?.name || "Histórico em formação"
-                        )}</strong>
+            trends?.rising?.name || "Histórico em formação"
+        )}</strong>
                         <small>${trends?.rising
-                            ? `Aumento de ${trends.rising.efficiencyDelta}% no aproveitamento`
-                            : "São necessárias 4 participações"
-                        }</small>
+                ? `Aumento de ${trends.rising.efficiencyDelta}% no aproveitamento`
+                : "São necessárias 4 participações"
+            }</small>
                     </section>
 
                     <section class="summary-capture-trend is-falling">
                         <span>🧱 QUEBROU O FECHADINHO</span>
                         <strong>${escapeSummaryHtml(
-                            trends?.falling?.name || "Fechadinho intacto"
-                        )}</strong>
+                trends?.falling?.name || "Fechadinho intacto"
+            )}</strong>
                         <small>${trends?.falling
-                            ? `Queda de ${Math.abs(trends.falling.efficiencyDelta)}% no aproveitamento`
-                            : "Ninguém caiu de rendimento"
-                        }</small>
+                ? `Queda de ${Math.abs(trends.falling.efficiencyDelta)}% no aproveitamento`
+                : "Ninguém caiu de rendimento"
+            }</small>
                     </section>
                 </div>
 
@@ -747,7 +757,15 @@
         state.viewCycleId = null;
 
         try {
-            const data = await apiJson("/api/bootstrap");
+            const groupId = getCurrentGroupId();
+
+            if (!groupId) {
+                return;
+            }
+
+            const data = await apiJson(
+                `/api/bootstrap?group_id=${encodeURIComponent(groupId)}`
+            );
 
             state.players = Array.isArray(data.players) ? data.players : [];
 
@@ -931,12 +949,26 @@
         });
 
         state.auth.user = data.user;
+
+        state.auth.groups = Array.isArray(data.groups)
+            ? data.groups
+            : [];
+
+        if (state.auth.groups.length === 1) {
+            state.auth.currentGroupId = state.auth.groups[0].id;
+        } else {
+            state.auth.currentGroupId = null;
+        }
+
         saveState();
         updateAuthUI();
     }
 
     function doLogout() {
         state.auth.user = null;
+        state.auth.groups = [];
+        state.auth.currentGroupId = null;
+
         saveState();
         updateAuthUI();
     }
@@ -1756,19 +1788,19 @@
             ? `
                 <div class="cycle-browser-list">
                     ${allCycles.map(item => {
-                        const itemSessions = getCycleSessions(item);
-                        const itemMatches = itemSessions.reduce(
-                            (total, session) =>
-                                total + getSessionMatches(session).length,
-                            0
-                        );
-                        const itemRanking =
-                            computeIndividualCycleRanking(itemSessions);
-                        const champion = itemRanking[0] || null;
-                        const isActive =
-                            item.status === "em_andamento";
+                const itemSessions = getCycleSessions(item);
+                const itemMatches = itemSessions.reduce(
+                    (total, session) =>
+                        total + getSessionMatches(session).length,
+                    0
+                );
+                const itemRanking =
+                    computeIndividualCycleRanking(itemSessions);
+                const champion = itemRanking[0] || null;
+                const isActive =
+                    item.status === "em_andamento";
 
-                        return `
+                return `
                             <article class="cycle-browser-item">
                                 <div class="cycle-browser-main">
                                     <div class="cycle-browser-header">
@@ -1801,7 +1833,7 @@
                                     </button>
 
                                     ${isAdmin()
-                                        ? `
+                        ? `
                                             <button
                                                 class="secondary btnDeleteCycleItem"
                                                 data-id="${item.id}"
@@ -1811,12 +1843,12 @@
                                                 🗑️
                                             </button>
                                         `
-                                        : ""
-                                    }
+                        : ""
+                    }
                                 </div>
                             </article>
                         `;
-                    }).join("")}
+            }).join("")}
                 </div>
             `
             : `
@@ -5981,14 +6013,6 @@
             </div>
         </details>
     `;
-    }
-
-    function getWinnerLoser(match) {
-        const aWin = Number(match.scoreA) > Number(match.scoreB);
-        return {
-            winnerPairId: aWin ? match.pairAId : match.pairBId,
-            loserPairId: aWin ? match.pairBId : match.pairAId,
-        };
     }
 
     // ranking POR DUPLA só pra decidir topo x topo / baixo x baixo depois do chaveamento

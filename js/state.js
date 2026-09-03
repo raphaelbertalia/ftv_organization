@@ -13,7 +13,9 @@ function defaultState() {
     matches: [],
 
     auth: {
-      user: null
+      user: null,
+      groups: [],
+      currentGroupId: null
     }
   };
 }
@@ -24,6 +26,14 @@ let state = (window.loadState && loadState()) || defaultState();
 // garante compatibilidade com estados antigos
 if (!state.auth) {
   state.auth = { user: null };
+}
+
+if (!Array.isArray(state.auth.groups)) {
+  state.auth.groups = [];
+}
+
+if (typeof state.auth.currentGroupId === "undefined") {
+  state.auth.currentGroupId = null;
 }
 
 // garante campos (compat)
