@@ -110,6 +110,40 @@
       </div>
     </section>
 
+    <section id="groupAccessModal" class="card" style="display:none;">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+
+        <div>
+          <b>Solicitar acesso a um grupo</b>
+
+          <div class="muted" style="margin-top:6px;">
+            Selecione o grupo ao qual deseja solicitar acesso.
+          </div>
+        </div>
+
+        <div>
+          <div class="muted">Grupo</div>
+
+          <select id="groupAccessSelect">
+            <option value="">Carregando grupos...</option>
+          </select>
+        </div>
+
+        <div id="groupAccessStatus" class="muted"></div>
+
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <button id="btnConfirmGroupAccess" type="button">
+            Enviar solicitação
+          </button>
+
+          <button id="btnCancelGroupAccess" class="secondary" type="button">
+            Cancelar
+          </button>
+        </div>
+
+      </div>
+    </section>
+
     <div id="appContent" style="display:none;">
       <!-- TAB: JOGOS -->
       <section id="tab-jogos">

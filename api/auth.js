@@ -80,6 +80,160 @@ export default async function handler(req, res) {
         ok: true,
         user: result.rows[0]
       });
+    } else if (action === "access-options") {
+      const { user_id } = req.body || {};
+
+      if (!user_id) {
+        return res.status(400).json({
+          error: "Usuário não informado"
+        });
+      }
+
+      const userResult = await pool.query(
+        `
+          SELECT id, active
+          FROM users
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [user_id]
+      );
+
+      const user = userResult.rows[0];
+
+      if (!user || !user.active) {
+        return res.status(403).json({
+          error: "Usuário inválido ou inativo"
+        });
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            g.id,
+            g.name,
+            g.slug,
+            CASE
+              WHEN ug.id IS NOT NULL THEN true
+              ELSE false
+            END AS already_member,
+            gar.status AS request_status
+          FROM groups g
+
+          LEFT JOIN user_groups ug
+            ON ug.group_id = g.id
+           AND ug.user_id = $1
+           AND ug.active = true
+
+          LEFT JOIN group_access_requests gar
+            ON gar.group_id = g.id
+           AND gar.user_id = $1
+           AND gar.status = 'pending'
+
+          WHERE g.active = true
+
+          ORDER BY g.name ASC
+        `,
+        [user_id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        groups: result.rows || []
+      });
+
+    } else if (action === "request-group-access") {
+      const { user_id, group_id } = req.body || {};
+
+      if (!user_id || !group_id) {
+        return res.status(400).json({
+          error: "Usuário e grupo são obrigatórios"
+        });
+      }
+
+      const groupResult = await pool.query(
+        `
+          SELECT id, name
+          FROM groups
+          WHERE id = $1
+            AND active = true
+          LIMIT 1
+        `,
+        [group_id]
+      );
+
+      const group = groupResult.rows[0];
+
+      if (!group) {
+        return res.status(404).json({
+          error: "Grupo não encontrado"
+        });
+      }
+
+      const membershipResult = await pool.query(
+        `
+          SELECT id
+          FROM user_groups
+          WHERE user_id = $1
+            AND group_id = $2
+            AND active = true
+          LIMIT 1
+        `,
+        [user_id, group_id]
+      );
+
+      if (membershipResult.rows.length) {
+        return res.status(409).json({
+          error: `Você já participa do grupo ${group.name}.`
+        });
+      }
+
+      const pendingResult = await pool.query(
+        `
+          SELECT id
+          FROM group_access_requests
+          WHERE user_id = $1
+            AND group_id = $2
+            AND status = 'pending'
+          LIMIT 1
+        `,
+        [user_id, group_id]
+      );
+
+      if (pendingResult.rows.length) {
+        return res.status(409).json({
+          error:
+            `Sua solicitação de acesso ao grupo ${group.name} ainda está pendente. ` +
+            `Entre em contato com o responsável pelo grupo.`
+        });
+      }
+
+      const requestResult = await pool.query(
+        `
+          INSERT INTO group_access_requests (
+            user_id,
+            group_id,
+            requested_role,
+            status
+          )
+          VALUES ($1, $2, 'user', 'pending')
+          RETURNING
+            id,
+            user_id,
+            group_id,
+            requested_role,
+            status,
+            created_at
+        `,
+        [user_id, group_id]
+      );
+
+      return res.status(201).json({
+        ok: true,
+        message: `Solicitação enviada para o grupo ${group.name}.`,
+        request: requestResult.rows[0]
+      });
+
     } else {
       return res.status(400).json({ error: "Ação inválida" });
     }

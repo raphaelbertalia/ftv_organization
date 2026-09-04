@@ -135,8 +135,17 @@
         selector.style.display = "inline-block";
     }
 
-    function isAdmin() {
+    function getCurrentGroupRole() {
+        return getCurrentGroup()?.role || null;
+    }
+
+    function isGlobalAdmin() {
         return getCurrentUser()?.role === "admin";
+    }
+
+    function isAdmin() {
+        return isGlobalAdmin() ||
+            getCurrentGroupRole() === "admin";
     }
 
     function isOrganizer() {
@@ -144,10 +153,13 @@
     }
 
     function canOperate() {
-        const role = getCurrentUser()?.role;
-        const hasGroup = !!getCurrentGroupId();
+        const role = getCurrentGroupRole();
 
-        return hasGroup && (role === "admin" || role === "user");
+        return isGlobalAdmin() ||
+            (
+                !!getCurrentGroupId() &&
+                (role === "admin" || role === "user")
+            );
     }
 
     function requireAdmin() {
@@ -1063,7 +1075,7 @@
 
         if (sorteiosTab) {
             sorteiosTab.style.display =
-                organizer || isAdmin()
+                logged && !guest
                     ? "inline-block"
                     : "none";
         }
@@ -1172,7 +1184,13 @@
 
         const hasGroup = !!getCurrentGroupId();
 
-        if (user && !guest && !organizer && !hasGroup) {
+        if (
+            user &&
+            !guest &&
+            !organizer &&
+            !hasGroup &&
+            name !== "sorteios"
+        ) {
             return;
         }
 
@@ -1258,9 +1276,7 @@
 
         if ($("appContent")) {
             $("appContent").style.display =
-                logged && (guest || organizer || hasGroup)
-                    ? "block"
-                    : "none";
+                logged ? "block" : "none";
         }
 
         if ($("headerUserBox")) {
@@ -2588,6 +2604,211 @@
         } catch (err) {
             console.error("Erro salvando jogador no banco:", err);
         }
+    }
+
+    async function openGroupAccessModal() {
+        const user = getCurrentUser();
+
+        if (!user || user.role === "guest") {
+            return alert("Faça login para solicitar acesso.");
+        }
+
+        const modal = $("groupAccessModal");
+        const select = $("groupAccessSelect");
+        const status = $("groupAccessStatus");
+
+        if (!modal || !select) return;
+
+        modal.style.display = "block";
+
+        select.innerHTML = `
+        <option value="">Carregando grupos...</option>
+    `;
+
+        if (status) {
+            status.textContent = "";
+        }
+
+        try {
+            const data = await apiJson("/api/auth?action=access-options", {
+                method: "POST",
+                body: JSON.stringify({
+                    user_id: user.id
+                })
+            });
+
+            const groups = Array.isArray(data.groups)
+                ? data.groups
+                : [];
+
+            if (!groups.length) {
+                select.innerHTML = `
+                <option value="">Nenhum grupo disponível</option>
+            `;
+
+                select.disabled = true;
+
+                if ($("btnConfirmGroupAccess")) {
+                    $("btnConfirmGroupAccess").disabled = true;
+                }
+
+                return;
+            }
+
+            select.disabled = false;
+
+            if ($("btnConfirmGroupAccess")) {
+                $("btnConfirmGroupAccess").disabled = false;
+            }
+
+            select.innerHTML = `
+            <option value="">Selecione um grupo</option>
+            ${groups.map(group => {
+                let label = group.name;
+
+                if (group.already_member) {
+                    label += " — Você já participa";
+                } else if (group.request_status === "pending") {
+                    label += " — Solicitação pendente";
+                }
+
+                return `
+                    <option
+                        value="${group.id}"
+                        data-member="${group.already_member ? "true" : "false"}"
+                        data-status="${group.request_status || ""}"
+                    >
+                        ${label}
+                    </option>
+                `;
+            }).join("")}
+        `;
+
+        } catch (err) {
+            select.innerHTML = `
+            <option value="">Erro ao carregar grupos</option>
+        `;
+
+            if (status) {
+                status.textContent =
+                    err.message || "Não foi possível carregar os grupos.";
+            }
+        }
+    }
+
+    if ($("btnRequestGroupAccess")) {
+        $("btnRequestGroupAccess").addEventListener("click", async () => {
+            await openGroupAccessModal();
+        });
+    }
+
+    if ($("btnCancelGroupAccess")) {
+        $("btnCancelGroupAccess").addEventListener("click", () => {
+            $("groupAccessModal").style.display = "none";
+
+            if ($("groupAccessStatus")) {
+                $("groupAccessStatus").textContent = "";
+            }
+        });
+    }
+
+    if ($("groupAccessSelect")) {
+        $("groupAccessSelect").addEventListener("change", () => {
+            const select = $("groupAccessSelect");
+            const option = select.options[select.selectedIndex];
+            const status = $("groupAccessStatus");
+            const button = $("btnConfirmGroupAccess");
+
+            if (!option || !option.value) {
+                if (status) status.textContent = "";
+                if (button) button.disabled = false;
+                return;
+            }
+
+            const alreadyMember = option.dataset.member === "true";
+            const requestStatus = option.dataset.status;
+
+            if (alreadyMember) {
+                if (status) {
+                    status.textContent =
+                        "Você já participa deste grupo.";
+                }
+
+                if (button) button.disabled = true;
+                return;
+            }
+
+            if (requestStatus === "pending") {
+                if (status) {
+                    status.textContent =
+                        "Sua solicitação para este grupo ainda está pendente. Entre em contato com o responsável pelo grupo.";
+                }
+
+                if (button) button.disabled = true;
+                return;
+            }
+
+            if (status) status.textContent = "";
+            if (button) button.disabled = false;
+        });
+    }
+
+    if ($("btnConfirmGroupAccess")) {
+        $("btnConfirmGroupAccess").addEventListener("click", async () => {
+            const user = getCurrentUser();
+            const select = $("groupAccessSelect");
+            const status = $("groupAccessStatus");
+            const button = $("btnConfirmGroupAccess");
+
+            if (!user || user.role === "guest") {
+                return alert("Faça login para solicitar acesso.");
+            }
+
+            const groupId = select?.value;
+
+            if (!groupId) {
+                if (status) {
+                    status.textContent =
+                        "Selecione um grupo para enviar a solicitação.";
+                }
+
+                return;
+            }
+
+            try {
+                if (button) button.disabled = true;
+
+                if (status) {
+                    status.textContent = "Enviando solicitação...";
+                }
+
+                const data = await apiJson(
+                    "/api/auth?action=request-group-access",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            user_id: user.id,
+                            group_id: groupId
+                        })
+                    }
+                );
+
+                if (status) {
+                    status.textContent =
+                        data.message || "Solicitação enviada com sucesso.";
+                }
+
+                await openGroupAccessModal();
+
+            } catch (err) {
+                if (status) {
+                    status.textContent =
+                        err.message || "Não foi possível enviar a solicitação.";
+                }
+
+                if (button) button.disabled = false;
+            }
+        });
     }
 
     if ($("btnLogin")) {
