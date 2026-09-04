@@ -761,6 +761,7 @@
         const previousViewSessionId = state.viewSessionId ?? null;
         const previousViewCycleId = state.viewCycleId ?? null;
 
+        state.players = [];
         state.sessions = [];
         state.matches = [];
         state.cycles = [];
