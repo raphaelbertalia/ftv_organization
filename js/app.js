@@ -110,7 +110,7 @@
         if (!groups.length) {
             selector.style.display = "none";
             label.style.display = "inline";
-            label.textContent = "Quarta CH";
+            label.textContent = "Sem grupo";
             return;
         }
 
@@ -127,7 +127,7 @@
         <option value="${group.id}">
             ${group.name}
         </option>
-            `).join("");    
+            `).join("");
 
         selector.value = currentId;
 
@@ -145,7 +145,9 @@
 
     function canOperate() {
         const role = getCurrentUser()?.role;
-        return role === "admin" || role === "user";
+        const hasGroup = !!getCurrentGroupId();
+
+        return hasGroup && (role === "admin" || role === "user");
     }
 
     function requireAdmin() {
@@ -999,6 +1001,7 @@
         const logged = !!user;
         const guest = user?.role === "guest";
         const organizer = isOrganizer();
+        const hasGroup = !!getCurrentGroupId();
         updateGroupHeader();
 
         if ($("authStatus")) {
@@ -1039,23 +1042,23 @@
 
         if (jogosTab) {
             jogosTab.style.display =
-                logged && !guest && !organizer
+                logged && !guest && !organizer && hasGroup
                     ? "inline-block"
                     : "none";
         }
 
         if (sessoesTab) {
             sessoesTab.style.display =
-                logged && !guest && !organizer
+                logged && !guest && !organizer && hasGroup
                     ? "inline-block"
                     : "none";
         }
 
         if (rankingTab) {
             rankingTab.style.display =
-                organizer
-                    ? "none"
-                    : "inline-block";
+                !organizer && (guest || hasGroup)
+                    ? "inline-block"
+                    : "none";
         }
 
         if (sorteiosTab) {
@@ -1066,15 +1069,18 @@
         }
 
         if (jogadoresTab) {
-            jogadoresTab.style.display = isAdmin() ? "inline-block" : "none";
+            jogadoresTab.style.display =
+                isAdmin() && hasGroup ? "inline-block" : "none";
         }
 
         if (dadosTab) {
-            dadosTab.style.display = isAdmin() ? "inline-block" : "none";
+            dadosTab.style.display =
+                isAdmin() && hasGroup ? "inline-block" : "none";
         }
 
         if (cicloTab) {
-            cicloTab.style.display = isAdmin() ? "inline-block" : "none";
+            cicloTab.style.display =
+                isAdmin() && hasGroup ? "inline-block" : "none";
         }
 
         // Esconde os indicadores do topo para o organizer
@@ -1164,6 +1170,12 @@
         const guest = user?.role === "guest";
         const organizer = isOrganizer();
 
+        const hasGroup = !!getCurrentGroupId();
+
+        if (user && !guest && !organizer && !hasGroup) {
+            return;
+        }
+
         if (!user) {
             name = "ranking";
         }
@@ -1224,14 +1236,31 @@
         const user = getCurrentUser();
         const logged = !!user;
         const guest = user?.role === "guest";
+        const organizer = isOrganizer();
+        const groups = state.auth?.groups || [];
+        const hasGroups = groups.length > 0;
+        const hasGroup = !!getCurrentGroupId();
+        const waitingForGroup =
+            logged && !guest && !organizer && !hasGroups;
+
         const hasActiveSession = !!getCurrentSession();
 
         if ($("loginScreen")) {
             $("loginScreen").style.display = (!logged || guest) ? "block" : "none";
         }
 
+        if ($("noGroupScreen")) {
+            $("noGroupScreen").style.display =
+                waitingForGroup
+                    ? "block"
+                    : "none";
+        }
+
         if ($("appContent")) {
-            $("appContent").style.display = logged ? "block" : "none";
+            $("appContent").style.display =
+                logged && (guest || organizer || hasGroup)
+                    ? "block"
+                    : "none";
         }
 
         if ($("headerUserBox")) {

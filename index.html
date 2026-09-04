@@ -88,6 +88,28 @@
       </section>
     </section>
 
+    <section id="noGroupScreen" class="card" style="display:none;">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <b>Você ainda não participa de nenhum grupo</b>
+          <div class="muted" style="margin-top:6px;">
+            Para começar, entre em um grupo através de um convite
+            ou solicite acesso a um grupo existente.
+          </div>
+        </div>
+
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <button id="btnRequestGroupAccess" type="button">
+            Solicitar acesso
+          </button>
+
+          <button id="btnUseGroupInvite" class="secondary" type="button">
+            Usar convite
+          </button>
+        </div>
+      </div>
+    </section>
+
     <div id="appContent" style="display:none;">
       <!-- TAB: JOGOS -->
       <section id="tab-jogos">
@@ -568,7 +590,6 @@
           <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
             <button id="btnReset" class="secondary">Zerar tudo</button>
             <button id="btnResetKeepPlayers" class="secondary">Zerar jogos e sessões (manter jogadores)</button>
-            <button id="btnCheckDb" class="secondary">Checar banco</button>
           </div>
         </div>
 
