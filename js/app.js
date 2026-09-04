@@ -2823,7 +2823,11 @@
             try {
                 await doLogin(username, password);
                 $("loginPassword").value = "";
-                showTab(isOrganizer() ? "sorteios" : "jogos");
+                showTab(
+                    isOrganizer() || !getCurrentGroupId()
+                        ? "sorteios"
+                        : "jogos"
+                );
                 alert("Login feito ✅");
             } catch (err) {
                 alert(err.message || "Falha no login");
