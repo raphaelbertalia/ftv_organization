@@ -88,26 +88,56 @@
       </section>
     </section>
 
-    <section id="noGroupScreen" class="card" style="display:none;">
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div>
-          <b>Você ainda não participa de nenhum grupo</b>
-          <div class="muted" style="margin-top:6px;">
-            Para começar, entre em um grupo através de um convite
-            ou solicite acesso a um grupo existente.
+    <section id="noGroupScreen" style="display:none;">
+
+      <section class="card">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+
+          <div>
+            <b>Você ainda não participa de nenhum grupo</b>
+
+            <div class="muted" style="margin-top:6px;">
+              Os grupos reúnem jogadores, sessões, rankings e ciclos.
+              Para participar, solicite acesso a um grupo existente
+              ou utilize um convite.
+            </div>
           </div>
-        </div>
 
-        <div class="row" style="gap:10px; flex-wrap:wrap;">
-          <button id="btnRequestGroupAccess" type="button">
-            Solicitar acesso
-          </button>
+          <div class="row" style="gap:10px; flex-wrap:wrap;">
+            <button id="btnRequestGroupAccess" type="button">
+              Solicitar acesso
+            </button>
 
-          <button id="btnUseGroupInvite" class="secondary" type="button">
-            Usar convite
-          </button>
+            <button id="btnUseGroupInvite" class="secondary" type="button">
+              Usar convite
+            </button>
+          </div>
+
         </div>
-      </div>
+      </section>
+
+      <section class="card">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+
+          <div>
+            <b>Quer organizar um campeonato?</b>
+
+            <div class="muted" style="margin-top:6px;">
+              Campeonatos são independentes dos grupos.
+              Você pode criar e gerenciar seus próprios sorteios
+              mesmo sem participar de um grupo.
+            </div>
+          </div>
+
+          <div>
+            <button id="btnGoChampionships" type="button">
+              Ir para Campeonatos
+            </button>
+          </div>
+
+        </div>
+      </section>
+
     </section>
 
     <section id="groupAccessModal" class="card" style="display:none;">

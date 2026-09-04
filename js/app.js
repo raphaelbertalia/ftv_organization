@@ -1275,7 +1275,9 @@
 
         if ($("appContent")) {
             $("appContent").style.display =
-                logged ? "block" : "none";
+                logged && !waitingForGroup
+                    ? "block"
+                    : "none";
         }
 
         if ($("headerUserBox")) {
@@ -2701,6 +2703,20 @@
         });
     }
 
+    if ($("btnGoChampionships")) {
+        $("btnGoChampionships").addEventListener("click", () => {
+            if ($("noGroupScreen")) {
+                $("noGroupScreen").style.display = "none";
+            }
+
+            if ($("appContent")) {
+                $("appContent").style.display = "block";
+            }
+
+            showTab("sorteios");
+        });
+    }
+
     if ($("btnCancelGroupAccess")) {
         $("btnCancelGroupAccess").addEventListener("click", () => {
             $("groupAccessModal").style.display = "none";
@@ -2822,11 +2838,11 @@
             try {
                 await doLogin(username, password);
                 $("loginPassword").value = "";
-                showTab(
-                    isOrganizer() || !getCurrentGroupId()
-                        ? "sorteios"
-                        : "jogos"
-                );
+                if (isOrganizer()) {
+                    showTab("sorteios");
+                } else if (getCurrentGroupId()) {
+                    showTab("jogos");
+                }
                 alert("Login feito ✅");
             } catch (err) {
                 alert(err.message || "Falha no login");
@@ -6795,7 +6811,14 @@
         updateRankingPeriodUI();
 
         const bootUser = getCurrentUser();
-        showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");
+
+        if (!bootUser || bootUser.role === "guest") {
+            showTab("ranking");
+        } else if (isOrganizer()) {
+            showTab("sorteios");
+        } else if (getCurrentGroupId()) {
+            showTab("jogos");
+        }
     })();
 
     document.addEventListener("click", async (ev) => {
