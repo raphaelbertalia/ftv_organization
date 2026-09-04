@@ -143,16 +143,22 @@
         $("groupSelector").addEventListener("change", async (event) => {
             const groupId = event.target.value || null;
 
-            state.auth.currentGroupId = groupId;
-            saveState();
+            if (!groupId) return;
 
-            await hydrateStateFromDb();
+            Loading.show("Trocando de grupo...");
 
-            updateAuthUI();
-            updateAllSessionUI();
+            try {
+                state.auth.currentGroupId = groupId;
+                saveState();
 
-            if (groupId) {
+                await hydrateStateFromDb();
+
+                updateAuthUI();
+                updateAllSessionUI();
+
                 showTab("jogos");
+            } finally {
+                Loading.hide();
             }
         });
     }
@@ -1560,10 +1566,16 @@
                 renderPairSelects();
                 updateTopStats();
 
-                await apiJson("/api/players", {
-                    method: "DELETE",
-                    body: JSON.stringify({ id: p.id, group_id: getCurrentGroupId() })
-                });
+                Loading.show("Removendo jogador...");
+
+                try {
+                    await apiJson("/api/players", {
+                        method: "DELETE",
+                        body: JSON.stringify({ id: p.id, group_id: getCurrentGroupId() })
+                    });
+                } finally {
+                    Loading.hide();
+                }
             });
 
             right.appendChild(pill);
@@ -2924,15 +2936,21 @@
                 return alert("Selecione um grupo.");
             }
 
-            state.auth.currentGroupId = groupId;
-            saveState();
+            Loading.show("Carregando grupo...");
 
-            await hydrateStateFromDb();
+            try {
+                state.auth.currentGroupId = groupId;
+                saveState();
 
-            updateAuthUI();
-            updateAllSessionUI();
+                await hydrateStateFromDb();
 
-            showTab("jogos");
+                updateAuthUI();
+                updateAllSessionUI();
+
+                showTab("jogos");
+            } finally {
+                Loading.hide();
+            }
         });
     }
 
@@ -2945,9 +2963,13 @@
                 return alert("Preencha usuário e senha.");
             }
 
+            Loading.show("Entrando...");
+
             try {
                 await doLogin(username, password);
                 $("loginPassword").value = "";
+
+                Loading.hide();
 
                 if (isOrganizer()) {
                     showTab("sorteios");
@@ -2959,6 +2981,7 @@
                     alert("Login feito ✅");
                 }
             } catch (err) {
+                Loading.hide();
                 alert(err.message || "Falha no login");
             }
         });
@@ -2999,59 +3022,80 @@
     if ($("btnAddPlayer")) {
         $("btnAddPlayer").addEventListener("click", async () => {
             if (!requireAdmin()) return;
-            await addPlayer($("newPlayerName").value);
-            $("newPlayerName").value = "";
-            $("newPlayerName").focus();
+
+            Loading.show("Salvando jogador...");
+
+            try {
+                await addPlayer($("newPlayerName").value);
+                $("newPlayerName").value = "";
+                $("newPlayerName").focus();
+            } finally {
+                Loading.hide();
+            }
         });
     }
 
     if ($("btnActivateAll")) {
         $("btnActivateAll").addEventListener("click", async () => {
             if (!requireAdmin()) return;
-            (state.players || []).forEach((p) => (p.active = true));
-            saveState();
-            renderPlayers();
-            renderPairsEditor();
-            updateTopStats();
 
-            await Promise.allSettled(
-                (state.players || []).map((p) =>
-                    apiJson("/api/players", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            id: p.id,
-                            name: p.name,
-                            active: true,
-                            group_id: getCurrentGroupId()
+            Loading.show("Ativando jogadores...");
+
+            try {
+                (state.players || []).forEach((p) => (p.active = true));
+                saveState();
+                renderPlayers();
+                renderPairsEditor();
+                updateTopStats();
+
+                await Promise.allSettled(
+                    (state.players || []).map((p) =>
+                        apiJson("/api/players", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                id: p.id,
+                                name: p.name,
+                                active: true,
+                                group_id: getCurrentGroupId()
+                            })
                         })
-                    })
-                )
-            );
+                    )
+                );
+            } finally {
+                Loading.hide();
+            }
         });
     }
 
     if ($("btnDeactivateAll")) {
         $("btnDeactivateAll").addEventListener("click", async () => {
             if (!requireAdmin()) return;
-            (state.players || []).forEach((p) => (p.active = false));
-            saveState();
-            renderPlayers();
-            renderPairsEditor();
-            updateTopStats();
 
-            await Promise.allSettled(
-                (state.players || []).map((p) =>
-                    apiJson("/api/players", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            id: p.id,
-                            name: p.name,
-                            active: false,
-                            group_id: getCurrentGroupId()
+            Loading.show("Desativando jogadores...");
+
+            try {
+                (state.players || []).forEach((p) => (p.active = false));
+                saveState();
+                renderPlayers();
+                renderPairsEditor();
+                updateTopStats();
+
+                await Promise.allSettled(
+                    (state.players || []).map((p) =>
+                        apiJson("/api/players", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                id: p.id,
+                                name: p.name,
+                                active: false,
+                                group_id: getCurrentGroupId()
+                            })
                         })
-                    })
-                )
-            );
+                    )
+                );
+            } finally {
+                Loading.hide();
+            }
         });
     }
 
@@ -4381,17 +4425,27 @@
                 ...remainingPairs
             ];
 
-            // createSession (sessions.js) deve salvar: {id,name,dateISO,pairs,roster...} e setar currentSessionId
-            await createSession(name, pairs);
-            const sess = getCurrentSession();
-            sess.schedule = buildScheduleQuartaCH(sess.pairs);
-            sess.nextIndex = 0;
-            saveState();
+            Loading.show("Iniciando sessão...");
 
-            if ($("sessionName")) $("sessionName").value = "";
+            try {
+                // createSession (sessions.js) deve salvar: {id,name,dateISO,pairs,roster...} e setar currentSessionId
+                await createSession(name, pairs);
 
-            updateAllSessionUI();
-            alert("Sessão iniciada e duplas salvas ✅");
+                const sess = getCurrentSession();
+                sess.schedule = buildScheduleQuartaCH(sess.pairs);
+                sess.nextIndex = 0;
+                saveState();
+
+                if ($("sessionName")) $("sessionName").value = "";
+
+                updateAllSessionUI();
+
+                Loading.hide();
+                alert("Sessão iniciada e duplas salvas ✅");
+            } catch (err) {
+                Loading.hide();
+                alert(err?.message || "Não foi possível iniciar a sessão.");
+            }
         });
     }
 
@@ -4406,6 +4460,8 @@
             if (!name || !start || !end) {
                 return alert("Preenche tudo 😅");
             }
+
+            Loading.show("Criando ciclo...");
 
             try {
                 await apiJson("/api/monthly-cycles", {
@@ -4423,8 +4479,10 @@
                 await hydrateStateFromDb();
                 renderCycleTab();
 
+                Loading.hide();
                 alert("Ciclo criado ✅");
             } catch (err) {
+                Loading.hide();
                 alert(err.message);
             }
         });
@@ -4444,22 +4502,30 @@
                 return alert(err.message);
             }
 
-            await apiJson("/api/monthly-cycles", {
-                method: "POST",
-                body: JSON.stringify({
-                    id: cycle.id,
-                    name: cycle.name,
-                    start_date: cycle.startDate,
-                    end_date: cycle.endDate,
-                    pairs,
-                    group_id: getCurrentGroupId()
-                })
-            });
+            Loading.show("Salvando duplas do ciclo...");
 
-            await hydrateStateFromDb();
-            renderCycleTab();
+            try {
+                await apiJson("/api/monthly-cycles", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: cycle.id,
+                        name: cycle.name,
+                        start_date: cycle.startDate,
+                        end_date: cycle.endDate,
+                        pairs,
+                        group_id: getCurrentGroupId()
+                    })
+                });
 
-            alert("Duplas do ciclo salvas ✅");
+                await hydrateStateFromDb();
+                renderCycleTab();
+
+                Loading.hide();
+                alert("Duplas do ciclo salvas ✅");
+            } catch (err) {
+                Loading.hide();
+                alert(err.message || "Erro ao salvar duplas do ciclo");
+            }
         });
     }
 
@@ -4471,6 +4537,8 @@
             if (!cycle) return alert("Sem ciclo ativo.");
 
             if (!confirm(`Finalizar o ciclo "${cycle.name}"?`)) return;
+
+            Loading.show("Finalizando ciclo...");
 
             try {
                 await apiJson("/api/monthly-cycles", {
@@ -4485,10 +4553,12 @@
                 await hydrateStateFromDb();
                 renderCycleTab();
 
+                Loading.hide();
                 alert("Ciclo finalizado ✅");
 
                 await prepareCycleSummaryImage(cycle);
             } catch (err) {
+                Loading.hide();
                 alert(err.message || "Erro ao finalizar ciclo");
             }
         });
@@ -4503,6 +4573,8 @@
 
             if (!confirm("Excluir ciclo atual?")) return;
 
+            Loading.show("Excluindo ciclo...");
+
             try {
                 await apiJson("/api/monthly-cycles", {
                     method: "DELETE",
@@ -4515,8 +4587,10 @@
                 await hydrateStateFromDb();
                 renderCycleTab();
 
+                Loading.hide();
                 alert("Ciclo removido 🗑️");
             } catch (err) {
+                Loading.hide();
                 alert(err.message);
             }
         });
@@ -4549,6 +4623,8 @@
                 });
             }
 
+            Loading.show("Sorteando duplas do ciclo...");
+
             try {
                 await apiJson("/api/monthly-cycles", {
                     method: "POST",
@@ -4565,8 +4641,10 @@
                 await hydrateStateFromDb();
                 renderCycleTab();
 
+                Loading.hide();
                 alert("Duplas sorteadas 🔥");
             } catch (err) {
+                Loading.hide();
                 alert(err.message);
             }
         });
@@ -4857,26 +4935,34 @@
             const matches = getSessionMatches(sess);
             if (matches.length < 8) return alert("A sessão ainda não terminou.");
 
-            await apiJson("/api/sessions", {
-                method: "PATCH",
-                body: JSON.stringify({
-                    id: sess.id,
-                    status: "encerrada",
-                    group_id: getCurrentGroupId()
-                })
-            });
+            Loading.show("Encerrando sessão...");
 
-            state.viewSessionId = sess.id;
-            state.currentSessionId = null;
-            state.updatedAt = new Date().toISOString();
-            saveState();
+            try {
+                await apiJson("/api/sessions", {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                        id: sess.id,
+                        status: "encerrada",
+                        group_id: getCurrentGroupId()
+                    })
+                });
 
-            updateAllSessionUI();
-            showTab("sessoes");
+                state.viewSessionId = sess.id;
+                state.currentSessionId = null;
+                state.updatedAt = new Date().toISOString();
+                saveState();
 
-            alert(`Sessão "${sess.name}" encerrada ✅`);
+                updateAllSessionUI();
+                showTab("sessoes");
 
-            await prepareSessionSummaryImage(sess);
+                Loading.hide();
+                alert(`Sessão "${sess.name}" encerrada ✅`);
+
+                await prepareSessionSummaryImage(sess);
+            } catch (err) {
+                Loading.hide();
+                alert(err.message || "Erro ao encerrar sessão");
+            }
         });
     }
 
@@ -4925,11 +5011,16 @@
                 return alert("Selecione o jogador ausente.");
             }
 
+            Loading.show("Ativando rodízio...");
+
             try {
                 const changed =
                     await activateRotationWithAbsentPlayer(absentPlayerId);
 
-                if (!changed) return;
+                if (!changed) {
+                    Loading.hide();
+                    return;
+                }
 
                 if ($("participantAdjustmentCard")) {
                     $("participantAdjustmentCard").style.display = "none";
@@ -4943,10 +5034,12 @@
                     getCurrentSession()
                 );
 
+                Loading.hide();
                 alert(
                     "Rodízio com 7 iniciado ✅\n\nO próximo jogo foi montado automaticamente."
                 );
             } catch (err) {
+                Loading.hide();
                 alert(err.message || "Erro ao iniciar rodízio.");
             }
         });
@@ -4956,13 +5049,17 @@
         $("btnPrepareRotationMatch").addEventListener("click", async () => {
             if (!requireOperator()) return;
 
+            Loading.show("Preparando próximo jogo...");
+
             try {
                 await prepareRotationMatch();
 
+                Loading.hide();
                 alert(
                     "Próximo jogo preparado ✅\n\nAgora informe o placar e salve normalmente."
                 );
             } catch (err) {
+                Loading.hide();
                 alert(err.message || "Erro ao preparar jogo.");
             }
         });
@@ -4982,6 +5079,8 @@
             `⚠️ Excluir sessão "${sess?.name || 'sem nome'}"?\n\n` +
             "Essa ação não pode ser desfeita."
         )) return;
+
+        Loading.show("Excluindo sessão...");
 
         try {
             await apiJson("/api/sessions", {
@@ -5010,8 +5109,10 @@
             saveState();
             updateAllSessionUI();
 
+            Loading.hide();
             alert("Sessão excluída 🗑️");
         } catch (err) {
+            Loading.hide();
             alert(err.message || "Erro ao excluir sessão");
         }
     });
@@ -5244,6 +5345,8 @@
             if (!requireAdmin()) return;
             if (!confirm("Zerar tudo mesmo? (Jogadores, sessões e jogos)")) return;
 
+            Loading.show("Zerando dados...");
+
             try {
                 await apiJson("/api/reset", {
                     method: "POST",
@@ -5254,9 +5357,11 @@
                 });
 
                 applyFullLocalReset();
+                Loading.hide();
                 alert("Zerado total ✅");
             } catch (err) {
                 console.error("Erro resetando banco:", err);
+                Loading.hide();
                 alert("Falhou ao zerar no banco.");
             }
         });
@@ -5266,6 +5371,8 @@
         $("btnResetKeepPlayers").addEventListener("click", async () => {
             if (!requireAdmin()) return;
             if (!confirm("Zerar jogos e sessões, mas manter os jogadores?")) return;
+
+            Loading.show("Zerando sessões e jogos...");
 
             try {
                 await apiJson("/api/reset", {
@@ -5277,9 +5384,11 @@
                 });
 
                 applyKeepPlayersLocalReset();
+                Loading.hide();
                 alert("Jogos e sessões apagados; jogadores mantidos ✅");
             } catch (err) {
                 console.error("Erro resetando banco mantendo players:", err);
+                Loading.hide();
                 alert("Falhou ao zerar no banco.");
             }
         });
@@ -6973,9 +7082,19 @@
             match.editedAt = Date.now();
 
             saveState();
-            await window.syncMatchToDb(match);
-            updateAllSessionUI();
-            alert("Placar atualizado ✅");
+            Loading.show("Atualizando placar...");
+
+            try {
+                await window.syncMatchToDb(match);
+                updateAllSessionUI();
+
+                Loading.hide();
+                alert("Placar atualizado ✅");
+            } catch (err) {
+                Loading.hide();
+                alert(err?.message || "Não foi possível atualizar o placar.");
+            }
+
             return;
         }
 
@@ -7086,6 +7205,8 @@
 
         if (!confirm(`Excluir ciclo "${cycle?.name || ''}"?`)) return;
 
+        Loading.show("Excluindo ciclo...");
+
         try {
             await apiJson("/api/monthly-cycles", {
                 method: "DELETE",
@@ -7098,8 +7219,10 @@
             await hydrateStateFromDb();
             renderCycleTab();
 
+            Loading.hide();
             alert("Ciclo excluído 🗑️");
         } catch (err) {
+            Loading.hide();
             alert(err.message || "Erro ao excluir ciclo");
         }
     });
