@@ -86,6 +86,33 @@
       <section id="guestBanner" class="card" style="display:none;">
         👀 Modo visitante — você só pode ver o ranking
       </section>
+
+      <section id="groupChoiceScreen" class="card" style="display:none;">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+
+          <div>
+            <b>Escolha o grupo que deseja acessar</b>
+
+            <div class="muted" style="margin-top:6px;">
+              Você participa de mais de um grupo.
+              Selecione qual deseja utilizar agora.
+            </div>
+          </div>
+
+          <div>
+            <select id="loginGroupSelector">
+              <option value="">Selecione um grupo</option>
+            </select>
+          </div>
+
+          <div>
+            <button id="btnConfirmLoginGroup" type="button">
+              Acessar grupo
+            </button>
+          </div>
+
+        </div>
+      </section>
     </section>
 
     <section id="noGroupScreen" style="display:none;">

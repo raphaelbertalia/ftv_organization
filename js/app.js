@@ -124,16 +124,37 @@
         }
 
         // Vários grupos
-        selector.innerHTML = groups.map(group => `
-        <option value="${group.id}">
-            ${group.name}
-        </option>
-            `).join("");
+        selector.innerHTML = `
+            <option value="">Selecione um grupo</option>
+            ${groups.map(group => `
+                <option value="${group.id}">
+                    ${group.name}
+                </option>
+            `).join("")}
+        `;
 
         selector.value = currentId;
 
         label.style.display = "none";
         selector.style.display = "inline-block";
+    }
+
+    if ($("groupSelector")) {
+        $("groupSelector").addEventListener("change", async (event) => {
+            const groupId = event.target.value || null;
+
+            state.auth.currentGroupId = groupId;
+            saveState();
+
+            await hydrateStateFromDb();
+
+            updateAuthUI();
+            updateAllSessionUI();
+
+            if (groupId) {
+                showTab("jogos");
+            }
+        });
     }
 
     function getCurrentGroupRole() {
@@ -1018,6 +1039,15 @@
         const guest = user?.role === "guest";
         const organizer = isOrganizer();
         const hasGroup = !!getCurrentGroupId();
+        const groups = state.auth?.groups || [];
+
+        const choosingGroup =
+            logged &&
+            !guest &&
+            !organizer &&
+            groups.length > 1 &&
+            !hasGroup;
+
         updateGroupHeader();
 
         if ($("authStatus")) {
@@ -1046,6 +1076,22 @@
 
         if ($("guestBanner")) {
             $("guestBanner").style.display = guest ? "block" : "none";
+        }
+
+        if ($("groupChoiceScreen")) {
+            $("groupChoiceScreen").style.display =
+                choosingGroup ? "block" : "none";
+        }
+
+        if ($("loginGroupSelector") && choosingGroup) {
+            $("loginGroupSelector").innerHTML = `
+        <option value="">Selecione um grupo</option>
+        ${groups.map(group => `
+            <option value="${group.id}">
+                ${group.name}
+            </option>
+        `).join("")}
+    `;
         }
 
         const jogosTab = document.querySelector('.tab[data-tab="jogos"]');
@@ -1275,13 +1321,27 @@
         const groups = state.auth?.groups || [];
         const hasGroups = groups.length > 0;
         const hasGroup = !!getCurrentGroupId();
+
+        const choosingGroup =
+            logged &&
+            !guest &&
+            !organizer &&
+            groups.length > 1 &&
+            !hasGroup;
+
         const waitingForGroup =
-            logged && !guest && !organizer && !hasGroups;
+            logged &&
+            !guest &&
+            !organizer &&
+            !hasGroups;
 
         const hasActiveSession = !!getCurrentSession();
 
         if ($("loginScreen")) {
-            $("loginScreen").style.display = (!logged || guest) ? "block" : "none";
+            $("loginScreen").style.display =
+                (!logged || guest || choosingGroup)
+                    ? "block"
+                    : "none";
         }
 
         if ($("noGroupScreen")) {
@@ -1293,7 +1353,9 @@
 
         if ($("appContent")) {
             $("appContent").style.display =
-                logged && (!waitingForGroup || noGroupChampionshipOpen)
+                logged &&
+                    !choosingGroup &&
+                    (!waitingForGroup || noGroupChampionshipOpen)
                     ? "block"
                     : "none";
         }
@@ -2854,6 +2916,26 @@
         });
     }
 
+    if ($("btnConfirmLoginGroup")) {
+        $("btnConfirmLoginGroup").addEventListener("click", async () => {
+            const groupId = $("loginGroupSelector")?.value;
+
+            if (!groupId) {
+                return alert("Selecione um grupo.");
+            }
+
+            state.auth.currentGroupId = groupId;
+            saveState();
+
+            await hydrateStateFromDb();
+
+            updateAuthUI();
+            updateAllSessionUI();
+
+            showTab("jogos");
+        });
+    }
+
     if ($("btnLogin")) {
         $("btnLogin").addEventListener("click", async () => {
             const username = ($("loginUsername")?.value || "").trim();
@@ -2866,12 +2948,16 @@
             try {
                 await doLogin(username, password);
                 $("loginPassword").value = "";
+
                 if (isOrganizer()) {
                     showTab("sorteios");
+                    alert("Login feito ✅");
                 } else if (getCurrentGroupId()) {
                     showTab("jogos");
+                    alert("Login feito ✅");
+                } else if ((state.auth?.groups || []).length === 0) {
+                    alert("Login feito ✅");
                 }
-                alert("Login feito ✅");
             } catch (err) {
                 alert(err.message || "Falha no login");
             }
