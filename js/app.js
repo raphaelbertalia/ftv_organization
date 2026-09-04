@@ -1188,10 +1188,9 @@
             user &&
             !guest &&
             !organizer &&
-            !hasGroup &&
-            name !== "sorteios"
+            !hasGroup
         ) {
-            return;
+            name = "sorteios";
         }
 
         if (!user) {
@@ -1298,23 +1297,23 @@
         }
 
         if ($("sessionSetupCard")) {
-            $("sessionSetupCard").style.display = logged && !guest && !hasActiveSession ? "block" : "none";
+            $("sessionSetupCard").style.display = logged && !guest && hasGroup && !hasActiveSession ? "block" : "none";
         }
 
         if ($("pairsCard")) {
-            $("pairsCard").style.display = logged && !guest && !hasActiveSession ? "block" : "none";
+            $("pairsCard").style.display = logged && !guest && hasGroup && !hasActiveSession ? "block" : "none";
         }
 
         if ($("sessionProgressCard")) {
-            $("sessionProgressCard").style.display = logged && !guest && hasActiveSession ? "block" : "none";
+            $("sessionProgressCard").style.display = logged && !guest && hasGroup && hasActiveSession ? "block" : "none";
         }
 
         if ($("matchCard")) {
-            $("matchCard").style.display = logged && !guest && hasActiveSession ? "block" : "none";
+            $("matchCard").style.display = logged && !guest && hasGroup && hasActiveSession ? "block" : "none";
         }
 
         if ($("historyCard")) {
-            $("historyCard").style.display = logged && !guest ? "block" : "none";
+            $("historyCard").style.display = logged && !guest && hasGroup ? "block" : "none";
         }
 
         if ($("sessionSummary")) {
@@ -2793,12 +2792,12 @@
                     }
                 );
 
+                await openGroupAccessModal();
+
                 if (status) {
                     status.textContent =
                         data.message || "Solicitação enviada com sucesso.";
                 }
-
-                await openGroupAccessModal();
 
             } catch (err) {
                 if (status) {
@@ -6903,10 +6902,6 @@
             closeSummarySharePreview();
         }
     });
-
-    // default tab
-    const bootUser = getCurrentUser();
-    showTab(bootUser?.role === "guest" || !bootUser ? "ranking" : "jogos");
 
     // 🔄 Corrige reload ao voltar do celular bloqueado
     let rehydrating = false;
