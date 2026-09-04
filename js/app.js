@@ -1251,6 +1251,13 @@
         t.addEventListener("click", () => showTab(t.dataset.tab));
     });
 
+    if ($("btnBackNoGroupHome")) {
+        $("btnBackNoGroupHome").addEventListener("click", () => {
+            noGroupChampionshipOpen = false;
+            updateHomeLayout();
+        });
+    }
+
     // ---------- Top stats ----------
     function updateTopStats() {
         const t = todayISO();
@@ -1288,6 +1295,13 @@
             $("appContent").style.display =
                 logged && (!waitingForGroup || noGroupChampionshipOpen)
                     ? "block"
+                    : "none";
+        }
+
+        if ($("btnBackNoGroupHome")) {
+            $("btnBackNoGroupHome").style.display =
+                waitingForGroup && noGroupChampionshipOpen
+                    ? "inline-block"
                     : "none";
         }
 
