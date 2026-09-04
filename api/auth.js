@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { pool } from "../lib/db.js";
 
 export default async function handler(req, res) {
@@ -38,7 +39,31 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "Usuário inativo" });
     }
 
-    if (user.password !== password) {
+    const storedPassword = user.password || "";
+    const isHashedPassword = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+
+    let passwordValid = false;
+
+    if (isHashedPassword) {
+      passwordValid = await bcrypt.compare(password, storedPassword);
+    } else {
+      passwordValid = storedPassword === password;
+
+      if (passwordValid) {
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await pool.query(
+          `
+            UPDATE users
+            SET password = $1
+            WHERE id = $2
+            `,
+          [hashedPassword, user.id]
+        );
+      }
+    }
+
+    if (!passwordValid) {
       return res.status(401).json({ error: "Usuário ou senha inválidos" });
     }
 
