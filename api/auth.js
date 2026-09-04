@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { pool } from "../lib/db.js";
 
@@ -9,9 +10,81 @@ export default async function handler(req, res) {
 
     const { action } = req.query || {};
 
-    if (action !== "login") {
+    if (action === "login") {
+      // todo o código do cadastro que você já colocou
+    } else if (action === "register") {
+      const { name, username, email, password } = req.body || {};
+
+      const cleanName = String(name || "").trim();
+      const cleanUsername = String(username || "").trim();
+      const cleanEmail = String(email || "").trim().toLowerCase();
+      const cleanPassword = String(password || "");
+
+      if (!cleanName || !cleanUsername || !cleanEmail || !cleanPassword) {
+        return res.status(400).json({
+          error: "Nome, usuário, e-mail e senha são obrigatórios"
+        });
+      }
+
+      if (cleanPassword.length < 8) {
+        return res.status(400).json({
+          error: "A senha deve ter pelo menos 8 caracteres"
+        });
+      }
+
+      const existingUser = await pool.query(
+        `
+          SELECT id
+          FROM users
+          WHERE LOWER(username) = LOWER($1)
+            OR LOWER(email) = LOWER($2)
+          LIMIT 1
+          `,
+        [cleanUsername, cleanEmail]
+      );
+
+      if (existingUser.rows.length) {
+        return res.status(409).json({
+          error: "Usuário ou e-mail já cadastrado"
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(cleanPassword, 12);
+
+      const userId = crypto.randomUUID();
+
+      const result = await pool.query(
+        `
+          INSERT INTO users (
+              id,
+              name,
+              username,
+              email,
+              password,
+              role,
+              active
+          )
+          VALUES ($1, $2, $3, $4, $5, 'user', true)
+          RETURNING id, name, username, email, role, active
+          `,
+        [
+          userId,
+          cleanName,
+          cleanUsername,
+          cleanEmail,
+          hashedPassword
+        ]
+      );
+
+      return res.status(201).json({
+        ok: true,
+        user: result.rows[0]
+      });
+    } else {
       return res.status(400).json({ error: "Ação inválida" });
     }
+
+    // daqui para baixo segue o fluxo de login
 
     const { username, password } = req.body || {};
 
