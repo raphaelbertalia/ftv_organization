@@ -13,7 +13,13 @@
   <header>
     <div class="row" style="align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
       <div>
-        <div><b>Quarta CH</b></div>
+        <div class="header-group-area">
+          <select id="groupSelector" class="header-group-selector" style="display:none;">
+          </select>
+
+          <b id="headerGroupName">Quarta CH</b>
+        </div>
+
         <div class="muted" id="statusLine">—</div>
       </div>
 
@@ -388,29 +394,29 @@
             ← Voltar para ciclos
           </button>
 
-        <div id="cycleOverviewCard" class="card cycle-overview-card">
-          <div id="cycleInfo"></div>
-        </div>
-
-        <div class="card cycle-ranking-card">
-          <div class="cycle-section-header">
-            <div>
-              <b>Ranking individual</b>
-              <div class="muted" style="margin-top:4px;">Pontuação acumulada nas sessões do ciclo.</div>
-            </div>
+          <div id="cycleOverviewCard" class="card cycle-overview-card">
+            <div id="cycleInfo"></div>
           </div>
-          <div id="cycleIndividualRanking" style="margin-top:12px;"></div>
-        </div>
 
-        <div class="card cycle-sessions-card">
-          <div class="cycle-section-header">
-            <div>
-              <b>Sessões do ciclo</b>
-              <div class="muted" style="margin-top:4px;">Resumo das rodadas realizadas no período.</div>
+          <div class="card cycle-ranking-card">
+            <div class="cycle-section-header">
+              <div>
+                <b>Ranking individual</b>
+                <div class="muted" style="margin-top:4px;">Pontuação acumulada nas sessões do ciclo.</div>
+              </div>
             </div>
+            <div id="cycleIndividualRanking" style="margin-top:12px;"></div>
           </div>
-          <div id="cycleSessionsList" style="margin-top:12px;"></div>
-        </div>
+
+          <div class="card cycle-sessions-card">
+            <div class="cycle-section-header">
+              <div>
+                <b>Sessões do ciclo</b>
+                <div class="muted" style="margin-top:4px;">Resumo das rodadas realizadas no período.</div>
+              </div>
+            </div>
+            <div id="cycleSessionsList" style="margin-top:12px;"></div>
+          </div>
 
         </div>
 
@@ -455,7 +461,8 @@
 
               <div class="cycle-pairs-content">
                 <div class="muted">
-                  Use apenas quando o ciclo trabalhar com duplas fixas. No formato individual, as duplas podem mudar em cada sessão.
+                  Use apenas quando o ciclo trabalhar com duplas fixas. No formato individual, as duplas podem mudar em
+                  cada sessão.
                 </div>
 
                 <div class="cycle-pairs-actions">

@@ -97,6 +97,44 @@
         ) || null;
     }
 
+    function updateGroupHeader() {
+        const selector = $("groupSelector");
+        const label = $("headerGroupName");
+
+        if (!selector || !label) return;
+
+        const groups = state.auth?.groups || [];
+        const currentId = String(getCurrentGroupId() || "");
+
+        // Nenhum grupo
+        if (!groups.length) {
+            selector.style.display = "none";
+            label.style.display = "inline";
+            label.textContent = "Quarta CH";
+            return;
+        }
+
+        // Apenas um grupo
+        if (groups.length === 1) {
+            selector.style.display = "none";
+            label.style.display = "inline";
+            label.textContent = groups[0].name;
+            return;
+        }
+
+        // Vários grupos
+        selector.innerHTML = groups.map(group => `
+        <option value="${group.id}">
+            ${group.name}
+        </option>
+            `).join("");    
+
+        selector.value = currentId;
+
+        label.style.display = "none";
+        selector.style.display = "inline-block";
+    }
+
     function isAdmin() {
         return getCurrentUser()?.role === "admin";
     }
@@ -259,7 +297,7 @@
     async function getResenhaPhrase(kind) {
         try {
             const data = await apiJson(
-                `/api/resenha-message?kind=${kind}`
+                `/api/resenha-message?kind=${kind}&group_id=${encodeURIComponent(getCurrentGroupId())}`
             );
 
             return data?.message || "";
@@ -985,6 +1023,7 @@
         const logged = !!user;
         const guest = user?.role === "guest";
         const organizer = isOrganizer();
+        updateGroupHeader();
 
         if ($("authStatus")) {
             $("authStatus").innerHTML = user
@@ -1325,7 +1364,8 @@
                         id: p.id,
                         name: p.name,
                         active: p.active,
-                        side: p.side || ""
+                        side: p.side || "",
+                        group_id: getCurrentGroupId()
                     })
                 });
             });
@@ -1348,7 +1388,8 @@
                         id: p.id,
                         name: p.name,
                         active: p.active,
-                        side: p.side || ""
+                        side: p.side || "",
+                        group_id: getCurrentGroupId()
                     })
                 });
             });
@@ -1371,7 +1412,8 @@
                         id: p.id,
                         name: p.name,
                         active: p.active,
-                        side: p.side || ""
+                        side: p.side || "",
+                        group_id: getCurrentGroupId()
                     })
                 });
             });
@@ -1416,7 +1458,7 @@
 
                 await apiJson("/api/players", {
                     method: "DELETE",
-                    body: JSON.stringify({ id: p.id })
+                    body: JSON.stringify({ id: p.id, group_id: getCurrentGroupId() })
                 });
             });
 
@@ -2538,7 +2580,10 @@
         try {
             await apiJson("/api/players", {
                 method: "POST",
-                body: JSON.stringify(player)
+                body: JSON.stringify({
+                    ...player,
+                    group_id: getCurrentGroupId()
+                })
             });
         } catch (err) {
             console.error("Erro salvando jogador no banco:", err);
@@ -2622,7 +2667,8 @@
                         body: JSON.stringify({
                             id: p.id,
                             name: p.name,
-                            active: true
+                            active: true,
+                            group_id: getCurrentGroupId()
                         })
                     })
                 )
@@ -2646,7 +2692,8 @@
                         body: JSON.stringify({
                             id: p.id,
                             name: p.name,
-                            active: false
+                            active: false,
+                            group_id: getCurrentGroupId()
                         })
                     })
                 )
@@ -3028,7 +3075,8 @@
             body: JSON.stringify({
                 id: session.id,
                 play_mode: session.playMode,
-                participant_ids: session.participantIds
+                participant_ids: session.participantIds,
+                group_id: getCurrentGroupId()
             })
         });
     }
@@ -3582,7 +3630,8 @@
             body: JSON.stringify({
                 id: session.id,
                 pending_pair_a_id: pairA.id,
-                pending_pair_b_id: pairB.id
+                pending_pair_b_id: pairB.id,
+                group_id: getCurrentGroupId()
             })
         });
 
@@ -3655,7 +3704,8 @@
             body: JSON.stringify({
                 id: session.id,
                 pending_pair_a_id: pairA.id,
-                pending_pair_b_id: pairB.id
+                pending_pair_b_id: pairB.id,
+                group_id: getCurrentGroupId()
             })
         });
 
@@ -4011,7 +4061,8 @@
                         name,
                         start_date: start,
                         end_date: end,
-                        pairs: []
+                        pairs: [],
+                        group_id: getCurrentGroupId()
                     })
                 });
 
@@ -4046,7 +4097,8 @@
                     name: cycle.name,
                     start_date: cycle.startDate,
                     end_date: cycle.endDate,
-                    pairs
+                    pairs,
+                    group_id: getCurrentGroupId()
                 })
             });
 
@@ -4071,7 +4123,8 @@
                     method: "PATCH",
                     body: JSON.stringify({
                         id: cycle.id,
-                        status: "encerrada"
+                        status: "encerrada",
+                        group_id: getCurrentGroupId()
                     })
                 });
 
@@ -4099,7 +4152,10 @@
             try {
                 await apiJson("/api/monthly-cycles", {
                     method: "DELETE",
-                    body: JSON.stringify({ id: cycle.id })
+                    body: JSON.stringify({
+                        id: cycle.id,
+                        group_id: getCurrentGroupId()
+                    })
                 });
 
                 await hydrateStateFromDb();
@@ -4147,7 +4203,8 @@
                         name: cycle.name,
                         start_date: cycle.startDate,
                         end_date: cycle.endDate,
-                        pairs
+                        pairs,
+                        group_id: getCurrentGroupId()
                     })
                 });
 
@@ -4264,7 +4321,8 @@
                     body: JSON.stringify({
                         id: sess.id,
                         pending_pair_a_id: null,
-                        pending_pair_b_id: null
+                        pending_pair_b_id: null,
+                        group_id: getCurrentGroupId()
                     })
                 });
             }
@@ -4449,7 +4507,8 @@
                 method: "PATCH",
                 body: JSON.stringify({
                     id: sess.id,
-                    status: "encerrada"
+                    status: "encerrada",
+                    group_id: getCurrentGroupId()
                 })
             });
 
@@ -4573,7 +4632,10 @@
         try {
             await apiJson("/api/sessions", {
                 method: "DELETE",
-                body: JSON.stringify({ id })
+                body: JSON.stringify({
+                    id,
+                    group_id: getCurrentGroupId()
+                })
             });
 
             // 👉 AQUI É O PONTO EXATO
@@ -4719,7 +4781,9 @@
         // 👉 busca mensagem do backend
         let frase = "";
         try {
-            const res = await apiJson(`/api/resenha-message?kind=${tipo}`);
+            const res = await apiJson(
+                `/api/resenha-message?kind=${tipo}&group_id=${encodeURIComponent(getCurrentGroupId())}`
+            );
             frase = res.message || "";
         } catch {
             frase = tipo === "best"
@@ -4829,7 +4893,10 @@
             try {
                 await apiJson("/api/reset", {
                     method: "POST",
-                    body: JSON.stringify({ keepPlayers: false })
+                    body: JSON.stringify({
+                        keepPlayers: false,
+                        group_id: getCurrentGroupId()
+                    })
                 });
 
                 applyFullLocalReset();
@@ -4849,7 +4916,10 @@
             try {
                 await apiJson("/api/reset", {
                     method: "POST",
-                    body: JSON.stringify({ keepPlayers: true })
+                    body: JSON.stringify({
+                        keepPlayers: true,
+                        group_id: getCurrentGroupId()
+                    })
                 });
 
                 applyKeepPlayersLocalReset();
@@ -5062,7 +5132,8 @@
                 body: JSON.stringify({
                     id: session.id,
                     pending_pair_a_id: removedMatch.pairAId,
-                    pending_pair_b_id: removedMatch.pairBId
+                    pending_pair_b_id: removedMatch.pairBId,
+                    group_id: getCurrentGroupId()
                 })
             });
         }
@@ -6679,7 +6750,10 @@
         try {
             await apiJson("/api/monthly-cycles", {
                 method: "DELETE",
-                body: JSON.stringify({ id })
+                body: JSON.stringify({
+                    id,
+                    group_id: getCurrentGroupId()
+                })
             });
 
             await hydrateStateFromDb();

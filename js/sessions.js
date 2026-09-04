@@ -36,7 +36,8 @@ async function syncSessionToDb(session) {
       date_iso: session.dateISO,
       name: session.name,
       play_mode: session.playMode || "fixed",
-      participant_ids: session.participantIds || []
+      participant_ids: session.participantIds || [],
+      group_id: state.auth?.currentGroupId || null
     })
   });
 

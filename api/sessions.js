@@ -30,7 +30,8 @@ export default async function handler(req, res) {
         playMode,
         play_mode,
         participantIds,
-        participant_ids
+        participant_ids,
+        group_id
       } = req.body || {};
 
       const finalDateIso = date_iso || dateISO || null;
@@ -43,9 +44,9 @@ export default async function handler(req, res) {
           ? participantIds
           : [];
 
-      if (!id || !finalDateIso) {
+      if (!id || !finalDateIso || !group_id) {
         return res.status(400).json({
-          error: "id e date_iso são obrigatórios"
+          error: "id, date_iso e group_id são obrigatórios"
         });
       }
 
@@ -64,7 +65,8 @@ export default async function handler(req, res) {
           created_at,
           status,
           play_mode,
-          participant_ids
+          participant_ids,
+          group_id
         )
         VALUES (
           $1,
@@ -73,21 +75,24 @@ export default async function handler(req, res) {
           NOW(),
           'em_andamento',
           $4,
-          $5::jsonb
+          $5::jsonb,
+          $6
         )
         ON CONFLICT (id)
         DO UPDATE SET
           date_iso = EXCLUDED.date_iso,
           name = EXCLUDED.name,
           play_mode = EXCLUDED.play_mode,
-          participant_ids = EXCLUDED.participant_ids
+          participant_ids = EXCLUDED.participant_ids,
+          group_id = EXCLUDED.group_id
         `,
         [
           id,
           finalDateIso,
           finalName,
           finalPlayMode,
-          JSON.stringify(finalParticipantIds)
+          JSON.stringify(finalParticipantIds),
+          group_id
         ]
       );
 
@@ -107,12 +112,13 @@ export default async function handler(req, res) {
         pendingPairAId,
         pending_pair_a_id,
         pendingPairBId,
-        pending_pair_b_id
+        pending_pair_b_id,
+        group_id
       } = body;
 
-      if (!id) {
+      if (!id || !group_id) {
         return res.status(400).json({
-          error: "id é obrigatório"
+          error: "id e group_id são obrigatórios"
         });
       }
 
@@ -200,6 +206,7 @@ export default async function handler(req, res) {
               ELSE pending_pair_b_id
             END
           WHERE id = $1
+            AND group_id = $12
     `,
         [
           id,
@@ -219,7 +226,9 @@ export default async function handler(req, res) {
           finalPendingPairA,
 
           hasPendingPairB,
-          finalPendingPairB
+          finalPendingPairB,
+
+          group_id
         ]
       );
 
@@ -227,11 +236,28 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
-      const { id } = req.body || {};
+      const { id, group_id } = req.body || {};
 
-      if (!id) {
+      if (!id || !group_id) {
         return res.status(400).json({
-          error: "id é obrigatório"
+          error: "id e group_id são obrigatórios"
+        });
+      }
+
+      const sessionResult = await pool.query(
+        `
+      SELECT id
+      FROM sessions
+      WHERE id = $1
+        AND group_id = $2
+      LIMIT 1
+    `,
+        [id, group_id]
+      );
+
+      if (!sessionResult.rows.length) {
+        return res.status(404).json({
+          error: "Sessão não encontrada para este grupo"
         });
       }
 
@@ -246,8 +272,12 @@ export default async function handler(req, res) {
       );
 
       await pool.query(
-        `DELETE FROM sessions WHERE id = $1`,
-        [id]
+        `
+      DELETE FROM sessions
+      WHERE id = $1
+        AND group_id = $2
+    `,
+        [id, group_id]
       );
 
       return res.status(200).json({ ok: true });

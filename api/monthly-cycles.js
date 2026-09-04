@@ -13,25 +13,42 @@ export default async function handler(req, res) {
         }
 
         if (req.method === "POST") {
-            const { id, name, start_date, end_date, pairs } = req.body || {};
+            const {
+                id,
+                name,
+                start_date,
+                end_date,
+                pairs,
+                group_id
+            } = req.body || {};
 
-            if (!id || !name || !start_date || !end_date) {
-                return res.status(400).json({ error: "Dados do ciclo incompletos" });
+            if (!id || !name || !start_date || !end_date || !group_id) {
+                return res.status(400).json({
+                    error: "id, name, start_date, end_date e group_id são obrigatórios"
+                });
             }
 
             await pool.query("BEGIN");
 
             await pool.query(
                 `
-                INSERT INTO monthly_cycles (id, name, start_date, end_date, status)
-                VALUES ($1, $2, $3, $4, 'em_andamento')
-                ON CONFLICT (id)
-                DO UPDATE SET
-                    name = EXCLUDED.name,
-                    start_date = EXCLUDED.start_date,
-                    end_date = EXCLUDED.end_date
+                    INSERT INTO monthly_cycles (
+                        id,
+                        name,
+                        start_date,
+                        end_date,
+                        status,
+                        group_id
+                    )
+                    VALUES ($1, $2, $3, $4, 'em_andamento', $5)
+                    ON CONFLICT (id)
+                    DO UPDATE SET
+                        name = EXCLUDED.name,
+                        start_date = EXCLUDED.start_date,
+                        end_date = EXCLUDED.end_date,
+                        group_id = EXCLUDED.group_id
                 `,
-                [id, name, start_date, end_date]
+                [id, name, start_date, end_date, group_id]
             );
 
             await pool.query(`DELETE FROM pairs WHERE cycle_id = $1`, [id]);
@@ -52,16 +69,46 @@ export default async function handler(req, res) {
         }
 
         if (req.method === "DELETE") {
-            const { id } = req.body || {};
+            const { id, group_id } = req.body || {};
 
-            if (!id) {
-                return res.status(400).json({ error: "id é obrigatório" });
+            if (!id || !group_id) {
+                return res.status(400).json({
+                    error: "id e group_id são obrigatórios"
+                });
+            }
+
+            const cycleResult = await pool.query(
+                `
+            SELECT id
+            FROM monthly_cycles
+            WHERE id = $1
+              AND group_id = $2
+            LIMIT 1
+        `,
+                [id, group_id]
+            );
+
+            if (!cycleResult.rows.length) {
+                return res.status(404).json({
+                    error: "Ciclo não encontrado para este grupo"
+                });
             }
 
             await pool.query("BEGIN");
 
-            await pool.query(`DELETE FROM pairs WHERE cycle_id = $1`, [id]);
-            await pool.query(`DELETE FROM monthly_cycles WHERE id = $1`, [id]);
+            await pool.query(
+                `DELETE FROM pairs WHERE cycle_id = $1`,
+                [id]
+            );
+
+            await pool.query(
+                `
+                    DELETE FROM monthly_cycles
+                    WHERE id = $1
+                    AND group_id = $2
+                `,
+                [id, group_id]
+            );
 
             await pool.query("COMMIT");
 
@@ -69,19 +116,22 @@ export default async function handler(req, res) {
         }
 
         if (req.method === "PATCH") {
-            const { id, status } = req.body || {};
+            const { id, status, group_id } = req.body || {};
 
-            if (!id || !status) {
-                return res.status(400).json({ error: "id e status são obrigatórios" });
+            if (!id || !status || !group_id) {
+                return res.status(400).json({
+                    error: "id, status e group_id são obrigatórios"
+                });
             }
 
             await pool.query(
                 `
-        UPDATE monthly_cycles
-        SET status = $2
-        WHERE id = $1
-        `,
-                [id, status]
+                    UPDATE monthly_cycles
+                    SET status = $2
+                    WHERE id = $1
+                    AND group_id = $3
+                    `,
+                [id, status, group_id]
             );
 
             return res.status(200).json({ ok: true });
