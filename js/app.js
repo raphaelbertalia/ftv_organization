@@ -757,31 +757,6 @@
         return data;
     }
 
-    let dbStatus = {
-        ok: false,
-        checkedAt: null,
-        error: null
-    };
-
-    async function checkDbStatus() {
-        try {
-            const data = await apiJson("/api/test-db");
-            dbStatus = {
-                ok: !!data?.ok,
-                checkedAt: new Date().toISOString(),
-                error: null
-            };
-        } catch (err) {
-            dbStatus = {
-                ok: false,
-                checkedAt: new Date().toISOString(),
-                error: err?.message || "Falha ao consultar banco"
-            };
-        }
-
-        renderDataInfo();
-    }
-
     async function hydrateStateFromDb() {
         const previousViewSessionId = state.viewSessionId ?? null;
         const previousViewCycleId = state.viewCycleId ?? null;
@@ -1158,11 +1133,6 @@
 
         if ($("btnResetKeepPlayers")) {
             $("btnResetKeepPlayers").style.display =
-                isAdmin() ? "inline-block" : "none";
-        }
-
-        if ($("btnCheckDb")) {
-            $("btnCheckDb").style.display =
                 isAdmin() ? "inline-block" : "none";
         }
 
@@ -4931,23 +4901,8 @@
         });
     }
 
-    if ($("btnCheckDb")) {
-        $("btnCheckDb").addEventListener("click", async () => {
-            await checkDbStatus();
-            alert(dbStatus.ok ? "Banco conectado ✅" : "Falha ao conectar no banco ❌");
-        });
-    }
-
     function renderDataInfo() {
         if (!$("dbInfo")) return;
-
-        const checked = dbStatus.checkedAt
-            ? new Date(dbStatus.checkedAt).toLocaleString("pt-BR")
-            : "nunca";
-
-        const dbLine = dbStatus.ok
-            ? "conectado ✅"
-            : `falha ❌${dbStatus.error ? " (" + dbStatus.error + ")" : ""} `;
 
         $("dbInfo").textContent =
             `versão: ${state.version} \n` +
@@ -4955,9 +4910,7 @@
             `update:  ${state.updatedAt} \n` +
             `jogadores: ${(state.players || []).length} \n` +
             `sessões:   ${(state.sessions || []).length} \n` +
-            `jogos:     ${(state.matches || []).length} \n` +
-            `banco:     ${dbLine} \n` +
-            `checado:   ${checked} \n`;
+            `jogos:     ${(state.matches || []).length} \n`;
     }
 
     function renderMatchHistory() {
@@ -6581,7 +6534,6 @@
         renderPlayers();
         renderPairsEditor();
 
-        await checkDbStatus();
         await hydrateStateFromDb();
 
         updateAuthUI();
