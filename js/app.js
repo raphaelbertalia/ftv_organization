@@ -68,6 +68,7 @@
     let rotationSetupExpanded = false;
     let sessionGamesExpanded = false;
     let pendingSummaryShare = null;
+    let noGroupChampionshipOpen = false;
 
     // helpers locais
     function todayISO() {
@@ -977,6 +978,7 @@
         });
 
         state.auth.user = data.user;
+        noGroupChampionshipOpen = false;
 
         state.auth.groups = Array.isArray(data.groups)
             ? data.groups
@@ -996,6 +998,7 @@
         state.auth.user = null;
         state.auth.groups = [];
         state.auth.currentGroupId = null;
+        noGroupChampionshipOpen = false;
 
         saveState();
         updateAuthUI();
@@ -1004,6 +1007,7 @@
     function enterGuestMode() {
         state.auth = state.auth || {};
         state.auth.user = { username: "visitante", role: "guest" };
+        noGroupChampionshipOpen = false;
         saveState();
         updateAuthUI();
     }
@@ -1190,7 +1194,14 @@
             !organizer &&
             !hasGroup
         ) {
-            name = "sorteios";
+            if (name === "sorteios") {
+                noGroupChampionshipOpen = true;
+                updateHomeLayout();
+            } else {
+                noGroupChampionshipOpen = false;
+                updateHomeLayout();
+                return;
+            }
         }
 
         if (!user) {
@@ -1268,14 +1279,14 @@
 
         if ($("noGroupScreen")) {
             $("noGroupScreen").style.display =
-                waitingForGroup
+                waitingForGroup && !noGroupChampionshipOpen
                     ? "block"
                     : "none";
         }
 
         if ($("appContent")) {
             $("appContent").style.display =
-                logged && !waitingForGroup
+                logged && (!waitingForGroup || noGroupChampionshipOpen)
                     ? "block"
                     : "none";
         }
@@ -2705,6 +2716,9 @@
 
     if ($("btnGoChampionships")) {
         $("btnGoChampionships").addEventListener("click", () => {
+
+            noGroupChampionshipOpen = true;
+
             if ($("noGroupScreen")) {
                 $("noGroupScreen").style.display = "none";
             }
