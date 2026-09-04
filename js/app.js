@@ -956,7 +956,7 @@
     }
 
     async function doLogin(username, password) {
-        const data = await apiJson("/api/login", {
+        const data = await apiJson("/api/auth?action=login", {
             method: "POST",
             body: JSON.stringify({ username, password })
         });

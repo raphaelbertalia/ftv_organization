@@ -6,6 +6,12 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Método não permitido" });
     }
 
+    const { action } = req.query || {};
+
+    if (action !== "login") {
+      return res.status(400).json({ error: "Ação inválida" });
+    }
+
     const { username, password } = req.body || {};
 
     if (!username || !password) {
