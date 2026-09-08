@@ -2933,3 +2933,94 @@ pre {
     width: 100%;
   }
 }
+
+.group-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.group-member-item {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, .025);
+}
+
+.group-member-info {
+  min-width: 0;
+}
+
+.group-member-info strong {
+  display: block;
+  font-size: 15px;
+}
+
+.group-member-info span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.group-member-role {
+  width: 150px;
+}
+
+.group-member-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-member-status {
+  white-space: nowrap;
+}
+
+.group-member-status.is-active {
+  color: #86efac;
+}
+
+.group-member-status.is-inactive {
+  color: #fca5a5;
+}
+
+.group-member-actions .deactivate {
+  border-color: rgba(239, 68, 68, .45);
+  background: rgba(239, 68, 68, .10);
+  color: #fca5a5;
+  box-shadow: none;
+}
+
+.group-member-actions .reactivate {
+  border-color: rgba(34, 197, 94, .45);
+  background: rgba(34, 197, 94, .10);
+  color: #86efac;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .group-member-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .group-member-role {
+    width: 100%;
+  }
+
+  .group-member-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-member-actions button {
+    width: 100%;
+  }
+}

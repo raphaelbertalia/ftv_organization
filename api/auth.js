@@ -250,7 +250,7 @@ export default async function handler(req, res) {
         requested_role,
         status
       )
-      VALUES ($1, $2, 'user', 'pending')
+      VALUES ($1, $2, 'viewer', 'pending')
       RETURNING
         id,
         user_id,
@@ -389,7 +389,7 @@ export default async function handler(req, res) {
           [
             accessRequest.user_id,
             accessRequest.group_id,
-            accessRequest.requested_role || "user"
+            accessRequest.requested_role || "viewer"
           ]
         );
 
@@ -486,6 +486,277 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         message: "Solicitação rejeitada"
+      });
+
+    } else if (action === "group-members") {
+      const { group_id } = req.body || {};
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+      SELECT
+        ug.id,
+        ug.user_id,
+        ug.group_id,
+        ug.role,
+        ug.active,
+        ug.created_at,
+
+        u.name,
+        u.username,
+        u.email,
+        u.role AS global_role
+
+      FROM user_groups ug
+
+      INNER JOIN users u
+        ON u.id = ug.user_id
+
+      WHERE ug.group_id = $1
+
+      ORDER BY
+        ug.active DESC,
+        u.name ASC,
+        u.username ASC
+    `,
+        [group_id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        members: result.rows || []
+      });
+
+    } else if (action === "update-group-member-role") {
+      const { group_id, user_id, role } = req.body || {};
+
+      if (!group_id || !user_id || !role) {
+        return res.status(400).json({
+          error: "Grupo, usuário e papel são obrigatórios"
+        });
+      }
+
+      const allowedRoles = ["viewer", "user", "admin"];
+
+      if (!allowedRoles.includes(role)) {
+        return res.status(400).json({
+          error: "Papel inválido"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const membershipResult = await pool.query(
+        `
+      SELECT id, role, active
+      FROM user_groups
+      WHERE user_id = $1
+        AND group_id = $2
+      LIMIT 1
+    `,
+        [user_id, group_id]
+      );
+
+      const membership = membershipResult.rows[0];
+
+      if (!membership) {
+        return res.status(404).json({
+          error: "Membro não encontrado neste grupo"
+        });
+      }
+
+      if (
+        membership.active &&
+        membership.role === "admin" &&
+        role !== "admin"
+      ) {
+        const adminsResult = await pool.query(
+          `
+      SELECT COUNT(*) AS total
+      FROM user_groups
+      WHERE group_id = $1
+        AND role = 'admin'
+        AND active = true
+    `,
+          [group_id]
+        );
+
+        const activeAdmins = Number(
+          adminsResult.rows[0]?.total || 0
+        );
+
+        if (activeAdmins <= 1) {
+          return res.status(409).json({
+            error:
+              "Não é possível alterar o papel do último administrador ativo do grupo"
+          });
+        }
+      }
+
+      await pool.query(
+        `
+      UPDATE user_groups
+      SET role = $3
+      WHERE user_id = $1
+        AND group_id = $2
+    `,
+        [user_id, group_id, role]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        message: "Papel do membro atualizado com sucesso"
+      });
+
+    } else if (action === "deactivate-group-member") {
+      const { group_id, user_id } = req.body || {};
+
+      if (!group_id || !user_id) {
+        return res.status(400).json({
+          error: "Grupo e usuário são obrigatórios"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      if (String(auth.user.id) === String(user_id)) {
+        return res.status(400).json({
+          error: "Você não pode desativar seu próprio acesso ao grupo"
+        });
+      }
+
+      const targetResult = await pool.query(
+        `
+    SELECT role, active
+    FROM user_groups
+    WHERE user_id = $1
+      AND group_id = $2
+    LIMIT 1
+  `,
+        [user_id, group_id]
+      );
+
+      const targetMembership = targetResult.rows[0];
+
+      if (!targetMembership) {
+        return res.status(404).json({
+          error: "Membro não encontrado neste grupo"
+        });
+      }
+
+      if (
+        targetMembership.active &&
+        targetMembership.role === "admin"
+      ) {
+        const adminsResult = await pool.query(
+          `
+      SELECT COUNT(*) AS total
+      FROM user_groups
+      WHERE group_id = $1
+        AND role = 'admin'
+        AND active = true
+    `,
+          [group_id]
+        );
+
+        const activeAdmins = Number(
+          adminsResult.rows[0]?.total || 0
+        );
+
+        if (activeAdmins <= 1) {
+          return res.status(409).json({
+            error:
+              "Não é possível desativar o último administrador ativo do grupo"
+          });
+        }
+      }
+
+      const result = await pool.query(
+        `
+      UPDATE user_groups
+      SET active = false
+      WHERE user_id = $1
+        AND group_id = $2
+      RETURNING id
+    `,
+        [user_id, group_id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Membro não encontrado neste grupo"
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: "Acesso do membro desativado"
+      });
+
+    } else if (action === "reactivate-group-member") {
+      const { group_id, user_id } = req.body || {};
+
+      if (!group_id || !user_id) {
+        return res.status(400).json({
+          error: "Grupo e usuário são obrigatórios"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+      UPDATE user_groups
+      SET active = true
+      WHERE user_id = $1
+        AND group_id = $2
+      RETURNING id
+    `,
+        [user_id, group_id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Membro não encontrado neste grupo"
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: "Acesso do membro reativado"
       });
 
     } else {

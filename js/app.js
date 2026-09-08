@@ -1035,6 +1035,18 @@
         state.auth.currentGroupId = null;
         noGroupChampionshipOpen = false;
 
+        if ($("groupAccessModal")) {
+            $("groupAccessModal").style.display = "none";
+        }
+
+        if ($("groupAccessStatus")) {
+            $("groupAccessStatus").textContent = "";
+        }
+
+        if ($("groupAccessSelect")) {
+            $("groupAccessSelect").value = "";
+        }
+
         saveState();
         updateAuthUI();
     }
@@ -1249,22 +1261,56 @@
     }
 
     async function renderGroupAdmin() {
+        const groupId = getCurrentGroupId();
+
+        if (!groupId) {
+            if ($("pendingGroupRequests")) {
+                $("pendingGroupRequests").innerHTML = `
+                <div class="muted">
+                    Nenhum grupo selecionado.
+                </div>
+            `;
+            }
+
+            if ($("pendingRequestsCount")) {
+                $("pendingRequestsCount").textContent =
+                    "0 pendentes";
+            }
+
+            if ($("groupMembersList")) {
+                $("groupMembersList").innerHTML = `
+                <div class="muted">
+                    Nenhum grupo selecionado.
+                </div>
+            `;
+            }
+
+            if ($("groupMembersCount")) {
+                $("groupMembersCount").textContent =
+                    "0 membros";
+            }
+
+            return;
+        }
+
+        Loading.show("Carregando administração...");
+
+        try {
+            await Promise.all([
+                renderPendingGroupRequests(),
+                renderGroupMembers()
+            ]);
+        } finally {
+            Loading.hide();
+        }
+    }
+
+    async function renderPendingGroupRequests() {
         const container = $("pendingGroupRequests");
         const count = $("pendingRequestsCount");
         const groupId = getCurrentGroupId();
 
-        if (!container || !count) {
-            return;
-        }
-
-        if (!groupId) {
-            container.innerHTML = `
-            <div class="muted">
-                Nenhum grupo selecionado.
-            </div>
-        `;
-
-            count.textContent = "0 pendentes";
+        if (!container || !count || !groupId) {
             return;
         }
 
@@ -1292,7 +1338,10 @@
                 : [];
 
             count.textContent =
-                `${requests.length} ${requests.length === 1 ? "pendente" : "pendentes"}`;
+                `${requests.length} ${requests.length === 1
+                    ? "pendente"
+                    : "pendentes"
+                }`;
 
             if (!requests.length) {
                 container.innerHTML = `
@@ -1308,63 +1357,97 @@
 
             requests.forEach(request => {
                 const item = document.createElement("div");
-                item.className = "group-access-request-item";
 
-                const userInfo = document.createElement("div");
-                userInfo.className = "group-access-request-user";
+                item.className =
+                    "group-access-request-item";
+
+                const userInfo =
+                    document.createElement("div");
+
+                userInfo.className =
+                    "group-access-request-user";
 
                 const requestedAt = request.created_at
-                    ? new Date(request.created_at).toLocaleString("pt-BR")
+                    ? new Date(
+                        request.created_at
+                    ).toLocaleString("pt-BR")
                     : "—";
 
                 userInfo.innerHTML = `
-                <strong>${escapeSummaryHtml(
+                <strong>
+                    ${escapeSummaryHtml(
                     request.name ||
                     request.username ||
                     "Usuário"
-                )}</strong>
+                )}
+                </strong>
 
                 <span>
-                    @${escapeSummaryHtml(request.username || "—")}
+                    @${escapeSummaryHtml(
+                    request.username || "—"
+                )}
                 </span>
 
                 <span>
-                    ${escapeSummaryHtml(request.email || "—")}
+                    ${escapeSummaryHtml(
+                    request.email || "—"
+                )}
                 </span>
 
                 <span>
-                    Solicitado em ${escapeSummaryHtml(requestedAt)}
+                    Solicitado em
+                    ${escapeSummaryHtml(
+                    requestedAt
+                )}
                 </span>
             `;
 
-                const actions = document.createElement("div");
-                actions.className = "group-access-request-actions";
+                const actions =
+                    document.createElement("div");
 
-                const approveButton = document.createElement("button");
+                actions.className =
+                    "group-access-request-actions";
+
+                const approveButton =
+                    document.createElement("button");
+
                 approveButton.type = "button";
                 approveButton.textContent = "Aprovar";
 
-                approveButton.addEventListener("click", async () => {
-                    await reviewGroupAccessRequest(
-                        request,
-                        "approve"
-                    );
-                });
+                approveButton.addEventListener(
+                    "click",
+                    async () => {
+                        await reviewGroupAccessRequest(
+                            request,
+                            "approve"
+                        );
+                    }
+                );
 
-                const rejectButton = document.createElement("button");
+                const rejectButton =
+                    document.createElement("button");
+
                 rejectButton.type = "button";
                 rejectButton.className = "reject";
                 rejectButton.textContent = "Rejeitar";
 
-                rejectButton.addEventListener("click", async () => {
-                    await reviewGroupAccessRequest(
-                        request,
-                        "reject"
-                    );
-                });
+                rejectButton.addEventListener(
+                    "click",
+                    async () => {
+                        await reviewGroupAccessRequest(
+                            request,
+                            "reject"
+                        );
+                    }
+                );
 
-                actions.appendChild(approveButton);
-                actions.appendChild(rejectButton);
+                actions.appendChild(
+                    approveButton
+                );
+
+                actions.appendChild(
+                    rejectButton
+                );
 
                 item.appendChild(userInfo);
                 item.appendChild(actions);
@@ -1388,6 +1471,332 @@
             )}
             </div>
         `;
+        }
+    }
+
+    async function renderGroupMembers() {
+        const container = $("groupMembersList");
+        const count = $("groupMembersCount");
+        const groupId = getCurrentGroupId();
+
+        if (!container || !count || !groupId) {
+            return;
+        }
+
+        container.innerHTML = `
+        <div class="muted">
+            Carregando membros...
+        </div>
+    `;
+
+        count.textContent = "...";
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=group-members",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId
+                    })
+                }
+            );
+
+            const members = Array.isArray(data.members)
+                ? data.members
+                : [];
+
+            count.textContent =
+                `${members.length} ${members.length === 1
+                    ? "membro"
+                    : "membros"
+                }`;
+
+            if (!members.length) {
+                container.innerHTML = `
+                <div class="muted">
+                    Nenhum membro encontrado.
+                </div>
+            `;
+
+                return;
+            }
+
+            container.innerHTML = "";
+
+            members.forEach(member => {
+                const item = document.createElement("div");
+
+                item.className = "group-member-item";
+
+                const info = document.createElement("div");
+
+                info.className = "group-member-info";
+
+                info.innerHTML = `
+                <strong>
+                    ${escapeSummaryHtml(
+                    member.name ||
+                    member.username ||
+                    "Usuário"
+                )}
+                </strong>
+
+                <span>
+                    @${escapeSummaryHtml(
+                    member.username || "—"
+                )}
+                </span>
+
+                <span>
+                    ${escapeSummaryHtml(
+                    member.email || "—"
+                )}
+                </span>
+            `;
+
+                const roleSelect =
+                    document.createElement("select");
+
+                roleSelect.className =
+                    "group-member-role";
+
+                roleSelect.innerHTML = `
+                <option value="viewer">
+                    Viewer
+                </option>
+
+                <option value="user">
+                    Usuário
+                </option>
+
+                <option value="admin">
+                    Administrador
+                </option>
+            `;
+
+                roleSelect.value =
+                    member.role || "viewer";
+
+                roleSelect.disabled =
+                    !member.active;
+
+                roleSelect.addEventListener(
+                    "change",
+                    async () => {
+                        await updateGroupMemberRole(
+                            member,
+                            roleSelect
+                        );
+                    }
+                );
+
+                const actions =
+                    document.createElement("div");
+
+                actions.className =
+                    "group-member-actions";
+
+                const status =
+                    document.createElement("span");
+
+                status.className =
+                    `pill group-member-status ${member.active
+                        ? "is-active"
+                        : "is-inactive"
+                    }`;
+
+                status.textContent =
+                    member.active
+                        ? "Ativo"
+                        : "Inativo";
+
+                const accessButton =
+                    document.createElement("button");
+
+                accessButton.type = "button";
+
+                if (member.active) {
+                    accessButton.className =
+                        "deactivate";
+
+                    accessButton.textContent =
+                        "Desativar";
+
+                    accessButton.addEventListener(
+                        "click",
+                        async () => {
+                            await toggleGroupMemberAccess(
+                                member,
+                                false
+                            );
+                        }
+                    );
+
+                } else {
+                    accessButton.className =
+                        "reactivate";
+
+                    accessButton.textContent =
+                        "Reativar";
+
+                    accessButton.addEventListener(
+                        "click",
+                        async () => {
+                            await toggleGroupMemberAccess(
+                                member,
+                                true
+                            );
+                        }
+                    );
+                }
+
+                actions.appendChild(status);
+                actions.appendChild(accessButton);
+
+                item.appendChild(info);
+                item.appendChild(roleSelect);
+                item.appendChild(actions);
+
+                container.appendChild(item);
+            });
+
+        } catch (err) {
+            console.error(
+                "Erro carregando membros:",
+                err
+            );
+
+            count.textContent = "—";
+
+            container.innerHTML = `
+            <div class="muted">
+                ${escapeSummaryHtml(
+                err?.message ||
+                "Não foi possível carregar os membros."
+            )}
+            </div>
+        `;
+        }
+    }
+
+    async function updateGroupMemberRole(
+        member,
+        select
+    ) {
+        const groupId = getCurrentGroupId();
+        const previousRole = member.role;
+
+        if (!groupId) return;
+
+        const newRole = select.value;
+
+        if (newRole === previousRole) {
+            return;
+        }
+
+        if (
+            !confirm(
+                `Alterar ${member.name || member.username} ` +
+                `de ${previousRole} para ${newRole}?`
+            )
+        ) {
+            select.value = previousRole;
+            return;
+        }
+
+        Loading.show("Atualizando permissão...");
+
+        try {
+            await apiJson(
+                "/api/auth?action=update-group-member-role",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId,
+                        user_id: member.user_id,
+                        role: newRole
+                    })
+                }
+            );
+
+            await renderGroupMembers();
+
+        } catch (err) {
+            select.value = previousRole;
+
+            alert(
+                err?.message ||
+                "Não foi possível alterar o papel do membro."
+            );
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
+    async function toggleGroupMemberAccess(
+        member,
+        activate
+    ) {
+        const groupId = getCurrentGroupId();
+
+        if (!groupId) return;
+
+        const verb = activate
+            ? "reativar"
+            : "desativar";
+
+        if (
+            !confirm(
+                `Deseja ${verb} o acesso de ` +
+                `${member.name || member.username}?`
+            )
+        ) {
+            return;
+        }
+
+        const action = activate
+            ? "reactivate-group-member"
+            : "deactivate-group-member";
+
+        Loading.show(
+            activate
+                ? "Reativando acesso..."
+                : "Desativando acesso..."
+        );
+
+        try {
+            const data = await apiJson(
+                `/api/auth?action=${action}`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId,
+                        user_id: member.user_id
+                    })
+                }
+            );
+
+            alert(
+                data.message ||
+                (
+                    activate
+                        ? "Acesso reativado."
+                        : "Acesso desativado."
+                )
+            );
+
+            await renderGroupMembers();
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível alterar o acesso do membro."
+            );
+
+        } finally {
+            Loading.hide();
         }
     }
 
@@ -1562,6 +1971,16 @@
         const groups = state.auth?.groups || [];
         const hasGroups = groups.length > 0;
         const hasGroup = !!getCurrentGroupId();
+
+        if ($("groupAccessModal")) {
+            $("groupAccessModal").style.display =
+                logged &&
+                    !guest &&
+                    !organizer &&
+                    !hasGroup
+                    ? $("groupAccessModal").style.display
+                    : "none";
+        }
 
         const choosingGroup =
             logged &&
