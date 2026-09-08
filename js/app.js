@@ -2739,10 +2739,7 @@
 
         try {
             const data = await apiJson("/api/auth?action=access-options", {
-                method: "POST",
-                body: JSON.stringify({
-                    user_id: user.id
-                })
+                method: "POST"
             });
 
             const groups = Array.isArray(data.groups)
@@ -2912,7 +2909,6 @@
                     {
                         method: "POST",
                         body: JSON.stringify({
-                            user_id: user.id,
                             group_id: groupId
                         })
                     }
