@@ -1113,6 +1113,7 @@
         const rankingTab = document.querySelector('.tab[data-tab="ranking"]');
         const jogadoresTab = document.querySelector('.tab[data-tab="jogadores"]');
         const dadosTab = document.querySelector('.tab[data-tab="dados"]');
+        const adminGrupoTab = document.querySelector('.tab[data-tab="admin-grupo"]');
         const cicloTab = document.querySelector('.tab[data-tab="ciclo"]');
         const sorteiosTab = document.querySelector('.tab[data-tab="sorteios"]');
 
@@ -1157,6 +1158,13 @@
         if (cicloTab) {
             cicloTab.style.display =
                 isAdmin() && hasGroup ? "inline-block" : "none";
+        }
+
+        if (adminGrupoTab) {
+            adminGrupoTab.style.display =
+                isAdmin() && hasGroup
+                    ? "inline-block"
+                    : "none";
         }
 
         // Esconde os indicadores do topo para o organizer
@@ -1240,6 +1248,214 @@
         ];
     }
 
+    async function renderGroupAdmin() {
+        const container = $("pendingGroupRequests");
+        const count = $("pendingRequestsCount");
+        const groupId = getCurrentGroupId();
+
+        if (!container || !count) {
+            return;
+        }
+
+        if (!groupId) {
+            container.innerHTML = `
+            <div class="muted">
+                Nenhum grupo selecionado.
+            </div>
+        `;
+
+            count.textContent = "0 pendentes";
+            return;
+        }
+
+        container.innerHTML = `
+        <div class="muted">
+            Carregando solicitações...
+        </div>
+    `;
+
+        count.textContent = "...";
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=pending-group-requests",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId
+                    })
+                }
+            );
+
+            const requests = Array.isArray(data.requests)
+                ? data.requests
+                : [];
+
+            count.textContent =
+                `${requests.length} ${requests.length === 1 ? "pendente" : "pendentes"}`;
+
+            if (!requests.length) {
+                container.innerHTML = `
+                <div class="muted">
+                    Nenhuma solicitação pendente.
+                </div>
+            `;
+
+                return;
+            }
+
+            container.innerHTML = "";
+
+            requests.forEach(request => {
+                const item = document.createElement("div");
+                item.className = "group-access-request-item";
+
+                const userInfo = document.createElement("div");
+                userInfo.className = "group-access-request-user";
+
+                const requestedAt = request.created_at
+                    ? new Date(request.created_at).toLocaleString("pt-BR")
+                    : "—";
+
+                userInfo.innerHTML = `
+                <strong>${escapeSummaryHtml(
+                    request.name ||
+                    request.username ||
+                    "Usuário"
+                )}</strong>
+
+                <span>
+                    @${escapeSummaryHtml(request.username || "—")}
+                </span>
+
+                <span>
+                    ${escapeSummaryHtml(request.email || "—")}
+                </span>
+
+                <span>
+                    Solicitado em ${escapeSummaryHtml(requestedAt)}
+                </span>
+            `;
+
+                const actions = document.createElement("div");
+                actions.className = "group-access-request-actions";
+
+                const approveButton = document.createElement("button");
+                approveButton.type = "button";
+                approveButton.textContent = "Aprovar";
+
+                approveButton.addEventListener("click", async () => {
+                    await reviewGroupAccessRequest(
+                        request,
+                        "approve"
+                    );
+                });
+
+                const rejectButton = document.createElement("button");
+                rejectButton.type = "button";
+                rejectButton.className = "reject";
+                rejectButton.textContent = "Rejeitar";
+
+                rejectButton.addEventListener("click", async () => {
+                    await reviewGroupAccessRequest(
+                        request,
+                        "reject"
+                    );
+                });
+
+                actions.appendChild(approveButton);
+                actions.appendChild(rejectButton);
+
+                item.appendChild(userInfo);
+                item.appendChild(actions);
+
+                container.appendChild(item);
+            });
+
+        } catch (err) {
+            console.error(
+                "Erro carregando solicitações:",
+                err
+            );
+
+            count.textContent = "—";
+
+            container.innerHTML = `
+            <div class="muted">
+                ${escapeSummaryHtml(
+                err?.message ||
+                "Não foi possível carregar as solicitações."
+            )}
+            </div>
+        `;
+        }
+    }
+
+    async function reviewGroupAccessRequest(
+        request,
+        decision
+    ) {
+        const approving = decision === "approve";
+
+        const action = approving
+            ? "approve-group-request"
+            : "reject-group-request";
+
+        const actionLabel = approving
+            ? "aprovar"
+            : "rejeitar";
+
+        const userName =
+            request.name ||
+            request.username ||
+            "este usuário";
+
+        if (
+            !confirm(
+                `Deseja ${actionLabel} a solicitação de ${userName}?`
+            )
+        ) {
+            return;
+        }
+
+        Loading.show(
+            approving
+                ? "Aprovando solicitação..."
+                : "Rejeitando solicitação..."
+        );
+
+        try {
+            const data = await apiJson(
+                `/api/auth?action=${action}`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        request_id: request.id
+                    })
+                }
+            );
+
+            alert(
+                data.message ||
+                (
+                    approving
+                        ? "Solicitação aprovada."
+                        : "Solicitação rejeitada."
+                )
+            );
+
+            await renderGroupAdmin();
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível analisar a solicitação."
+            );
+        } finally {
+            Loading.hide();
+        }
+    }
+
     // ---------- Tabs ----------
     function showTab(name) {
         const user = getCurrentUser();
@@ -1280,7 +1496,15 @@
             name = "ranking";
         }
 
-        if ((name === "jogadores" || name === "dados" || name === "ciclo") && !isAdmin()) {
+        if (
+            (
+                name === "jogadores" ||
+                name === "dados" ||
+                name === "ciclo" ||
+                name === "admin-grupo"
+            ) &&
+            !isAdmin()
+        ) {
             name = user && !guest ? "jogos" : "ranking";
         }
 
@@ -1301,6 +1525,9 @@
         if (name === "sessoes") renderSessionsTab();
         if (name === "jogadores") renderPlayers();
         if (name === "dados") renderDataInfo();
+        if (name === "admin-grupo") {
+            renderGroupAdmin();
+        }
         if (name === "ciclo") renderCycleTab();
         if (name === "sorteios") {
             window.renderChampionshipDrawsTab();

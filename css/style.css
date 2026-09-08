@@ -2852,3 +2852,84 @@ pre {
     height: 9px;
   }
 }
+
+/* ===== ADMINISTRAÇÃO DO GRUPO ===== */
+
+.group-admin-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.group-access-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.group-access-request-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, .025);
+}
+
+.group-access-request-user {
+  min-width: 0;
+}
+
+.group-access-request-user strong {
+  display: block;
+  font-size: 15px;
+}
+
+.group-access-request-user span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.group-access-request-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.group-access-request-actions button {
+  width: auto;
+}
+
+.group-access-request-actions .reject {
+  border-color: rgba(239, 68, 68, .45);
+  background: rgba(239, 68, 68, .10);
+  color: #fca5a5;
+  box-shadow: none;
+}
+
+.group-access-request-actions .reject:hover {
+  background: rgba(239, 68, 68, .16);
+}
+
+@media (max-width: 720px) {
+  .group-access-request-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-access-request-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .group-access-request-actions button {
+    width: 100%;
+  }
+}

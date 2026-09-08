@@ -43,6 +43,7 @@
     <button class="tab" data-tab="ciclo">Ciclo Mensal</button>
     <button class="tab" data-tab="ranking">Ranking</button>
     <button class="tab" data-tab="jogadores">Jogadores</button>
+    <button class="tab" data-tab="admin-grupo">Administração</button>
     <button class="tab" data-tab="dados">Dados</button>
     <button class="tab" data-tab="sorteios">Sorteios</button>
   </nav>
@@ -675,6 +676,41 @@
         <div class="card">
           <div id="playersList"></div>
         </div>
+      </section>
+
+      <!-- TAB: ADMINISTRAÇÃO DO GRUPO -->
+      <section id="tab-admin-grupo" style="display:none;">
+
+        <div class="card">
+          <b>Administração do grupo</b>
+
+          <div class="muted" style="margin-top:6px;">
+            Gerencie solicitações de acesso e membros do grupo atual.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="group-admin-section-header">
+            <div>
+              <b>Solicitações pendentes</b>
+
+              <div class="muted" style="margin-top:4px;">
+                Usuários aguardando aprovação para entrar neste grupo.
+              </div>
+            </div>
+
+            <span id="pendingRequestsCount" class="pill">
+              0 pendentes
+            </span>
+          </div>
+
+          <div id="pendingGroupRequests" class="group-access-request-list">
+            <div class="muted">
+              Nenhuma solicitação carregada.
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- TAB: DADOS -->

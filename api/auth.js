@@ -5,7 +5,8 @@ import {
   createSession,
   getAuthenticatedUser,
   destroySession,
-  requireAuth
+  requireAuth,
+  requireGroupAdmin
 } from "../lib/auth.js";
 
 export default async function handler(req, res) {
@@ -265,6 +266,226 @@ export default async function handler(req, res) {
         ok: true,
         message: `Solicitação enviada para o grupo ${group.name}.`,
         request: requestResult.rows[0]
+      });
+
+    } else if (action === "pending-group-requests") {
+      const { group_id } = req.body || {};
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+      SELECT
+        gar.id,
+        gar.user_id,
+        gar.group_id,
+        gar.requested_role,
+        gar.status,
+        gar.created_at,
+
+        u.name,
+        u.username,
+        u.email,
+
+        g.name AS group_name
+
+      FROM group_access_requests gar
+
+      INNER JOIN users u
+        ON u.id = gar.user_id
+
+      INNER JOIN groups g
+        ON g.id = gar.group_id
+
+      WHERE gar.group_id = $1
+        AND gar.status = 'pending'
+
+      ORDER BY gar.created_at ASC
+    `,
+        [group_id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        requests: result.rows || []
+      });
+
+    } else if (action === "approve-group-request") {
+      const { request_id } = req.body || {};
+
+      if (!request_id) {
+        return res.status(400).json({
+          error: "Solicitação não informada"
+        });
+      }
+
+      const requestResult = await pool.query(
+        `
+      SELECT
+        id,
+        user_id,
+        group_id,
+        requested_role,
+        status
+      FROM group_access_requests
+      WHERE id = $1
+      LIMIT 1
+    `,
+        [request_id]
+      );
+
+      const accessRequest = requestResult.rows[0];
+
+      if (!accessRequest) {
+        return res.status(404).json({
+          error: "Solicitação não encontrada"
+        });
+      }
+
+      if (accessRequest.status !== "pending") {
+        return res.status(409).json({
+          error: "Esta solicitação já foi analisada"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        accessRequest.group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        await client.query(
+          `
+        INSERT INTO user_groups (
+          user_id,
+          group_id,
+          role,
+          active
+        )
+        VALUES ($1, $2, $3, true)
+
+        ON CONFLICT (user_id, group_id)
+        DO UPDATE SET
+          role = EXCLUDED.role,
+          active = true
+      `,
+          [
+            accessRequest.user_id,
+            accessRequest.group_id,
+            accessRequest.requested_role || "user"
+          ]
+        );
+
+        await client.query(
+          `
+        UPDATE group_access_requests
+        SET
+          status = 'approved',
+          reviewed_at = NOW(),
+          reviewed_by = $2
+        WHERE id = $1
+      `,
+          [
+            request_id,
+            auth.user.id
+          ]
+        );
+
+        await client.query("COMMIT");
+
+        return res.status(200).json({
+          ok: true,
+          message: "Solicitação aprovada com sucesso"
+        });
+
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+
+    } else if (action === "reject-group-request") {
+      const { request_id } = req.body || {};
+
+      if (!request_id) {
+        return res.status(400).json({
+          error: "Solicitação não informada"
+        });
+      }
+
+      const requestResult = await pool.query(
+        `
+      SELECT
+        id,
+        group_id,
+        status
+      FROM group_access_requests
+      WHERE id = $1
+      LIMIT 1
+    `,
+        [request_id]
+      );
+
+      const accessRequest = requestResult.rows[0];
+
+      if (!accessRequest) {
+        return res.status(404).json({
+          error: "Solicitação não encontrada"
+        });
+      }
+
+      if (accessRequest.status !== "pending") {
+        return res.status(409).json({
+          error: "Esta solicitação já foi analisada"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        accessRequest.group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      await pool.query(
+        `
+      UPDATE group_access_requests
+      SET
+        status = 'rejected',
+        reviewed_at = NOW(),
+        reviewed_by = $2
+      WHERE id = $1
+    `,
+        [
+          request_id,
+          auth.user.id
+        ]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        message: "Solicitação rejeitada"
       });
 
     } else {
