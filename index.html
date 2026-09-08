@@ -681,6 +681,18 @@
       <!-- TAB: ADMINISTRAÇÃO DO GRUPO -->
       <section id="tab-admin-grupo" style="display:none;">
 
+        <div class="admin-mode-switch">
+          <button id="btnAdminCurrentGroup" type="button" class="admin-mode-button active">
+            Grupo atual
+          </button>
+
+          <button id="btnAdminGlobal" type="button" class="admin-mode-button" style="display:none;">
+            Gestão global
+          </button>
+        </div>
+
+        <div id="adminCurrentGroupPanel">
+
         <div class="card">
           <b>Administração do grupo</b>
 
@@ -733,23 +745,59 @@
           </div>
         </div>
 
-      </section>
+    </div>
 
-      <!-- TAB: DADOS -->
-      <section id="tab-dados" style="display:none;">
-        <div class="card">
-          <b>Gerenciamento</b>
-          <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
-            <button id="btnReset" class="secondary">Zerar tudo</button>
-            <button id="btnResetKeepPlayers" class="secondary">Zerar jogos e sessões (manter jogadores)</button>
+    <div id="adminGlobalPanel" style="display:none;">
+
+      <div class="card">
+        <b>Gestão global</b>
+
+        <div class="muted" style="margin-top:6px;">
+          Gerencie os grupos disponíveis no Quarta CH.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="group-admin-section-header">
+          <div>
+            <b>Grupos</b>
+
+            <div class="muted" style="margin-top:4px;">
+              Crie, edite, ative ou desative grupos.
+            </div>
+          </div>
+
+          <button id="btnCreateGroup" type="button">
+            + Novo grupo
+          </button>
+        </div>
+
+        <div id="globalGroupsList" class="group-members-list">
+          <div class="muted">
+            Gestão de grupos ainda não carregada.
           </div>
         </div>
+      </div>
 
-        <div class="card">
-          <b>Info</b>
-          <pre id="dbInfo" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+
+    </section>
+
+    <!-- TAB: DADOS -->
+    <section id="tab-dados" style="display:none;">
+      <div class="card">
+        <b>Gerenciamento</b>
+        <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
+          <button id="btnReset" class="secondary">Zerar tudo</button>
+          <button id="btnResetKeepPlayers" class="secondary">Zerar jogos e sessões (manter jogadores)</button>
         </div>
-      </section>
+      </div>
+
+      <div class="card">
+        <b>Info</b>
+        <pre id="dbInfo" style="margin-top:10px; white-space:pre-wrap;"></pre>
+      </div>
+    </section>
     </div>
   </main>
 

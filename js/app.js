@@ -69,6 +69,57 @@
     let sessionGamesExpanded = false;
     let pendingSummaryShare = null;
     let noGroupChampionshipOpen = false;
+    let adminViewMode = "group";
+
+    function updateAdminModeUI() {
+        const groupButton = $("btnAdminCurrentGroup");
+        const globalButton = $("btnAdminGlobal");
+
+        const groupPanel = $("adminCurrentGroupPanel");
+        const globalPanel = $("adminGlobalPanel");
+
+        const globalAdmin = isGlobalAdmin();
+
+        if (globalButton) {
+            globalButton.style.display =
+                globalAdmin
+                    ? "block"
+                    : "none";
+        }
+
+        if (!globalAdmin) {
+            adminViewMode = "group";
+        }
+
+        if (groupButton) {
+            groupButton.classList.toggle(
+                "active",
+                adminViewMode === "group"
+            );
+        }
+
+        if (globalButton) {
+            globalButton.classList.toggle(
+                "active",
+                adminViewMode === "global"
+            );
+        }
+
+        if (groupPanel) {
+            groupPanel.style.display =
+                adminViewMode === "group"
+                    ? "block"
+                    : "none";
+        }
+
+        if (globalPanel) {
+            globalPanel.style.display =
+                globalAdmin &&
+                    adminViewMode === "global"
+                    ? "block"
+                    : "none";
+        }
+    }
 
     // helpers locais
     function todayISO() {
@@ -1261,6 +1312,8 @@
     }
 
     async function renderGroupAdmin() {
+        updateAdminModeUI();
+
         const groupId = getCurrentGroupId();
 
         if (!groupId) {
@@ -1563,7 +1616,7 @@
 
                 roleSelect.innerHTML = `
                 <option value="viewer">
-                    Viewer
+                    Espectador
                 </option>
 
                 <option value="user">
@@ -1946,6 +1999,30 @@
     document.querySelectorAll(".tab").forEach((t) => {
         t.addEventListener("click", () => showTab(t.dataset.tab));
     });
+
+    if ($("btnAdminCurrentGroup")) {
+        $("btnAdminCurrentGroup").addEventListener(
+            "click",
+            () => {
+                adminViewMode = "group";
+                updateAdminModeUI();
+            }
+        );
+    }
+
+    if ($("btnAdminGlobal")) {
+        $("btnAdminGlobal").addEventListener(
+            "click",
+            () => {
+                if (!isGlobalAdmin()) {
+                    return;
+                }
+
+                adminViewMode = "global";
+                updateAdminModeUI();
+            }
+        );
+    }
 
     if ($("btnBackNoGroupHome")) {
         $("btnBackNoGroupHome").addEventListener("click", () => {
