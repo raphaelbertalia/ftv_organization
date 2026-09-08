@@ -1021,7 +1021,15 @@
         updateAuthUI();
     }
 
-    function doLogout() {
+    async function doLogout() {
+        try {
+            await apiJson("/api/auth?action=logout", {
+                method: "POST"
+            });
+        } catch (err) {
+            console.warn("Falha ao encerrar sessão no servidor:", err);
+        }
+
         state.auth.user = null;
         state.auth.groups = [];
         state.auth.currentGroupId = null;

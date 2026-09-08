@@ -1,7 +1,11 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { pool } from "../lib/db.js";
-import { createSession } from "../lib/auth.js";
+import {
+  createSession,
+  getAuthenticatedUser,
+  destroySession
+} from "../lib/auth.js"
 
 export default async function handler(req, res) {
   try {
@@ -11,7 +15,48 @@ export default async function handler(req, res) {
 
     const { action } = req.query || {};
 
-    if (action === "login") {
+    if (action === "me") {
+      const authenticatedUser = await getAuthenticatedUser(req);
+
+      if (!authenticatedUser) {
+        return res.status(401).json({
+          error: "Sessão inválida ou expirada"
+        });
+      }
+
+      const groupsResult = await pool.query(
+        `
+      SELECT
+        g.id,
+        g.name,
+        g.slug,
+        ug.role
+      FROM user_groups ug
+      INNER JOIN groups g
+        ON g.id = ug.group_id
+      WHERE ug.user_id = $1
+        AND ug.active = true
+        AND g.active = true
+      ORDER BY g.name ASC
+    `,
+        [authenticatedUser.id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        user: authenticatedUser,
+        groups: groupsResult.rows || []
+      });
+
+    } else if (action === "logout") {
+      await destroySession(req, res);
+
+      return res.status(200).json({
+        ok: true
+      });
+
+    } else if (action === "login") {
+      // mantém exatamente o fluxo atual de login
       // todo o código do cadastro que você já colocou
     } else if (action === "register") {
       const { name, username, email, password } = req.body || {};
