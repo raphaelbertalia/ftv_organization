@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { pool } from "../lib/db.js";
+import { createSession } from "../lib/auth.js";
 
 export default async function handler(req, res) {
   try {
@@ -293,6 +294,8 @@ export default async function handler(req, res) {
     if (!passwordValid) {
       return res.status(401).json({ error: "Usuário ou senha inválidos" });
     }
+
+    await createSession(res, user.id);
 
     const groupsResult = await pool.query(
       `
