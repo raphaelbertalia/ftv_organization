@@ -20,6 +20,30 @@ function normalizeGroupSlug(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeWhatsapp(value) {
+  const digits = String(value || "")
+    .replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  // DDD + celular
+  if (digits.length === 11) {
+    return `55${digits}`;
+  }
+
+  // 55 + DDD + celular
+  if (
+    digits.length === 13 &&
+    digits.startsWith("55")
+  ) {
+    return digits;
+  }
+
+  return digits;
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -72,16 +96,36 @@ export default async function handler(req, res) {
       // mantém exatamente o fluxo atual de login
       // todo o código do cadastro que você já colocou
     } else if (action === "register") {
-      const { name, username, email, password } = req.body || {};
+      const {
+        name,
+        username,
+        email,
+        whatsapp,
+        password
+      } = req.body || {};
 
       const cleanName = String(name || "").trim();
       const cleanUsername = String(username || "").trim();
       const cleanEmail = String(email || "").trim().toLowerCase();
+      const cleanWhatsapp = normalizeWhatsapp(whatsapp);
       const cleanPassword = String(password || "");
 
-      if (!cleanName || !cleanUsername || !cleanEmail || !cleanPassword) {
+      if (
+        !cleanName ||
+        !cleanUsername ||
+        !cleanEmail ||
+        !cleanWhatsapp ||
+        !cleanPassword
+      ) {
         return res.status(400).json({
-          error: "Nome, usuário, e-mail e senha são obrigatórios"
+          error:
+            "Nome, usuário, e-mail, WhatsApp e senha são obrigatórios"
+        });
+      }
+
+      if (!/^55[1-9][0-9]9[0-9]{8}$/.test(cleanWhatsapp)) {
+        return res.status(400).json({
+          error: "Informe um WhatsApp celular brasileiro válido"
         });
       }
 
@@ -93,18 +137,57 @@ export default async function handler(req, res) {
 
       const existingUser = await pool.query(
         `
-          SELECT id
-          FROM users
-          WHERE LOWER(username) = LOWER($1)
-            OR LOWER(email) = LOWER($2)
-          LIMIT 1
-          `,
-        [cleanUsername, cleanEmail]
+    SELECT
+      id,
+      username,
+      email,
+      whatsapp
+    FROM users
+    WHERE LOWER(username) = LOWER($1)
+       OR LOWER(email) = LOWER($2)
+       OR whatsapp = $3
+    LIMIT 1
+  `,
+        [
+          cleanUsername,
+          cleanEmail,
+          cleanWhatsapp
+        ]
       );
 
       if (existingUser.rows.length) {
+        const existing = existingUser.rows[0];
+
+        if (
+          String(existing.username || "").toLowerCase() ===
+          cleanUsername.toLowerCase()
+        ) {
+          return res.status(409).json({
+            error: "Este nome de usuário já está em uso"
+          });
+        }
+
+        if (
+          String(existing.email || "").toLowerCase() ===
+          cleanEmail
+        ) {
+          return res.status(409).json({
+            error: "Este e-mail já possui uma conta"
+          });
+        }
+
+        if (
+          String(existing.whatsapp || "") ===
+          cleanWhatsapp
+        ) {
+          return res.status(409).json({
+            error:
+              "Este WhatsApp já está vinculado a outro usuário"
+          });
+        }
+
         return res.status(409).json({
-          error: "Usuário ou e-mail já cadastrado"
+          error: "Já existe uma conta com estes dados"
         });
       }
 
@@ -114,23 +197,41 @@ export default async function handler(req, res) {
 
       const result = await pool.query(
         `
-          INSERT INTO users (
-              id,
-              name,
-              username,
-              email,
-              password,
-              role,
-              active
-          )
-          VALUES ($1, $2, $3, $4, $5, 'user', true)
-          RETURNING id, name, username, email, role, active
-          `,
+    INSERT INTO users (
+      id,
+      name,
+      username,
+      email,
+      whatsapp,
+      password,
+      role,
+      active
+    )
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      'user',
+      true
+    )
+    RETURNING
+      id,
+      name,
+      username,
+      email,
+      whatsapp,
+      role,
+      active
+  `,
         [
           userId,
           cleanName,
           cleanUsername,
           cleanEmail,
+          cleanWhatsapp,
           hashedPassword
         ]
       );

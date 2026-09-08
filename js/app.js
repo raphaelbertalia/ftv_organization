@@ -1049,6 +1049,51 @@
         }
     }
 
+    function setRegisterMode(enabled) {
+        const loginForm = $("loginForm");
+        const registerForm = $("registerForm");
+
+        if (loginForm) {
+            loginForm.style.display =
+                enabled ? "none" : "flex";
+        }
+
+        if (registerForm) {
+            registerForm.style.display =
+                enabled ? "block" : "none";
+        }
+
+        if ($("registerStatus")) {
+            $("registerStatus").textContent = "";
+        }
+
+        if (enabled) {
+            $("registerName")?.focus();
+        } else {
+            $("loginUsername")?.focus();
+        }
+    }
+
+    function formatWhatsappInput(value) {
+        const digits = String(value || "")
+            .replace(/\D/g, "")
+            .slice(0, 11);
+
+        if (digits.length <= 2) {
+            return digits;
+        }
+
+        if (digits.length <= 7) {
+            return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        }
+
+        return (
+            `(${digits.slice(0, 2)}) ` +
+            `${digits.slice(2, 7)}-` +
+            `${digits.slice(7)}`
+        );
+    }
+
     async function doLogin(username, password) {
         const data = await apiJson("/api/auth?action=login", {
             method: "POST",
@@ -1070,6 +1115,126 @@
 
         saveState();
         updateAuthUI();
+    }
+
+    async function doRegister() {
+        const name =
+            ($("registerName")?.value || "").trim();
+
+        const username =
+            ($("registerUsername")?.value || "").trim();
+
+        const email =
+            ($("registerEmail")?.value || "").trim();
+
+        const whatsapp =
+            ($("registerWhatsapp")?.value || "")
+                .replace(/\D/g, "");
+
+        const password =
+            $("registerPassword")?.value || "";
+
+        const passwordConfirm =
+            $("registerPasswordConfirm")?.value || "";
+
+        const status = $("registerStatus");
+
+        if (
+            !name ||
+            !username ||
+            !email ||
+            !whatsapp ||
+            !password ||
+            !passwordConfirm
+        ) {
+            if (status) {
+                status.textContent =
+                    "Preencha todos os campos.";
+            }
+
+            return;
+        }
+
+        if (whatsapp.length !== 11) {
+            if (status) {
+                status.textContent =
+                    "Informe DDD + número do WhatsApp.";
+            }
+
+            return;
+        }
+
+        if (password.length < 8) {
+            if (status) {
+                status.textContent =
+                    "A senha deve ter pelo menos 8 caracteres.";
+            }
+
+            return;
+        }
+
+        if (password !== passwordConfirm) {
+            if (status) {
+                status.textContent =
+                    "As senhas não conferem.";
+            }
+
+            return;
+        }
+
+        Loading.show("Criando sua conta...");
+
+        try {
+            await apiJson(
+                "/api/auth?action=register",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name,
+                        username,
+                        email,
+                        whatsapp,
+                        password
+                    })
+                }
+            );
+
+            if ($("loginUsername")) {
+                $("loginUsername").value =
+                    username;
+            }
+
+            [
+                "registerName",
+                "registerUsername",
+                "registerEmail",
+                "registerWhatsapp",
+                "registerPassword",
+                "registerPasswordConfirm"
+            ].forEach(id => {
+                if ($(id)) {
+                    $(id).value = "";
+                }
+            });
+
+            setRegisterMode(false);
+
+            alert(
+                "Conta criada com sucesso ✅\n\n" +
+                "Agora é só entrar com seu usuário e senha."
+            );
+
+            $("loginPassword")?.focus();
+
+        } catch (err) {
+            if (status) {
+                status.textContent =
+                    err?.message ||
+                    "Não foi possível criar sua conta.";
+            }
+        } finally {
+            Loading.hide();
+        }
     }
 
     async function doLogout() {
@@ -3987,6 +4152,45 @@
                 Loading.hide();
             }
         });
+    }
+
+    if ($("btnShowRegister")) {
+        $("btnShowRegister").addEventListener(
+            "click",
+            () => {
+                setRegisterMode(true);
+            }
+        );
+    }
+
+    if ($("btnCancelRegister")) {
+        $("btnCancelRegister").addEventListener(
+            "click",
+            () => {
+                setRegisterMode(false);
+            }
+        );
+    }
+
+    if ($("registerWhatsapp")) {
+        $("registerWhatsapp").addEventListener(
+            "input",
+            event => {
+                event.target.value =
+                    formatWhatsappInput(
+                        event.target.value
+                    );
+            }
+        );
+    }
+
+    if ($("btnRegister")) {
+        $("btnRegister").addEventListener(
+            "click",
+            async () => {
+                await doRegister();
+            }
+        );
     }
 
     if ($("btnLogin")) {

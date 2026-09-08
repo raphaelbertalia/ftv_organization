@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=15">
+  <link rel="stylesheet" href="css/style.css?v=16">
 </head>
 
 <body>
@@ -70,18 +70,92 @@
 
             <div class="auth-actions">
               <button id="btnLogin" type="button">Entrar</button>
-              <button id="btnRankingOnly" class="secondary" type="button">Ver ranking apenas</button>
+
+              <button id="btnShowRegister" class="secondary" type="button">
+                Criar conta
+              </button>
+
+              <button id="btnRankingOnly" class="secondary" type="button">
+                Ver ranking apenas
+              </button>
+            </div>
+
+            </div>
+
+            <div id="registerForm" class="register-form" style="display:none;">
+
+              <div class="register-heading">
+                <b>Criar conta</b>
+
+                <div class="muted">
+                  Cadastre-se para participar dos grupos do Quarta CH.
+                </div>
+              </div>
+
+              <div class="register-grid">
+
+                <div>
+                  <div class="muted">Nome</div>
+                  <input id="registerName" type="text" placeholder="Seu nome" autocomplete="name" />
+                </div>
+
+                <div>
+                  <div class="muted">Usuário</div>
+                  <input id="registerUsername" type="text" placeholder="Escolha um usuário" autocomplete="username" />
+                </div>
+
+                <div>
+                  <div class="muted">E-mail</div>
+                  <input id="registerEmail" type="email" placeholder="seu@email.com" autocomplete="email" />
+                </div>
+
+                <div>
+                  <div class="muted">WhatsApp</div>
+
+                  <div class="whatsapp-input">
+                    <span class="whatsapp-prefix">+55</span>
+
+                    <input id="registerWhatsapp" type="tel" inputmode="numeric" maxlength="15"
+                      placeholder="(13) 99740-1234" autocomplete="tel" />
+                  </div>
+                </div>
+
+                <div>
+                  <div class="muted">Senha</div>
+                  <input id="registerPassword" type="password" placeholder="Mínimo 8 caracteres"
+                    autocomplete="new-password" />
+                </div>
+
+                <div>
+                  <div class="muted">Confirmar senha</div>
+                  <input id="registerPasswordConfirm" type="password" placeholder="Repita sua senha"
+                    autocomplete="new-password" />
+                </div>
+
+              </div>
+
+              <div id="registerStatus" class="muted"></div>
+
+              <div class="register-actions">
+                <button id="btnRegister" type="button">
+                  Criar minha conta
+                </button>
+
+                <button id="btnCancelRegister" class="secondary" type="button">
+                  Já tenho uma conta
+                </button>
+              </div>
+
+            </div>
+
+            <div id="guestLoginBox" style="display:none;">
+              <button id="btnShowLogin" class="secondary" type="button">Fazer login</button>
+            </div>
+
+            <div id="logoutBox" style="display:none;">
+              <button id="btnLogout" class="secondary" type="button">Sair</button>
             </div>
           </div>
-
-          <div id="guestLoginBox" style="display:none;">
-            <button id="btnShowLogin" class="secondary" type="button">Fazer login</button>
-          </div>
-
-          <div id="logoutBox" style="display:none;">
-            <button id="btnLogout" class="secondary" type="button">Sair</button>
-          </div>
-        </div>
       </section>
 
       <section id="guestBanner" class="card" style="display:none;">
@@ -693,111 +767,111 @@
 
         <div id="adminCurrentGroupPanel">
 
-        <div class="card">
-          <b>Administração do grupo</b>
+          <div class="card">
+            <b>Administração do grupo</b>
 
-          <div class="muted" style="margin-top:6px;">
-            Gerencie solicitações de acesso e membros do grupo atual.
+            <div class="muted" style="margin-top:6px;">
+              Gerencie solicitações de acesso e membros do grupo atual.
+            </div>
           </div>
-        </div>
 
-        <div class="card">
-          <div class="group-admin-section-header">
-            <div>
-              <b>Solicitações pendentes</b>
+          <div class="card">
+            <div class="group-admin-section-header">
+              <div>
+                <b>Solicitações pendentes</b>
 
-              <div class="muted" style="margin-top:4px;">
-                Usuários aguardando aprovação para entrar neste grupo.
+                <div class="muted" style="margin-top:4px;">
+                  Usuários aguardando aprovação para entrar neste grupo.
+                </div>
+              </div>
+
+              <span id="pendingRequestsCount" class="pill">
+                0 pendentes
+              </span>
+            </div>
+
+            <div id="pendingGroupRequests" class="group-access-request-list">
+              <div class="muted">
+                Nenhuma solicitação carregada.
               </div>
             </div>
-
-            <span id="pendingRequestsCount" class="pill">
-              0 pendentes
-            </span>
           </div>
 
-          <div id="pendingGroupRequests" class="group-access-request-list">
-            <div class="muted">
-              Nenhuma solicitação carregada.
+          <div class="card">
+            <div class="group-admin-section-header">
+              <div>
+                <b>Membros do grupo</b>
+
+                <div class="muted" style="margin-top:4px;">
+                  Gerencie os acessos e permissões dos integrantes deste grupo.
+                </div>
+              </div>
+
+              <span id="groupMembersCount" class="pill">
+                0 membros
+              </span>
             </div>
+
+            <div id="groupMembersList" class="group-members-list">
+              <div class="muted">
+                Nenhum membro carregado.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="adminGlobalPanel" style="display:none;">
+
+          <div class="card">
+            <b>Gestão global</b>
+
+            <div class="muted" style="margin-top:6px;">
+              Gerencie os grupos disponíveis no Quarta CH.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="group-admin-section-header">
+              <div>
+                <b>Grupos</b>
+
+                <div class="muted" style="margin-top:4px;">
+                  Crie, edite, ative ou desative grupos.
+                </div>
+              </div>
+
+              <button id="btnCreateGroup" type="button">
+                + Novo grupo
+              </button>
+            </div>
+
+            <div id="globalGroupsList" class="group-members-list">
+              <div class="muted">
+                Gestão de grupos ainda não carregada.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- TAB: DADOS -->
+      <section id="tab-dados" style="display:none;">
+        <div class="card">
+          <b>Gerenciamento</b>
+          <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
+            <button id="btnReset" class="secondary">Zerar tudo</button>
+            <button id="btnResetKeepPlayers" class="secondary">Zerar jogos e sessões (manter jogadores)</button>
           </div>
         </div>
 
         <div class="card">
-          <div class="group-admin-section-header">
-            <div>
-              <b>Membros do grupo</b>
-
-              <div class="muted" style="margin-top:4px;">
-                Gerencie os acessos e permissões dos integrantes deste grupo.
-              </div>
-            </div>
-
-            <span id="groupMembersCount" class="pill">
-              0 membros
-            </span>
-          </div>
-
-          <div id="groupMembersList" class="group-members-list">
-            <div class="muted">
-              Nenhum membro carregado.
-            </div>
-          </div>
+          <b>Info</b>
+          <pre id="dbInfo" style="margin-top:10px; white-space:pre-wrap;"></pre>
         </div>
-
-    </div>
-
-    <div id="adminGlobalPanel" style="display:none;">
-
-      <div class="card">
-        <b>Gestão global</b>
-
-        <div class="muted" style="margin-top:6px;">
-          Gerencie os grupos disponíveis no Quarta CH.
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="group-admin-section-header">
-          <div>
-            <b>Grupos</b>
-
-            <div class="muted" style="margin-top:4px;">
-              Crie, edite, ative ou desative grupos.
-            </div>
-          </div>
-
-          <button id="btnCreateGroup" type="button">
-            + Novo grupo
-          </button>
-        </div>
-
-        <div id="globalGroupsList" class="group-members-list">
-          <div class="muted">
-            Gestão de grupos ainda não carregada.
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    </section>
-
-    <!-- TAB: DADOS -->
-    <section id="tab-dados" style="display:none;">
-      <div class="card">
-        <b>Gerenciamento</b>
-        <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
-          <button id="btnReset" class="secondary">Zerar tudo</button>
-          <button id="btnResetKeepPlayers" class="secondary">Zerar jogos e sessões (manter jogadores)</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <b>Info</b>
-        <pre id="dbInfo" style="margin-top:10px; white-space:pre-wrap;"></pre>
-      </div>
-    </section>
+      </section>
     </div>
   </main>
 
