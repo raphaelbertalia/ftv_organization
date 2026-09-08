@@ -1358,6 +1358,293 @@
         }
     }
 
+    async function renderGlobalGroups() {
+        const container = $("globalGroupsList");
+
+        if (!container || !isGlobalAdmin()) {
+            return;
+        }
+
+        container.innerHTML = `
+        <div class="muted">
+            Carregando grupos...
+        </div>
+    `;
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=list-groups-admin",
+                {
+                    method: "POST",
+                    body: JSON.stringify({})
+                }
+            );
+
+            const groups = Array.isArray(data.groups)
+                ? data.groups
+                : [];
+
+            if (!groups.length) {
+                container.innerHTML = `
+                <div class="muted">
+                    Nenhum grupo encontrado.
+                </div>
+            `;
+                return;
+            }
+
+            container.innerHTML = "";
+
+            groups.forEach(group => {
+                const item = document.createElement("div");
+
+                item.className = "group-member-item";
+
+                const info = document.createElement("div");
+                info.className = "group-member-info";
+
+                const activeMembers =
+                    Number(group.active_members) || 0;
+
+                const pendingRequests =
+                    Number(group.pending_requests) || 0;
+
+                info.innerHTML = `
+                <strong>
+                    ${escapeSummaryHtml(group.name)}
+                </strong>
+
+                <span>
+                    ${escapeSummaryHtml(group.slug)}
+                </span>
+
+                <span>
+                    ${activeMembers}
+                    ${activeMembers === 1
+                        ? "membro ativo"
+                        : "membros ativos"}
+                    •
+                    ${pendingRequests}
+                    ${pendingRequests === 1
+                        ? "solicitação pendente"
+                        : "solicitações pendentes"}
+                </span>
+            `;
+
+                const status = document.createElement("span");
+
+                status.className =
+                    `pill group-member-status ${group.active
+                        ? "is-active"
+                        : "is-inactive"
+                    }`;
+
+                status.textContent =
+                    group.active
+                        ? "Ativo"
+                        : "Inativo";
+
+                const actions =
+                    document.createElement("div");
+
+                actions.className =
+                    "group-member-actions";
+
+                const editButton =
+                    document.createElement("button");
+
+                editButton.type = "button";
+                editButton.className = "secondary";
+                editButton.textContent = "Editar";
+
+                editButton.addEventListener(
+                    "click",
+                    async () => {
+                        await editGlobalGroup(group);
+                    }
+                );
+
+                const activeButton =
+                    document.createElement("button");
+
+                activeButton.type = "button";
+
+                if (group.active) {
+                    activeButton.className =
+                        "deactivate";
+
+                    activeButton.textContent =
+                        "Desativar";
+                } else {
+                    activeButton.className =
+                        "reactivate";
+
+                    activeButton.textContent =
+                        "Reativar";
+                }
+
+                activeButton.addEventListener(
+                    "click",
+                    async () => {
+                        await toggleGlobalGroupActive(group);
+                    }
+                );
+
+                actions.appendChild(status);
+                actions.appendChild(editButton);
+                actions.appendChild(activeButton);
+
+                item.appendChild(info);
+                item.appendChild(actions);
+
+                container.appendChild(item);
+            });
+
+        } catch (err) {
+            console.error(
+                "Erro carregando grupos globais:",
+                err
+            );
+
+            container.innerHTML = `
+            <div class="muted">
+                ${escapeSummaryHtml(
+                err?.message ||
+                "Não foi possível carregar os grupos."
+            )}
+            </div>
+        `;
+        }
+    }
+
+    async function createGlobalGroup() {
+        const name = prompt("Nome do novo grupo:");
+
+        if (!name?.trim()) {
+            return;
+        }
+
+        Loading.show("Criando grupo...");
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=create-group",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: name.trim()
+                    })
+                }
+            );
+
+            alert(
+                data.message ||
+                "Grupo criado com sucesso"
+            );
+
+            await renderGlobalGroups();
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível criar o grupo."
+            );
+        } finally {
+            Loading.hide();
+        }
+    }
+
+    async function editGlobalGroup(group) {
+        const newName = prompt(
+            "Novo nome do grupo:",
+            group.name
+        );
+
+        if (!newName?.trim()) {
+            return;
+        }
+
+        Loading.show("Atualizando grupo...");
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=update-group",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: group.id,
+                        name: newName.trim()
+                    })
+                }
+            );
+
+            alert(
+                data.message ||
+                "Grupo atualizado com sucesso"
+            );
+
+            await renderGlobalGroups();
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível atualizar o grupo."
+            );
+        } finally {
+            Loading.hide();
+        }
+    }
+
+    async function toggleGlobalGroupActive(group) {
+        const activate = !group.active;
+
+        const actionLabel = activate
+            ? "reativar"
+            : "desativar";
+
+        if (
+            !confirm(
+                `Deseja ${actionLabel} o grupo ${group.name}?`
+            )
+        ) {
+            return;
+        }
+
+        Loading.show(
+            activate
+                ? "Reativando grupo..."
+                : "Desativando grupo..."
+        );
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=set-group-active",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: group.id,
+                        active: activate
+                    })
+                }
+            );
+
+            alert(
+                data.message ||
+                "Status do grupo atualizado"
+            );
+
+            await renderGlobalGroups();
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível alterar o status do grupo."
+            );
+        } finally {
+            Loading.hide();
+        }
+    }
+
     async function renderPendingGroupRequests() {
         const container = $("pendingGroupRequests");
         const count = $("pendingRequestsCount");
@@ -2000,6 +2287,19 @@
         t.addEventListener("click", () => showTab(t.dataset.tab));
     });
 
+    if ($("btnCreateGroup")) {
+        $("btnCreateGroup").addEventListener(
+            "click",
+            async () => {
+                if (!isGlobalAdmin()) {
+                    return;
+                }
+
+                await createGlobalGroup();
+            }
+        );
+    }
+
     if ($("btnAdminCurrentGroup")) {
         $("btnAdminCurrentGroup").addEventListener(
             "click",
@@ -2013,13 +2313,21 @@
     if ($("btnAdminGlobal")) {
         $("btnAdminGlobal").addEventListener(
             "click",
-            () => {
+            async () => {
                 if (!isGlobalAdmin()) {
                     return;
                 }
 
                 adminViewMode = "global";
                 updateAdminModeUI();
+
+                Loading.show("Carregando grupos...");
+
+                try {
+                    await renderGlobalGroups();
+                } finally {
+                    Loading.hide();
+                }
             }
         );
     }
