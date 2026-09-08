@@ -6,8 +6,19 @@ import {
   getAuthenticatedUser,
   destroySession,
   requireAuth,
-  requireGroupAdmin
+  requireGroupAdmin,
+  requireGlobalAdmin
 } from "../lib/auth.js";
+
+function normalizeGroupSlug(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 export default async function handler(req, res) {
   try {
@@ -757,6 +768,268 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         message: "Acesso do membro reativado"
+      });
+
+    } else if (action === "list-groups-admin") {
+      const user = await requireGlobalAdmin(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+      SELECT
+        g.id,
+        g.name,
+        g.slug,
+        g.active,
+
+        (
+          SELECT COUNT(*)
+          FROM user_groups ug
+          WHERE ug.group_id = g.id
+            AND ug.active = true
+        ) AS active_members,
+
+        (
+          SELECT COUNT(*)
+          FROM group_access_requests gar
+          WHERE gar.group_id = g.id
+            AND gar.status = 'pending'
+        ) AS pending_requests
+
+      FROM groups g
+
+      ORDER BY
+        g.active DESC,
+        g.name ASC
+    `
+      );
+
+      return res.status(200).json({
+        ok: true,
+        groups: result.rows || []
+      });
+
+    } else if (action === "create-group") {
+      const user = await requireGlobalAdmin(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const { name, slug } = req.body || {};
+
+      const cleanName = String(name || "").trim();
+
+      const cleanSlug = normalizeGroupSlug(
+        slug || cleanName
+      );
+
+      if (!cleanName) {
+        return res.status(400).json({
+          error: "Nome do grupo é obrigatório"
+        });
+      }
+
+      if (!cleanSlug) {
+        return res.status(400).json({
+          error: "Não foi possível gerar um identificador para o grupo"
+        });
+      }
+
+      const existingGroup = await pool.query(
+        `
+      SELECT id
+      FROM groups
+      WHERE LOWER(slug) = LOWER($1)
+      LIMIT 1
+    `,
+        [cleanSlug]
+      );
+
+      if (existingGroup.rows.length) {
+        return res.status(409).json({
+          error: "Já existe um grupo com este identificador"
+        });
+      }
+
+      const groupId = crypto.randomUUID();
+
+      const result = await pool.query(
+        `
+      INSERT INTO groups (
+        id,
+        name,
+        slug,
+        active
+      )
+      VALUES ($1, $2, $3, true)
+
+      RETURNING
+        id,
+        name,
+        slug,
+        active
+    `,
+        [
+          groupId,
+          cleanName,
+          cleanSlug
+        ]
+      );
+
+      return res.status(201).json({
+        ok: true,
+        message: "Grupo criado com sucesso",
+        group: result.rows[0]
+      });
+
+    } else if (action === "update-group") {
+      const user = await requireGlobalAdmin(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        group_id,
+        name,
+        slug
+      } = req.body || {};
+
+      if (!group_id) {
+        return res.status(400).json({
+          error: "Grupo não informado"
+        });
+      }
+
+      const cleanName = String(name || "").trim();
+
+      const cleanSlug = normalizeGroupSlug(
+        slug || cleanName
+      );
+
+      if (!cleanName) {
+        return res.status(400).json({
+          error: "Nome do grupo é obrigatório"
+        });
+      }
+
+      if (!cleanSlug) {
+        return res.status(400).json({
+          error: "Identificador do grupo inválido"
+        });
+      }
+
+      const existingSlug = await pool.query(
+        `
+      SELECT id
+      FROM groups
+      WHERE LOWER(slug) = LOWER($1)
+        AND id <> $2
+      LIMIT 1
+    `,
+        [
+          cleanSlug,
+          group_id
+        ]
+      );
+
+      if (existingSlug.rows.length) {
+        return res.status(409).json({
+          error: "Já existe outro grupo com este identificador"
+        });
+      }
+
+      const result = await pool.query(
+        `
+      UPDATE groups
+      SET
+        name = $2,
+        slug = $3
+      WHERE id = $1
+
+      RETURNING
+        id,
+        name,
+        slug,
+        active
+    `,
+        [
+          group_id,
+          cleanName,
+          cleanSlug
+        ]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Grupo não encontrado"
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: "Grupo atualizado com sucesso",
+        group: result.rows[0]
+      });
+
+    } else if (action === "set-group-active") {
+      const user = await requireGlobalAdmin(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        group_id,
+        active
+      } = req.body || {};
+
+      if (!group_id) {
+        return res.status(400).json({
+          error: "Grupo não informado"
+        });
+      }
+
+      if (typeof active !== "boolean") {
+        return res.status(400).json({
+          error: "Status do grupo inválido"
+        });
+      }
+
+      const result = await pool.query(
+        `
+      UPDATE groups
+      SET active = $2
+      WHERE id = $1
+
+      RETURNING
+        id,
+        name,
+        slug,
+        active
+    `,
+        [
+          group_id,
+          active
+        ]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Grupo não encontrado"
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: active
+          ? "Grupo ativado com sucesso"
+          : "Grupo desativado com sucesso",
+        group: result.rows[0]
       });
 
     } else {
