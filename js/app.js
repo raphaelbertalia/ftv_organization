@@ -1168,15 +1168,15 @@
                     pairs: sessionPairs
                 };
 
-                if (
-                    normalized.playMode === "fixed" &&
-                    sessionPairs.length === 4
-                ) {
-                    normalized.schedule =
-                        buildScheduleQuartaCH(sessionPairs);
-                } else {
-                    normalized.schedule = null;
-                }
+                /*
+                 * Sessões novas são abertas.
+                 *
+                 * O schedule antigo permanece fora da
+                 * reconstrução para não transformar uma
+                 * nova sessão de 8 jogadores novamente
+                 * em uma agenda fechada.
+                 */
+                normalized.schedule = null;
 
                 const sessionMatches = state.matches.filter(
                     m => String(m.sessionId) === String(sessionId)
@@ -6459,56 +6459,145 @@
     // Editor: 4 duplas (8 jogadores). Depois a gente deixa dinâmico se quiser.
     function renderPairsEditor() {
         const wrap = $("pairsEditor");
+
         if (!wrap) return;
 
         const players = (state.players || [])
-            .filter((p) => p.active)
+            .filter(player => player.active)
             .slice()
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-        const makeSelect = (id) => {
-            const sel = document.createElement("select");
-            sel.id = id;
-            sel.disabled = !!getCurrentSession();
-            const o0 = document.createElement("option");
-            o0.value = "";
-            o0.textContent = "— selecione —";
-            sel.appendChild(o0);
-            players.forEach((p) => {
-                const o = document.createElement("option");
-                o.value = p.id;
-                o.textContent = p.name;
-                sel.appendChild(o);
-            });
-            return sel;
-        };
+            .sort(
+                (a, b) =>
+                    (a.name || "")
+                        .localeCompare(b.name || "")
+            );
 
         wrap.innerHTML = "";
-        for (let i = 1; i <= 4; i++) {
-            const card = document.createElement("div");
+
+        /*
+         * Menos de quatro ainda não forma uma sessão.
+         */
+        if (players.length < 4) {
+            wrap.innerHTML = `
+            <div class="muted">
+                Ative pelo menos 4 jogadores para montar a sessão.
+            </div>
+        `;
+
+            renderCycleGame1Selects();
+            return;
+        }
+
+        /*
+         * Quantidade ímpar trabalha em rodízio.
+         * Não existem duplas fixas antes da sessão.
+         */
+        if (players.length % 2 !== 0) {
+            wrap.innerHTML = `
+            <div class="card" style="margin:8px 0;">
+                <b>Rodízio automático</b>
+
+                <div class="muted" style="margin-top:6px;">
+                    ${players.length} jogadores ativos.
+                    As duplas serão montadas dinamicamente
+                    durante a sessão.
+                </div>
+            </div>
+        `;
+
+            renderCycleGame1Selects();
+            return;
+        }
+
+        const pairCount =
+            players.length / 2;
+
+        const makeSelect = id => {
+            const select =
+                document.createElement("select");
+
+            select.id = id;
+
+            select.disabled =
+                !!getCurrentSession();
+
+            const placeholder =
+                document.createElement("option");
+
+            placeholder.value = "";
+            placeholder.textContent =
+                "— selecione —";
+
+            select.appendChild(
+                placeholder
+            );
+
+            players.forEach(player => {
+                const option =
+                    document.createElement("option");
+
+                option.value =
+                    player.id;
+
+                option.textContent =
+                    player.name;
+
+                select.appendChild(
+                    option
+                );
+            });
+
+            return select;
+        };
+
+        for (
+            let index = 1;
+            index <= pairCount;
+            index++
+        ) {
+            const card =
+                document.createElement("div");
+
             card.className = "card";
             card.style.margin = "8px 0";
 
-            const title = document.createElement("div");
-            title.innerHTML = `<b>Dupla ${i}</b>`;
-            title.style.marginBottom = "8px";
+            const title =
+                document.createElement("div");
 
-            const row = document.createElement("div");
+            title.innerHTML =
+                `<b>Dupla ${index}</b>`;
+
+            title.style.marginBottom =
+                "8px";
+
+            const row =
+                document.createElement("div");
+
             row.className = "row";
 
-            const c1 = document.createElement("div");
-            const c2 = document.createElement("div");
+            const column1 =
+                document.createElement("div");
 
-            c1.appendChild(makeSelect(`p${i}_1`));
-            c2.appendChild(makeSelect(`p${i}_2`));
+            const column2 =
+                document.createElement("div");
 
-            row.appendChild(c1);
-            row.appendChild(c2);
+            column1.appendChild(
+                makeSelect(`p${index}_1`)
+            );
+
+            column2.appendChild(
+                makeSelect(`p${index}_2`)
+            );
+
+            row.appendChild(column1);
+            row.appendChild(column2);
 
             card.appendChild(title);
             card.appendChild(row);
+
             wrap.appendChild(card);
         }
+
+        renderCycleGame1Selects();
     }
 
     function updatePairsEditorLock() {
@@ -7276,9 +7365,15 @@
 
         const rotationStats = getRotationStatistics(session);
 
-        if (rotationStats.participantIds.length !== 7) {
+        const participantCount =
+            rotationStats.participantIds.length;
+
+        if (
+            participantCount < 5 ||
+            participantCount % 2 === 0
+        ) {
             throw new Error(
-                `O rodízio automático espera 7 participantes. A sessão possui ${rotationStats.participantIds.length}.`
+                `O rodízio automático exige uma quantidade ímpar de pelo menos 5 jogadores. A sessão possui ${participantCount}.`
             );
         }
 
@@ -7314,11 +7409,8 @@
             return false;
         }
 
-        const matches = getSessionMatches(session);
-
-        if (matches.length >= 8) {
-            return false;
-        }
+        const matches =
+            getSessionMatches(session);
 
         const suggestion = suggestNextRotationMatch(session);
 
@@ -7467,21 +7559,85 @@
     }
 
     function readPairsFromEditor() {
+        const activePlayers =
+            (state.players || [])
+                .filter(
+                    player => player.active
+                );
+
+        if (activePlayers.length < 4) {
+            throw new Error(
+                "Precisa ter pelo menos 4 jogadores ativos."
+            );
+        }
+
+        if (
+            activePlayers.length % 2 !== 0
+        ) {
+            throw new Error(
+                "Quantidade ímpar utiliza rodízio."
+            );
+        }
+
+        const pairCount =
+            activePlayers.length / 2;
+
         const pairs = [];
         const used = new Set();
 
-        for (let i = 1; i <= 4; i++) {
-            const p1 = $(`p${i}_1`)?.value || "";
-            const p2 = $(`p${i}_2`)?.value || "";
+        for (
+            let index = 1;
+            index <= pairCount;
+            index++
+        ) {
+            const p1 =
+                $(`p${index}_1`)?.value || "";
 
-            if (!p1 || !p2) throw new Error("Preenche todas as duplas.");
-            if (p1 === p2) throw new Error("Dupla não pode repetir jogador.");
-            if (used.has(p1) || used.has(p2)) throw new Error("Um jogador foi usado em mais de uma dupla.");
+            const p2 =
+                $(`p${index}_2`)?.value || "";
+
+            if (!p1 || !p2) {
+                throw new Error(
+                    "Preencha todas as duplas."
+                );
+            }
+
+            if (p1 === p2) {
+                throw new Error(
+                    "Dupla não pode repetir jogador."
+                );
+            }
+
+            if (
+                used.has(p1) ||
+                used.has(p2)
+            ) {
+                throw new Error(
+                    "Um jogador foi usado em mais de uma dupla."
+                );
+            }
 
             used.add(p1);
             used.add(p2);
 
-            pairs.push({ id: uid(), p1, p2 });
+            pairs.push({
+                id: uid(),
+                p1,
+                p2
+            });
+        }
+
+        /*
+         * Não deixa ninguém ativo ficar de fora
+         * de uma sessão com duplas fixas.
+         */
+        if (
+            used.size !==
+            activePlayers.length
+        ) {
+            throw new Error(
+                "Todos os jogadores ativos precisam estar em uma dupla."
+            );
         }
 
         return pairs;
@@ -7644,165 +7800,500 @@
 
     function drawPairsBySide() {
         if (getCurrentSession()) {
-            return alert("Já existe uma sessão ativa.");
+            Toast.show(
+                "Já existe uma sessão ativa.",
+                "warning"
+            );
+
+            return;
         }
 
-        const activePlayers = (state.players || [])
-            .filter(player => player.active);
+        const activePlayers =
+            (state.players || [])
+                .filter(
+                    player => player.active
+                );
 
-        const lefts = shuffleArray(
-            activePlayers.filter(player => player.side === "left")
-        );
+        if (activePlayers.length < 4) {
+            Toast.show(
+                "Ative pelo menos 4 jogadores.",
+                "warning"
+            );
 
-        const rights = shuffleArray(
-            activePlayers.filter(player => player.side === "right")
-        );
-
-        const boths = shuffleArray(
-            activePlayers.filter(player => player.side === "both")
-        );
-
-        while (lefts.length < 4 && boths.length) {
-            lefts.push(boths.pop());
+            return;
         }
 
-        while (rights.length < 4 && boths.length) {
-            rights.push(boths.pop());
+        /*
+         * Ímpar não possui duplas fixas.
+         * O primeiro confronto será montado
+         * pelo motor de rodízio.
+         */
+        if (
+            activePlayers.length % 2 !== 0
+        ) {
+            renderPairsEditor();
+
+            Toast.show(
+                `${activePlayers.length} jogadores ativos: sessão em modo rodízio.`,
+                "info"
+            );
+
+            return;
         }
 
-        if (lefts.length < 4 || rights.length < 4) {
-            return alert(
-                "Não deu pra formar 4 duplas. Precisa de 4 jogadores para cada lado, usando coringas se necessário."
+        const pairCount =
+            activePlayers.length / 2;
+
+        /*
+         * Recria o editor para garantir que
+         * existam exatamente N posições.
+         */
+        renderPairsEditor();
+
+        const strictLeft =
+            activePlayers.filter(
+                player =>
+                    player.side === "left"
+            );
+
+        const strictRight =
+            activePlayers.filter(
+                player =>
+                    player.side === "right"
+            );
+
+        const both =
+            shuffleArray(
+                activePlayers.filter(
+                    player =>
+                        player.side === "both"
+                )
+            );
+
+        /*
+         * Como TODOS os ativos participarão,
+         * não podemos simplesmente descartar
+         * jogadores excedentes de um lado.
+         */
+        if (
+            strictLeft.length > pairCount ||
+            strictRight.length > pairCount
+        ) {
+            Toast.show(
+                `Não é possível formar ${pairCount} duplas respeitando os lados atuais.`,
+                "error"
+            );
+
+            return;
+        }
+
+        const lefts = [
+            ...strictLeft
+        ];
+
+        const rights = [
+            ...strictRight
+        ];
+
+        while (
+            lefts.length < pairCount &&
+            both.length
+        ) {
+            lefts.push(
+                both.shift()
             );
         }
 
-        const finalLefts = shuffleArray(lefts).slice(0, 4);
-        const finalRights = shuffleArray(rights).slice(0, 4);
-
-        const bestFormation = findBestPairFormation(
-            finalLefts,
-            finalRights
-        );
-
-        if (!bestFormation?.length) {
-            return alert("Não foi possível sortear as duplas.");
+        while (
+            rights.length < pairCount &&
+            both.length
+        ) {
+            rights.push(
+                both.shift()
+            );
         }
 
-        bestFormation.forEach((pair, index) => {
-            const position = index + 1;
+        if (
+            lefts.length !== pairCount ||
+            rights.length !== pairCount ||
+            both.length
+        ) {
+            Toast.show(
+                "Não foi possível distribuir todos os jogadores entre esquerda e direita.",
+                "error"
+            );
 
-            const sel1 = $(`p${position}_1`);
-            const sel2 = $(`p${position}_2`);
+            return;
+        }
 
-            if (sel1) {
-                sel1.value = pair.left.id;
+        const bestFormation =
+            findBestPairFormation(
+                shuffleArray(lefts),
+                shuffleArray(rights)
+            );
+
+        if (!bestFormation?.length) {
+            Toast.show(
+                "Não foi possível sortear as duplas.",
+                "error"
+            );
+
+            return;
+        }
+
+        bestFormation.forEach(
+            (pair, index) => {
+                const position =
+                    index + 1;
+
+                const select1 =
+                    $(`p${position}_1`);
+
+                const select2 =
+                    $(`p${position}_2`);
+
+                if (select1) {
+                    select1.value =
+                        pair.left.id;
+                }
+
+                if (select2) {
+                    select2.value =
+                        pair.right.id;
+                }
             }
-
-            if (sel2) {
-                sel2.value = pair.right.id;
-            }
-        });
+        );
 
         renderCycleGame1Selects();
+
+        Toast.show(
+            `${pairCount} duplas sorteadas com sucesso.`,
+            "success"
+        );
     }
 
     if ($("btnStartSession")) {
-        $("btnStartSession").addEventListener("click", async () => {
-            if (!requireOperator()) return;
+        $("btnStartSession").addEventListener(
+            "click",
+            async () => {
+                if (!requireOperator()) {
+                    return;
+                }
 
-            if (getCurrentSession()) {
-                return alert("Já existe uma sessão ativa. Finalize a atual antes de iniciar outra.");
-            }
-            const inputName = ($("sessionName")?.value || "").trim();
+                if (getCurrentSession()) {
+                    Toast.show(
+                        "Já existe uma sessão ativa. Finalize a atual antes de iniciar outra.",
+                        "warning"
+                    );
 
-            function formatDateBR() {
-                const d = new Date();
-                const dia = String(d.getDate()).padStart(2, "0");
-                const mes = String(d.getMonth() + 1).padStart(2, "0");
-                const ano = d.getFullYear();
-                return `${dia}-${mes}-${ano}`;
-            }
+                    return;
+                }
 
-            const name = inputName || `games_${formatDateBR()}`;
+                const activePlayers =
+                    (state.players || [])
+                        .filter(
+                            player =>
+                                player.active
+                        );
 
-            const activeCount = (state.players || []).filter((p) => p.active).length;
-            if (activeCount < 4) return alert("Precisa ter pelo menos 4 jogadores ativos.");
+                const participantIds =
+                    activePlayers.map(
+                        player =>
+                            String(player.id)
+                    );
 
-            let pairs;
+                if (
+                    participantIds.length < 4
+                ) {
+                    Toast.show(
+                        "Precisa ter pelo menos 4 jogadores ativos.",
+                        "warning"
+                    );
 
-            try {
-                pairs = readPairsFromEditor();
-            } catch (e) {
-                return alert(e.message || "Erro nas duplas.");
-            }
+                    return;
+                }
 
-            const firstPairIndex =
-                $("cycleGame1PairA")?.value ?? "";
+                const playMode =
+                    participantIds.length % 2 === 0
+                        ? "fixed"
+                        : "rotation";
 
-            const secondPairIndex =
-                $("cycleGame1PairB")?.value ?? "";
+                const inputName =
+                    (
+                        $("sessionName")
+                            ?.value || ""
+                    ).trim();
 
-            if (
-                firstPairIndex === "" ||
-                secondPairIndex === ""
-            ) {
-                return alert(
-                    "Escolha as duas duplas que irão começar o Jogo 1."
+                function formatDateBR() {
+                    const date =
+                        new Date();
+
+                    const day =
+                        String(
+                            date.getDate()
+                        ).padStart(
+                            2,
+                            "0"
+                        );
+
+                    const month =
+                        String(
+                            date.getMonth() + 1
+                        ).padStart(
+                            2,
+                            "0"
+                        );
+
+                    const year =
+                        date.getFullYear();
+
+                    return (
+                        `${day}-${month}-${year}`
+                    );
+                }
+
+                const name =
+                    inputName ||
+                    `games_${formatDateBR()}`;
+
+                /*
+                 * DUPLAS FIXAS
+                 */
+                if (
+                    playMode === "fixed"
+                ) {
+                    let pairs;
+
+                    try {
+                        pairs =
+                            readPairsFromEditor();
+                    } catch (error) {
+                        Toast.show(
+                            error?.message ||
+                            "Confira a formação das duplas.",
+                            "warning"
+                        );
+
+                        return;
+                    }
+
+                    const firstPairIndex =
+                        $("cycleGame1PairA")
+                            ?.value ?? "";
+
+                    const secondPairIndex =
+                        $("cycleGame1PairB")
+                            ?.value ?? "";
+
+                    if (
+                        firstPairIndex === "" ||
+                        secondPairIndex === ""
+                    ) {
+                        Toast.show(
+                            "Escolha as duas duplas que irão começar o primeiro jogo.",
+                            "warning"
+                        );
+
+                        return;
+                    }
+
+                    if (
+                        firstPairIndex ===
+                        secondPairIndex
+                    ) {
+                        Toast.show(
+                            "Escolha duas duplas diferentes para o primeiro jogo.",
+                            "warning"
+                        );
+
+                        return;
+                    }
+
+                    const firstIndex =
+                        Number(
+                            firstPairIndex
+                        );
+
+                    const secondIndex =
+                        Number(
+                            secondPairIndex
+                        );
+
+                    const firstPair =
+                        pairs[firstIndex];
+
+                    const secondPair =
+                        pairs[secondIndex];
+
+                    if (
+                        !firstPair ||
+                        !secondPair
+                    ) {
+                        Toast.show(
+                            "Não foi possível identificar as duplas escolhidas.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
+                    const remainingPairs =
+                        pairs.filter(
+                            (_, index) =>
+                                index !==
+                                firstIndex &&
+                                index !==
+                                secondIndex
+                        );
+
+                    pairs = [
+                        firstPair,
+                        secondPair,
+                        ...remainingPairs
+                    ];
+
+                    Loading.show(
+                        "Iniciando sessão..."
+                    );
+
+                    try {
+                        const session =
+                            await createSession(
+                                name,
+                                pairs,
+                                {
+                                    playMode:
+                                        "fixed",
+                                    participantIds
+                                }
+                            );
+
+                        /*
+                         * Como a sessão agora é aberta,
+                         * não existe schedule fechado.
+                         *
+                         * pendingPairA/B indicam o
+                         * primeiro confronto.
+                         */
+                        session.pendingPairAId =
+                            firstPair.id;
+
+                        session.pendingPairBId =
+                            secondPair.id;
+
+                        session.nextIndex = 0;
+
+                        saveState();
+
+                        await apiJson(
+                            "/api/sessions",
+                            {
+                                method:
+                                    "PATCH",
+                                body:
+                                    JSON.stringify({
+                                        id:
+                                            session.id,
+
+                                        pending_pair_a_id:
+                                            firstPair.id,
+
+                                        pending_pair_b_id:
+                                            secondPair.id,
+
+                                        group_id:
+                                            getCurrentGroupId()
+                                    })
+                            }
+                        );
+
+                        if (
+                            $("sessionName")
+                        ) {
+                            $("sessionName")
+                                .value = "";
+                        }
+
+                        updateAllSessionUI();
+
+                        Toast.show(
+                            `Sessão iniciada com ${pairs.length} duplas fixas.`,
+                            "success"
+                        );
+
+                    } catch (error) {
+                        console.error(
+                            "Erro ao iniciar sessão:",
+                            error
+                        );
+
+                        Toast.show(
+                            error?.message ||
+                            "Não foi possível iniciar a sessão.",
+                            "error"
+                        );
+
+                    } finally {
+                        Loading.hide();
+                    }
+
+                    return;
+                }
+
+                /*
+                 * RODÍZIO
+                 */
+                Loading.show(
+                    "Preparando rodízio..."
                 );
+
+                try {
+                    const session =
+                        await createSession(
+                            name,
+                            [],
+                            {
+                                playMode:
+                                    "rotation",
+                                participantIds
+                            }
+                        );
+
+                    await prepareAutomaticRotationMatch(
+                        session
+                    );
+
+                    if (
+                        $("sessionName")
+                    ) {
+                        $("sessionName")
+                            .value = "";
+                    }
+
+                    updateAllSessionUI();
+
+                    Toast.show(
+                        `Rodízio iniciado com ${participantIds.length} jogadores.`,
+                        "success"
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Erro ao iniciar rodízio:",
+                        error
+                    );
+
+                    Toast.show(
+                        error?.message ||
+                        "Não foi possível iniciar o rodízio.",
+                        "error"
+                    );
+
+                } finally {
+                    Loading.hide();
+                }
             }
-
-            if (firstPairIndex === secondPairIndex) {
-                return alert(
-                    "Escolha duas duplas diferentes para o Jogo 1."
-                );
-            }
-
-            const firstIndex = Number(firstPairIndex);
-            const secondIndex = Number(secondPairIndex);
-
-            const firstPair = pairs[firstIndex];
-            const secondPair = pairs[secondIndex];
-
-            if (!firstPair || !secondPair) {
-                return alert(
-                    "Não foi possível identificar as duplas escolhidas."
-                );
-            }
-
-            const remainingPairs = pairs.filter(
-                (_, index) =>
-                    index !== firstIndex &&
-                    index !== secondIndex
-            );
-
-            pairs = [
-                firstPair,
-                secondPair,
-                ...remainingPairs
-            ];
-
-            Loading.show("Iniciando sessão...");
-
-            try {
-                // createSession (sessions.js) deve salvar: {id,name,dateISO,pairs,roster...} e setar currentSessionId
-                await createSession(name, pairs);
-
-                const sess = getCurrentSession();
-                sess.schedule = buildScheduleQuartaCH(sess.pairs);
-                sess.nextIndex = 0;
-                saveState();
-
-                if ($("sessionName")) $("sessionName").value = "";
-
-                updateAllSessionUI();
-
-                Loading.hide();
-                alert("Sessão iniciada e duplas salvas ✅");
-            } catch (err) {
-                Loading.hide();
-                alert(err?.message || "Não foi possível iniciar a sessão.");
-            }
-        });
+        );
     }
 
     if ($("btnCreateCycle")) {
@@ -8127,8 +8618,46 @@
             }
 
             if (
-                sess.playMode === "rotation" &&
-                getSessionMatches(sess).length < 8
+                sess.playMode === "fixed"
+            ) {
+                try {
+                    await prepareAutomaticFixedMatch(
+                        sess
+                    );
+
+                    updateAllSessionUI();
+
+                    Loading.forceHide();
+
+                    Toast.show(
+                        "Jogo salvo. Próximo confronto preparado.",
+                        "success"
+                    );
+
+                    return;
+
+                } catch (fixedError) {
+                    console.error(
+                        "Erro ao montar próximo jogo fixo:",
+                        fixedError
+                    );
+
+                    updateAllSessionUI();
+
+                    Loading.forceHide();
+
+                    Toast.show(
+                        fixedError?.message ||
+                        "Jogo salvo, mas não foi possível montar o próximo confronto.",
+                        "warning"
+                    );
+
+                    return;
+                }
+            }
+
+            if (
+                sess.playMode === "rotation"
             ) {
                 try {
                     const prepared =
@@ -8142,9 +8671,9 @@
 
                     Loading.forceHide();
 
-                    alert(
-                        "Jogo salvo ✅\n\n" +
-                        "O próximo confronto já foi montado."
+                    Toast.show(
+                        "Jogo salvo. Próximo confronto preparado.",
+                        "success"
                     );
 
                     return;
@@ -8158,12 +8687,11 @@
 
                     Loading.forceHide();
 
-                    alert(
-                        "O jogo foi salvo, mas não foi possível montar " +
-                        "o próximo confronto automaticamente.\n\n" +
-                        `Erro: ${rotationError?.message ||
-                        "erro desconhecido"
-                        }`
+                    Toast.show(
+                        rotationError?.message ||
+                        "Jogo salvo, mas não foi possível montar o próximo confronto.",
+                        "warning",
+                        4000
                     );
 
                     return;
@@ -8284,42 +8812,175 @@
     }
 
     if ($("btnEndSession")) {
-        $("btnEndSession").addEventListener("click", async () => {
-            const sess = getCurrentSession();
-            if (!sess) return alert("Sem sessão ativa.");
+        $("btnEndSession")
+            .addEventListener(
+                "click",
+                async () => {
+                    if (
+                        !requireOperator()
+                    ) {
+                        return;
+                    }
 
-            const matches = getSessionMatches(sess);
-            if (matches.length < 8) return alert("A sessão ainda não terminou.");
+                    const sess =
+                        getCurrentSession();
 
-            Loading.show("Encerrando sessão...");
+                    if (!sess) {
+                        Toast.show(
+                            "Não existe sessão ativa.",
+                            "warning"
+                        );
 
-            try {
-                await apiJson("/api/sessions", {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                        id: sess.id,
-                        status: "encerrada",
-                        group_id: getCurrentGroupId()
-                    })
-                });
+                        return;
+                    }
 
-                state.viewSessionId = sess.id;
-                state.currentSessionId = null;
-                state.updatedAt = new Date().toISOString();
-                saveState();
+                    const matches =
+                        getSessionMatches(
+                            sess
+                        );
 
-                updateAllSessionUI();
-                showTab("sessoes");
+                    if (!matches.length) {
+                        Toast.show(
+                            "Registre pelo menos um jogo antes de encerrar a sessão.",
+                            "warning"
+                        );
 
-                Loading.hide();
-                alert(`Sessão "${sess.name}" encerrada ✅`);
+                        return;
+                    }
 
-                await prepareSessionSummaryImage(sess);
-            } catch (err) {
-                Loading.hide();
-                alert(err.message || "Erro ao encerrar sessão");
-            }
-        });
+                    /*
+                     * Nossa expectativa normal é
+                     * pelo menos 8 jogos.
+                     *
+                     * Abaixo disso exigimos uma
+                     * confirmação explícita.
+                     */
+                    if (
+                        matches.length < 8
+                    ) {
+                        const confirmation =
+                            prompt(
+                                `A sessão possui apenas ${matches.length} jogo${matches.length === 1 ? "" : "s"}.\n\n` +
+                                "O normal é encerrar com pelo menos 8 jogos.\n\n" +
+                                'Digite ENCERRAR para confirmar:'
+                            );
+
+                        if (
+                            confirmation === null
+                        ) {
+                            Toast.show(
+                                "Encerramento cancelado.",
+                                "info"
+                            );
+
+                            return;
+                        }
+
+                        if (
+                            confirmation
+                                .trim()
+                                .toUpperCase() !==
+                            "ENCERRAR"
+                        ) {
+                            Toast.show(
+                                "Confirmação inválida. A sessão continua aberta.",
+                                "warning"
+                            );
+
+                            return;
+                        }
+                    }
+
+                    Loading.show(
+                        "Encerrando sessão..."
+                    );
+
+                    try {
+                        await apiJson(
+                            "/api/sessions",
+                            {
+                                method:
+                                    "PATCH",
+
+                                body:
+                                    JSON.stringify({
+                                        id:
+                                            sess.id,
+
+                                        status:
+                                            "encerrada",
+
+                                        pending_pair_a_id:
+                                            null,
+
+                                        pending_pair_b_id:
+                                            null,
+
+                                        group_id:
+                                            getCurrentGroupId()
+                                    })
+                            }
+                        );
+
+                        sess.status =
+                            "encerrada";
+
+                        sess.pendingPairAId =
+                            null;
+
+                        sess.pendingPairBId =
+                            null;
+
+                        state.viewSessionId =
+                            sess.id;
+
+                        state.currentSessionId =
+                            null;
+
+                        state.updatedAt =
+                            new Date()
+                                .toISOString();
+
+                        saveState();
+
+                        updateAllSessionUI();
+
+                        showTab(
+                            "sessoes"
+                        );
+
+                        Loading.hide();
+
+                        Toast.show(
+                            `Sessão encerrada com ${matches.length} jogos.`,
+                            "success",
+                            4000
+                        );
+
+                        /*
+                         * Mantém a arte/resumo
+                         * que já existia.
+                         */
+                        await prepareSessionSummaryImage(
+                            sess
+                        );
+
+                    } catch (error) {
+                        Loading.hide();
+
+                        console.error(
+                            "Erro ao encerrar sessão:",
+                            error
+                        );
+
+                        Toast.show(
+                            error?.message ||
+                            "Não foi possível encerrar a sessão.",
+                            "error"
+                        );
+                    }
+                }
+            );
     }
 
     if ($("btnAdjustParticipants")) {
@@ -9007,7 +9668,7 @@
             return;
         }
 
-        if (pairs.length !== 4) {
+        if (pairs.length < 2) {
             boxA.style.display = "none";
             boxB.style.display = "none";
             return;
@@ -9969,18 +10630,32 @@
     }
 
     function updateEndSessionButton() {
-        const btn = $("btnEndSession");
-        const sess = getCurrentSession();
+        const btn =
+            $("btnEndSession");
+
+        const sess =
+            getCurrentSession();
 
         if (!btn) return;
 
         if (!sess) {
-            btn.style.display = "none";
+            btn.style.display =
+                "none";
+
             return;
         }
 
-        const matches = getSessionMatches(sess);
-        btn.style.display = matches.length >= 8 ? "inline-block" : "none";
+        const matches =
+            getSessionMatches(sess);
+
+        /*
+         * Não faz sentido encerrar uma sessão
+         * que ainda não possui nenhum placar.
+         */
+        btn.style.display =
+            matches.length > 0
+                ? "inline-block"
+                : "none";
     }
 
     function renderSessionSummary() {
@@ -9996,62 +10671,13 @@
             return;
         }
 
-        const matches = getSessionMatches(sess);
-        const finished = matches.length >= 8;
-
-        if (!finished) {
-            wrap.style.display = "none";
-            content.innerHTML = "";
-            return;
-        }
-
-        const table = computePairTableForSession(sess);
-        if (!table.length) {
-            wrap.style.display = "none";
-            content.innerHTML = "";
-            return;
-        }
-
-        const best = table[0];
-        const worst = table[table.length - 1];
-
-        content.innerHTML = `
-        <div style="text-align:center;">
-            <div class="muted" style="margin-bottom:8px;">Resumo final da sessão</div>
-
-            <div style="font-size:28px; font-weight:800; margin-bottom:8px;">
-                🏆 Melhor dupla da noite
-            </div>
-
-            <div style="font-size:22px; font-weight:700; margin-bottom:6px;">
-                ${getPairDisplayName(sess, best.pairId)}
-            </div>
-
-            <div class="muted" style="margin-bottom:18px;">
-                ${best.points} pts • ${best.wins} vitórias • saldo ${best.diff} • pró ${best.pointsFor}
-            </div>
-
-            <hr style="margin:18px 0; opacity:.2;">
-
-            <div style="font-size:22px; font-weight:800; margin-bottom:8px;">
-                🪵 Pior dupla da noite
-            </div>
-
-            <div style="font-size:18px; font-weight:700; margin-bottom:6px;">
-                ${getPairDisplayName(sess, worst.pairId)}
-            </div>
-
-            <div class="muted">
-                ${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff} • pró ${worst.pointsFor}
-            </div>
-        </div>
-        <div style="margin-top:16px; display:flex; gap:10px; justify-content:center;">
-            <button id="btnShareBest">📸 Campeão</button>
-            <button id="btnShareWorst" class="secondary">📸 Lenha 🪵</button>
-        </div>
-    `;
-
-        wrap.style.display = "block";
+        /*
+         * Sessão aberta:
+         * enquanto existir sessão ativa,
+         * não mostramos resumo final.
+         */
+        wrap.style.display = "none";
+        content.innerHTML = "";
     }
 
     function getMatchByScheduleIndex(sess, idx) {
@@ -10080,22 +10706,341 @@
     }
 
     function computeNextPlannedGame(sess) {
-        if (!sess.schedule || !sess.schedule.length) return null;
-
-        recomputeNextIndex(sess);
-        const idx = sess.nextIndex || 0;
-
-        if (idx >= sess.schedule.length) return { done: true, label: "Sessão finalizada (8 jogos) ✅" };
-
-        const sch = sess.schedule[idx];
-        const aId = resolvePairId(sess, sch.a);
-        const bId = resolvePairId(sess, sch.b);
-
-        if (!aId || !bId || aId === bId) {
-            return { pending: true, label: `${sch.label}: aguardando jogos anteriores (sem empates)` };
+        if (
+            !sess ||
+            sess.playMode !== "fixed"
+        ) {
+            return null;
         }
 
-        return { pairAId: aId, pairBId: bId, label: sch.label };
+        recomputeNextIndex(sess);
+
+        const pairs =
+            Array.isArray(sess.pairs)
+                ? sess.pairs
+                : [];
+
+        if (pairs.length < 2) {
+            return null;
+        }
+
+        /*
+         * Se já existe um confronto preparado,
+         * ele sempre tem prioridade.
+         */
+        const pendingA =
+            pairs.find(
+                pair =>
+                    String(pair.id) ===
+                    String(
+                        sess.pendingPairAId || ""
+                    )
+            );
+
+        const pendingB =
+            pairs.find(
+                pair =>
+                    String(pair.id) ===
+                    String(
+                        sess.pendingPairBId || ""
+                    )
+            );
+
+        if (
+            pendingA &&
+            pendingB &&
+            String(pendingA.id) !==
+            String(pendingB.id)
+        ) {
+            return {
+                pairAId: pendingA.id,
+                pairBId: pendingB.id,
+                label:
+                    `Jogo ${(sess.nextIndex || 0) + 1}`
+            };
+        }
+
+        const matches =
+            getSessionMatches(sess);
+
+        const playedByPair =
+            new Map(
+                pairs.map(
+                    pair => [
+                        String(pair.id),
+                        0
+                    ]
+                )
+            );
+
+        const fixtureCounts =
+            new Map();
+
+        const fixtureKey = (
+            pairAId,
+            pairBId
+        ) => {
+            return [
+                String(pairAId),
+                String(pairBId)
+            ]
+                .sort()
+                .join("::");
+        };
+
+        matches.forEach(match => {
+            const pairAId =
+                String(match.pairAId);
+
+            const pairBId =
+                String(match.pairBId);
+
+            playedByPair.set(
+                pairAId,
+                (
+                    playedByPair.get(pairAId) ||
+                    0
+                ) + 1
+            );
+
+            playedByPair.set(
+                pairBId,
+                (
+                    playedByPair.get(pairBId) ||
+                    0
+                ) + 1
+            );
+
+            const key =
+                fixtureKey(
+                    pairAId,
+                    pairBId
+                );
+
+            fixtureCounts.set(
+                key,
+                (
+                    fixtureCounts.get(key) ||
+                    0
+                ) + 1
+            );
+        });
+
+        const lastMatch =
+            matches[
+            matches.length - 1
+            ] || null;
+
+        const candidates = [];
+
+        for (
+            let first = 0;
+            first < pairs.length;
+            first++
+        ) {
+            for (
+                let second = first + 1;
+                second < pairs.length;
+                second++
+            ) {
+                const pairA =
+                    pairs[first];
+
+                const pairB =
+                    pairs[second];
+
+                const projected =
+                    new Map(
+                        playedByPair
+                    );
+
+                projected.set(
+                    String(pairA.id),
+                    (
+                        projected.get(
+                            String(pairA.id)
+                        ) || 0
+                    ) + 1
+                );
+
+                projected.set(
+                    String(pairB.id),
+                    (
+                        projected.get(
+                            String(pairB.id)
+                        ) || 0
+                    ) + 1
+                );
+
+                const projectedGames =
+                    pairs.map(
+                        pair =>
+                            projected.get(
+                                String(pair.id)
+                            ) || 0
+                    );
+
+                const maxProjected =
+                    Math.max(
+                        ...projectedGames
+                    );
+
+                const minProjected =
+                    Math.min(
+                        ...projectedGames
+                    );
+
+                let score =
+                    (
+                        maxProjected -
+                        minProjected
+                    ) * 1000;
+
+                /*
+                 * Prioriza quem jogou menos.
+                 */
+                score +=
+                    (
+                        playedByPair.get(
+                            String(pairA.id)
+                        ) || 0
+                    ) * 100;
+
+                score +=
+                    (
+                        playedByPair.get(
+                            String(pairB.id)
+                        ) || 0
+                    ) * 100;
+
+                /*
+                 * Evita repetir confrontos.
+                 */
+                const key =
+                    fixtureKey(
+                        pairA.id,
+                        pairB.id
+                    );
+
+                score +=
+                    (
+                        fixtureCounts.get(key) ||
+                        0
+                    ) * 150;
+
+                /*
+                 * Forte penalidade para repetir
+                 * exatamente o último confronto.
+                 */
+                if (
+                    lastMatch &&
+                    fixtureKey(
+                        lastMatch.pairAId,
+                        lastMatch.pairBId
+                    ) === key
+                ) {
+                    score += 10000;
+                }
+
+                score += Math.random();
+
+                candidates.push({
+                    pairAId:
+                        pairA.id,
+
+                    pairBId:
+                        pairB.id,
+
+                    score
+                });
+            }
+        }
+
+        candidates.sort(
+            (a, b) =>
+                a.score - b.score
+        );
+
+        const best =
+            candidates[0];
+
+        if (!best) {
+            return null;
+        }
+
+        return {
+            pairAId:
+                best.pairAId,
+
+            pairBId:
+                best.pairBId,
+
+            label:
+                `Jogo ${(sess.nextIndex || 0) + 1}`
+        };
+    }
+
+    async function prepareAutomaticFixedMatch(
+        session
+    ) {
+        if (
+            !session ||
+            session.playMode !== "fixed"
+        ) {
+            return false;
+        }
+
+        /*
+         * Limpa o confronto anterior para
+         * obrigar o motor a calcular outro.
+         */
+        session.pendingPairAId = null;
+        session.pendingPairBId = null;
+
+        const suggestion =
+            computeNextPlannedGame(
+                session
+            );
+
+        if (
+            !suggestion?.pairAId ||
+            !suggestion?.pairBId
+        ) {
+            throw new Error(
+                "Não foi possível definir o próximo confronto."
+            );
+        }
+
+        session.pendingPairAId =
+            suggestion.pairAId;
+
+        session.pendingPairBId =
+            suggestion.pairBId;
+
+        saveState();
+
+        await apiJson(
+            "/api/sessions",
+            {
+                method: "PATCH",
+                body:
+                    JSON.stringify({
+                        id:
+                            session.id,
+
+                        pending_pair_a_id:
+                            session.pendingPairAId,
+
+                        pending_pair_b_id:
+                            session.pendingPairBId,
+
+                        group_id:
+                            getCurrentGroupId()
+                    })
+            }
+        );
+
+        return true;
     }
 
     function updateNextGameUI() {
@@ -10196,7 +11141,7 @@
 
             if (gameProgress) {
                 gameProgress.textContent =
-                    `Jogo ${Math.min(nextGameNumber, 8)} de 8`;
+                    `Jogo ${nextGameNumber}`;
             }
 
             const pairA = (sess.pairs || []).find(
@@ -10278,25 +11223,7 @@
 
         if (gameProgress) {
             gameProgress.textContent =
-                `Jogo ${Math.min(nextGameNumber, 8)} de 8`;
-        }
-
-        if (next.done) {
-            renderNextGame({
-                title: "Sessão concluída",
-                message: "Todos os 8 jogos foram registrados ✅",
-                status: "is-finished"
-            });
-
-            if ($("pairA")) {
-                $("pairA").value = "";
-            }
-
-            if ($("pairB")) {
-                $("pairB").value = "";
-            }
-
-            return;
+                `Jogo ${nextGameNumber}`;
         }
 
         if (next.pending) {

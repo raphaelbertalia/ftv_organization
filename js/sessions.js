@@ -66,42 +66,155 @@ function syncPairsToDb(session) {
   });
 }
 
-async function createSession(name, pairs) {
+async function createSession(
+  name,
+  pairs = [],
+  options = {}
+) {
   const id = (crypto && crypto.randomUUID)
     ? crypto.randomUUID()
-    : (Math.random().toString(36).slice(2) + Date.now());
+    : (
+      Math.random()
+        .toString(36)
+        .slice(2) +
+      Date.now()
+    );
 
-  const dateISO = new Date().toISOString().slice(0, 10);
+  const dateISO =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
 
-  const participantIds = [
+  const pairParticipantIds = [
     ...new Set(
-      pairs.flatMap(pair => [pair.p1, pair.p2])
+      (pairs || [])
+        .flatMap(
+          pair => [
+            pair.p1,
+            pair.p2
+          ]
+        )
+        .filter(Boolean)
+        .map(String)
     )
   ];
+
+  const participantIds =
+    Array.isArray(options.participantIds) &&
+      options.participantIds.length
+      ? [
+        ...new Set(
+          options.participantIds
+            .filter(Boolean)
+            .map(String)
+        )
+      ]
+      : pairParticipantIds;
+
+  if (participantIds.length < 4) {
+    throw new Error(
+      "A sessão precisa ter pelo menos 4 participantes."
+    );
+  }
+
+  const playMode =
+    options.playMode ||
+    (
+      participantIds.length % 2 === 0
+        ? "fixed"
+        : "rotation"
+    );
+
+  if (
+    !["fixed", "rotation"]
+      .includes(playMode)
+  ) {
+    throw new Error(
+      "Modo de sessão inválido."
+    );
+  }
+
+  if (
+    playMode === "fixed" &&
+    participantIds.length % 2 !== 0
+  ) {
+    throw new Error(
+      "Duplas fixas exigem uma quantidade par de jogadores."
+    );
+  }
+
+  if (
+    playMode === "rotation" &&
+    participantIds.length % 2 === 0
+  ) {
+    throw new Error(
+      "O rodízio deve ser utilizado com quantidade ímpar de jogadores."
+    );
+  }
 
   const session = {
     id,
     name,
     dateISO,
-    pairs,
 
-    // Compatibilidade com o ranking atual
-    roster: participantIds,
+    pairs:
+      Array.isArray(pairs)
+        ? pairs
+        : [],
 
-    // Novos controles da sessão
-    playMode: "fixed",
+    /*
+     * O ranking continua usando roster.
+     * Aqui preservamos todos os participantes
+     * definidos no início da sessão.
+     */
+    roster: [
+      ...participantIds
+    ],
+
+    /*
+     * Par   = duplas fixas
+     * Ímpar = rodízio
+     */
+    playMode,
+
     participantIds,
 
-    schedule: generateSchedule(pairs),
-    nextIndex: 0
+    /*
+     * Sessões novas são abertas.
+     * Não possuem mais uma agenda fechada
+     * obrigatória de 8 jogos.
+     */
+    schedule: null,
+
+    nextIndex: 0,
+
+    pendingPairAId: null,
+    pendingPairBId: null
   };
 
   state.sessions.push(session);
+
   state.currentSessionId = id;
+
   saveState();
 
   await syncSessionToDb(session);
-  syncPairsToDb(session);
+
+  /*
+   * No modo fixo já existem as duplas
+   * definitivas da sessão.
+   *
+   * No rodízio as duplas serão criadas
+   * conforme os confrontos forem surgindo.
+   */
+  if (
+    playMode === "fixed" &&
+    session.pairs.length
+  ) {
+    syncPairsToDb(session);
+  }
+
+  return session;
 }
 
 window.getCurrentSession = getCurrentSession;
