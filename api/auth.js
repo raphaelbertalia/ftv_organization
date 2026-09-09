@@ -615,31 +615,31 @@ export default async function handler(req, res) {
 
       const result = await pool.query(
         `
-      SELECT
-        ug.id,
-        ug.user_id,
-        ug.group_id,
-        ug.role,
-        ug.active,
-        ug.created_at,
+          SELECT
+            ug.id,
+            ug.user_id,
+            ug.group_id,
+            ug.role,
+            ug.active,
+            ug.created_at,
 
-        u.name,
-        u.username,
-        u.email,
-        u.role AS global_role
+            u.name,
+            u.username,
+            u.email,
+            u.role AS global_role
 
-      FROM user_groups ug
+          FROM user_groups ug
 
-      INNER JOIN users u
-        ON u.id = ug.user_id
+          INNER JOIN users u
+            ON u.id = ug.user_id
 
-      WHERE ug.group_id = $1
+          WHERE ug.group_id = $1
 
-      ORDER BY
-        ug.active DESC,
-        u.name ASC,
-        u.username ASC
-    `,
+          ORDER BY
+            ug.active DESC,
+            u.name ASC,
+            u.username ASC
+        `,
         [group_id]
       );
 
@@ -647,6 +647,573 @@ export default async function handler(req, res) {
         ok: true,
         members: result.rows || []
       });
+
+    } else if (action === "search-users-for-group") {
+      const {
+        group_id,
+        q
+      } = req.body || {};
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const search = String(q || "").trim();
+
+      if (search.length < 2) {
+        return res.status(400).json({
+          error: "Informe pelo menos 2 caracteres para pesquisar"
+        });
+      }
+
+      const digits = search.replace(/\D/g, "");
+
+      const whatsappSearch =
+        digits.length >= 8
+          ? `%${digits}%`
+          : null;
+
+      const result = await pool.query(
+        `
+          SELECT
+            u.id,
+            u.name,
+            u.username,
+            u.email,
+            u.whatsapp,
+            u.active,
+
+            ug.role AS group_role,
+            ug.active AS group_active,
+
+            CASE
+              WHEN gi.id IS NOT NULL THEN true
+              ELSE false
+            END AS invitation_pending
+
+          FROM users u
+
+          LEFT JOIN user_groups ug
+            ON ug.user_id = u.id
+          AND ug.group_id = $1
+
+          LEFT JOIN group_invitations gi
+            ON gi.user_id = u.id
+          AND gi.group_id = $1
+          AND gi.status = 'pending'
+
+          WHERE u.active = true
+
+            AND (
+              LOWER(u.name) LIKE LOWER($2)
+              OR LOWER(u.username) LIKE LOWER($2)
+              OR LOWER(u.email) LIKE LOWER($2)
+              OR (
+                $3::text IS NOT NULL
+                AND u.whatsapp LIKE $3
+              )
+            )
+
+          ORDER BY
+            CASE
+              WHEN LOWER(u.username) = LOWER($4)
+                THEN 0
+              ELSE 1
+            END,
+            u.name ASC,
+            u.username ASC
+
+          LIMIT 20
+        `,
+        [
+          group_id,
+          `%${search}%`,
+          whatsappSearch,
+          search
+        ]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        users: result.rows || []
+      });
+
+    } else if (action === "invite-group-member") {
+      const {
+        group_id,
+        user_id,
+        role
+      } = req.body || {};
+
+      if (!group_id || !user_id) {
+        return res.status(400).json({
+          error: "Grupo e usuário são obrigatórios"
+        });
+      }
+
+      const cleanRole = String(
+        role || "viewer"
+      ).trim();
+
+      const allowedRoles = [
+        "viewer",
+        "user",
+        "admin"
+      ];
+
+      if (!allowedRoles.includes(cleanRole)) {
+        return res.status(400).json({
+          error: "Papel inválido"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const groupResult = await pool.query(
+        `
+          SELECT
+            id,
+            name,
+            active
+          FROM groups
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [group_id]
+      );
+
+      const group = groupResult.rows[0];
+
+      if (!group) {
+        return res.status(404).json({
+          error: "Grupo não encontrado"
+        });
+      }
+
+      if (!group.active) {
+        return res.status(409).json({
+          error: "Não é possível convidar usuários para um grupo inativo"
+        });
+      }
+
+      const userResult = await pool.query(
+        `
+          SELECT
+            id,
+            name,
+            username,
+            active
+          FROM users
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [user_id]
+      );
+
+      const targetUser = userResult.rows[0];
+
+      if (!targetUser) {
+        return res.status(404).json({
+          error: "Usuário não encontrado"
+        });
+      }
+
+      if (!targetUser.active) {
+        return res.status(409).json({
+          error: "Este usuário está inativo"
+        });
+      }
+
+      const membershipResult = await pool.query(
+        `
+          SELECT
+            id,
+            role,
+            active
+          FROM user_groups
+          WHERE user_id = $1
+            AND group_id = $2
+          LIMIT 1
+        `,
+        [
+          user_id,
+          group_id
+        ]
+      );
+
+      const membership =
+        membershipResult.rows[0];
+
+      if (membership?.active) {
+        return res.status(409).json({
+          error: "Este usuário já participa do grupo"
+        });
+      }
+
+      if (membership && !membership.active) {
+        return res.status(409).json({
+          error:
+            "Este usuário já possui um vínculo inativo com o grupo. Reative o acesso em vez de enviar um novo convite."
+        });
+      }
+
+      const pendingResult = await pool.query(
+        `
+          SELECT id
+          FROM group_invitations
+          WHERE group_id = $1
+            AND user_id = $2
+            AND status = 'pending'
+          LIMIT 1
+        `,
+        [
+          group_id,
+          user_id
+        ]
+      );
+
+      if (pendingResult.rows.length) {
+        return res.status(409).json({
+          error: "Este usuário já possui um convite pendente para o grupo"
+        });
+      }
+
+      const invitationId =
+        crypto.randomUUID();
+
+      const result = await pool.query(
+        `
+          INSERT INTO group_invitations (
+            id,
+            group_id,
+            user_id,
+            role,
+            invited_by,
+            status
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            'pending'
+          )
+
+          RETURNING
+            id,
+            group_id,
+            user_id,
+            role,
+            invited_by,
+            status,
+            created_at
+        `,
+        [
+          invitationId,
+          group_id,
+          user_id,
+          cleanRole,
+          auth.user.id
+        ]
+      );
+
+      return res.status(201).json({
+        ok: true,
+        message:
+          `Convite enviado para ${targetUser.name || targetUser.username}.`,
+        invitation: result.rows[0]
+      });
+
+    } else if (action === "my-group-invites") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            gi.id,
+            gi.group_id,
+            gi.user_id,
+            gi.role,
+            gi.status,
+            gi.created_at,
+
+            g.name AS group_name,
+            g.slug AS group_slug,
+            g.active AS group_active,
+
+            inviter.name AS invited_by_name,
+            inviter.username AS invited_by_username
+
+          FROM group_invitations gi
+
+          INNER JOIN groups g
+            ON g.id = gi.group_id
+
+          INNER JOIN users inviter
+            ON inviter.id = gi.invited_by
+
+          WHERE gi.user_id = $1
+            AND gi.status = 'pending'
+
+          ORDER BY gi.created_at DESC
+        `,
+        [user.id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        invitations: result.rows || []
+      });
+
+    } else if (action === "respond-group-invite") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        invitation_id,
+        decision
+      } = req.body || {};
+
+      if (!invitation_id) {
+        return res.status(400).json({
+          error: "Convite não informado"
+        });
+      }
+
+      if (!["accept", "reject"].includes(decision)) {
+        return res.status(400).json({
+          error: "Resposta do convite inválida"
+        });
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const invitationResult = await client.query(
+          `
+            SELECT
+              gi.id,
+              gi.group_id,
+              gi.user_id,
+              gi.role,
+              gi.status,
+              gi.invited_by,
+
+              g.name AS group_name,
+              g.active AS group_active
+
+            FROM group_invitations gi
+
+            INNER JOIN groups g
+              ON g.id = gi.group_id
+
+            WHERE gi.id = $1
+              AND gi.user_id = $2
+
+            LIMIT 1
+
+            FOR UPDATE OF gi
+          `,
+          [
+            invitation_id,
+            user.id
+          ]
+        );
+
+        const invitation =
+          invitationResult.rows[0];
+
+        if (!invitation) {
+          await client.query("ROLLBACK");
+
+          return res.status(404).json({
+            error: "Convite não encontrado"
+          });
+        }
+
+        if (invitation.status !== "pending") {
+          await client.query("ROLLBACK");
+
+          return res.status(409).json({
+            error: "Este convite já foi respondido"
+          });
+        }
+
+        if (decision === "reject") {
+          await client.query(
+            `
+              UPDATE group_invitations
+              SET
+                status = 'rejected',
+                responded_at = NOW()
+              WHERE id = $1
+            `,
+            [invitation.id]
+          );
+
+          await client.query("COMMIT");
+
+          return res.status(200).json({
+            ok: true,
+            decision: "rejected",
+            message: `Convite para ${invitation.group_name} recusado.`
+          });
+        }
+
+        if (!invitation.group_active) {
+          await client.query("ROLLBACK");
+
+          return res.status(409).json({
+            error: "Este grupo está inativo"
+          });
+        }
+
+        const allowedRoles = [
+          "viewer",
+          "user",
+          "admin"
+        ];
+
+        const invitationRole =
+          allowedRoles.includes(invitation.role)
+            ? invitation.role
+            : "viewer";
+
+        const membershipResult = await client.query(
+          `
+            SELECT
+              id,
+              role,
+              active
+            FROM user_groups
+            WHERE user_id = $1
+              AND group_id = $2
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            user.id,
+            invitation.group_id
+          ]
+        );
+
+        const membership =
+          membershipResult.rows[0];
+
+        if (!membership) {
+          await client.query(
+            `
+              INSERT INTO user_groups (
+                user_id,
+                group_id,
+                role,
+                active
+              )
+              VALUES ($1, $2, $3, true)
+            `,
+            [
+              user.id,
+              invitation.group_id,
+              invitationRole
+            ]
+          );
+
+        } else if (!membership.active) {
+          await client.query(
+            `
+              UPDATE user_groups
+              SET
+                role = $3,
+                active = true
+              WHERE user_id = $1
+                AND group_id = $2
+            `,
+            [
+              user.id,
+              invitation.group_id,
+              invitationRole
+            ]
+          );
+        }
+
+        await client.query(
+          `
+            UPDATE group_invitations
+            SET
+              status = 'accepted',
+              responded_at = NOW()
+            WHERE id = $1
+          `,
+          [invitation.id]
+        );
+
+        /*
+         * Se o usuário havia solicitado entrada nesse
+         * mesmo grupo, o convite aceito já resolve
+         * aquela solicitação.
+         */
+        await client.query(
+          `
+            UPDATE group_access_requests
+            SET
+              status = 'approved',
+              reviewed_at = NOW(),
+              reviewed_by = $3
+            WHERE user_id = $1
+              AND group_id = $2
+              AND status = 'pending'
+          `,
+          [
+            user.id,
+            invitation.group_id,
+            invitation.invited_by
+          ]
+        );
+
+        await client.query("COMMIT");
+
+        return res.status(200).json({
+          ok: true,
+          decision: "accepted",
+          group_id: invitation.group_id,
+          role: membership?.active
+            ? membership.role
+            : invitationRole,
+          message:
+            `Convite para ${invitation.group_name} aceito com sucesso.`
+        });
+
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+
+      } finally {
+        client.release();
+      }
 
     } else if (action === "update-group-member-role") {
       const { group_id, user_id, role } = req.body || {};
@@ -677,12 +1244,12 @@ export default async function handler(req, res) {
 
       const membershipResult = await pool.query(
         `
-      SELECT id, role, active
-      FROM user_groups
-      WHERE user_id = $1
-        AND group_id = $2
-      LIMIT 1
-    `,
+          SELECT id, role, active
+          FROM user_groups
+          WHERE user_id = $1
+            AND group_id = $2
+          LIMIT 1
+        `,
         [user_id, group_id]
       );
 
@@ -701,12 +1268,12 @@ export default async function handler(req, res) {
       ) {
         const adminsResult = await pool.query(
           `
-      SELECT COUNT(*) AS total
-      FROM user_groups
-      WHERE group_id = $1
-        AND role = 'admin'
-        AND active = true
-    `,
+            SELECT COUNT(*) AS total
+            FROM user_groups
+            WHERE group_id = $1
+              AND role = 'admin'
+              AND active = true
+          `,
           [group_id]
         );
 
@@ -724,11 +1291,11 @@ export default async function handler(req, res) {
 
       await pool.query(
         `
-      UPDATE user_groups
-      SET role = $3
-      WHERE user_id = $1
-        AND group_id = $2
-    `,
+          UPDATE user_groups
+          SET role = $3
+          WHERE user_id = $1
+            AND group_id = $2
+        `,
         [user_id, group_id, role]
       );
 

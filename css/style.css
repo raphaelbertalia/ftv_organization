@@ -3157,3 +3157,98 @@ pre {
     padding-right: 8px;
   }
 }
+
+/* ===== convites de grupo ===== */
+
+.group-invite-search {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.group-invite-search input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.group-invite-search-results,
+.group-invites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.group-invite-search-item,
+.group-invite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  padding: 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background:
+    rgba(255, 255, 255, .025);
+}
+
+.group-invite-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.group-invite-info span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.group-invite-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.group-invite-role {
+  width: auto;
+  min-width: 145px;
+}
+
+.group-invites-panel {
+  margin-bottom: 12px;
+  border-color:
+    rgba(34, 197, 94, .22);
+}
+
+#groupInviteSearchStatus {
+  margin-top: 10px;
+  min-height: 18px;
+}
+
+@media (max-width: 720px) {
+
+  .group-invite-search-item,
+  .group-invite-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-invite-actions {
+    width: 100%;
+  }
+
+  .group-invite-actions select,
+  .group-invite-actions button {
+    width: 100%;
+  }
+
+  .group-invite-search input {
+    min-width: 0;
+  }
+}

@@ -1115,6 +1115,69 @@
 
         saveState();
         updateAuthUI();
+
+        await renderMyGroupInvites();
+    }
+
+    async function refreshAuthAfterGroupInvite(
+        preferredGroupId = null
+    ) {
+        const previousGroupId =
+            getCurrentGroupId();
+
+        const data = await apiJson(
+            "/api/auth?action=me",
+            {
+                method: "POST",
+                body: JSON.stringify({})
+            }
+        );
+
+        state.auth.user = data.user;
+
+        state.auth.groups =
+            Array.isArray(data.groups)
+                ? data.groups
+                : [];
+
+        const previousStillExists =
+            state.auth.groups.some(
+                group =>
+                    String(group.id) ===
+                    String(previousGroupId)
+            );
+
+        if (previousStillExists) {
+            state.auth.currentGroupId =
+                previousGroupId;
+
+        } else if (
+            preferredGroupId &&
+            state.auth.groups.some(
+                group =>
+                    String(group.id) ===
+                    String(preferredGroupId)
+            )
+        ) {
+            state.auth.currentGroupId =
+                preferredGroupId;
+
+        } else if (
+            state.auth.groups.length === 1
+        ) {
+            state.auth.currentGroupId =
+                state.auth.groups[0].id;
+
+        } else {
+            state.auth.currentGroupId = null;
+        }
+
+        saveState();
+
+        await hydrateStateFromDb();
+
+        updateAuthUI();
+        updateAllSessionUI();
     }
 
     async function doRegister() {
@@ -1261,6 +1324,18 @@
 
         if ($("groupAccessSelect")) {
             $("groupAccessSelect").value = "";
+        }
+
+        if ($("groupInvitesPanel")) {
+            $("groupInvitesPanel").style.display = "none";
+        }
+
+        if ($("myGroupInvites")) {
+            $("myGroupInvites").innerHTML = "";
+        }
+
+        if ($("groupInvitesCount")) {
+            $("groupInvitesCount").textContent = "0 convites";
         }
 
         saveState();
@@ -1474,6 +1549,519 @@
             { a: { type: "winner", match: 5 }, b: { type: "winner", match: 6 }, label: "Jogo 7 (W5 x W6)" },
             { a: { type: "loser", match: 5 }, b: { type: "loser", match: 6 }, label: "Jogo 8 (L5 x L6)" },
         ];
+    }
+
+    async function renderMyGroupInvites() {
+        const panel = $("groupInvitesPanel");
+        const container = $("myGroupInvites");
+        const count = $("groupInvitesCount");
+
+        const user = getCurrentUser();
+
+        if (
+            !panel ||
+            !container ||
+            !count ||
+            !user ||
+            user.role === "guest" ||
+            user.role === "organizer"
+        ) {
+            if (panel) {
+                panel.style.display = "none";
+            }
+
+            return;
+        }
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=my-group-invites",
+                {
+                    method: "POST",
+                    body: JSON.stringify({})
+                }
+            );
+
+            const invitations =
+                Array.isArray(data.invitations)
+                    ? data.invitations
+                    : [];
+
+            count.textContent =
+                `${invitations.length} ${invitations.length === 1
+                    ? "convite"
+                    : "convites"
+                }`;
+
+            if (!invitations.length) {
+                panel.style.display = "none";
+                container.innerHTML = "";
+                return;
+            }
+
+            panel.style.display = "block";
+            container.innerHTML = "";
+
+            invitations.forEach(invitation => {
+                const item =
+                    document.createElement("div");
+
+                item.className =
+                    "group-invite-item";
+
+                const info =
+                    document.createElement("div");
+
+                info.className =
+                    "group-invite-info";
+
+                const roleLabels = {
+                    viewer: "Espectador",
+                    user: "Usuário",
+                    admin: "Administrador"
+                };
+
+                const date = invitation.created_at
+                    ? new Date(
+                        invitation.created_at
+                    ).toLocaleString("pt-BR")
+                    : "—";
+
+                info.innerHTML = `
+                <strong>
+                    ${escapeSummaryHtml(
+                    invitation.group_name
+                )}
+                </strong>
+
+                <span>
+                    Papel:
+                    ${escapeSummaryHtml(
+                    roleLabels[
+                    invitation.role
+                    ] || "Espectador"
+                )}
+                </span>
+
+                <span>
+                    Convidado por:
+                    ${escapeSummaryHtml(
+                    invitation.invited_by_name ||
+                    invitation.invited_by_username ||
+                    "Administrador"
+                )}
+                </span>
+
+                <span>
+                    Recebido em ${escapeSummaryHtml(date)}
+                </span>
+            `;
+
+                const actions =
+                    document.createElement("div");
+
+                actions.className =
+                    "group-invite-actions";
+
+                if (!invitation.group_active) {
+                    const unavailable =
+                        document.createElement("span");
+
+                    unavailable.className =
+                        "pill";
+
+                    unavailable.textContent =
+                        "Grupo inativo";
+
+                    actions.appendChild(
+                        unavailable
+                    );
+
+                } else {
+                    const accept =
+                        document.createElement("button");
+
+                    accept.type = "button";
+                    accept.textContent = "Aceitar";
+
+                    accept.addEventListener(
+                        "click",
+                        async () => {
+                            await respondGroupInvite(
+                                invitation,
+                                "accept"
+                            );
+                        }
+                    );
+
+                    const reject =
+                        document.createElement("button");
+
+                    reject.type = "button";
+                    reject.className =
+                        "secondary";
+
+                    reject.textContent =
+                        "Recusar";
+
+                    reject.addEventListener(
+                        "click",
+                        async () => {
+                            await respondGroupInvite(
+                                invitation,
+                                "reject"
+                            );
+                        }
+                    );
+
+                    actions.appendChild(accept);
+                    actions.appendChild(reject);
+                }
+
+                item.appendChild(info);
+                item.appendChild(actions);
+
+                container.appendChild(item);
+            });
+
+        } catch (err) {
+            console.error(
+                "Erro carregando convites:",
+                err
+            );
+
+            panel.style.display = "none";
+        }
+    }
+
+    async function respondGroupInvite(
+        invitation,
+        decision
+    ) {
+        const accepting =
+            decision === "accept";
+
+        const verb =
+            accepting
+                ? "aceitar"
+                : "recusar";
+
+        if (
+            !confirm(
+                `Deseja ${verb} o convite para ${invitation.group_name}?`
+            )
+        ) {
+            return;
+        }
+
+        Loading.show(
+            accepting
+                ? "Entrando no grupo..."
+                : "Recusando convite..."
+        );
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=respond-group-invite",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        invitation_id:
+                            invitation.id,
+                        decision
+                    })
+                }
+            );
+
+            if (accepting) {
+                await refreshAuthAfterGroupInvite(
+                    invitation.group_id
+                );
+            }
+
+            await renderMyGroupInvites();
+
+            alert(
+                data.message ||
+                (
+                    accepting
+                        ? "Convite aceito."
+                        : "Convite recusado."
+                )
+            );
+
+            if (
+                accepting &&
+                getCurrentGroupId()
+            ) {
+                showTab("jogos");
+            }
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível responder ao convite."
+            );
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
+    async function searchUsersForGroupInvite() {
+        const input =
+            $("groupInviteSearch");
+
+        const status =
+            $("groupInviteSearchStatus");
+
+        const container =
+            $("groupInviteSearchResults");
+
+        const groupId =
+            getCurrentGroupId();
+
+        if (
+            !input ||
+            !container ||
+            !groupId
+        ) {
+            return;
+        }
+
+        const q =
+            input.value.trim();
+
+        if (q.length < 2) {
+            if (status) {
+                status.textContent =
+                    "Digite pelo menos 2 caracteres.";
+            }
+
+            return;
+        }
+
+        if (status) {
+            status.textContent =
+                "Buscando usuários...";
+        }
+
+        container.innerHTML = "";
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=search-users-for-group",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId,
+                        q
+                    })
+                }
+            );
+
+            const users =
+                Array.isArray(data.users)
+                    ? data.users
+                    : [];
+
+            if (status) {
+                status.textContent =
+                    users.length
+                        ? `${users.length} resultado(s)`
+                        : "Nenhum usuário encontrado.";
+            }
+
+            users.forEach(user => {
+                renderGroupInviteSearchUser(
+                    user,
+                    container
+                );
+            });
+
+        } catch (err) {
+            if (status) {
+                status.textContent =
+                    err?.message ||
+                    "Erro ao pesquisar usuários.";
+            }
+        }
+    }
+
+    function renderGroupInviteSearchUser(
+        user,
+        container
+    ) {
+        const item =
+            document.createElement("div");
+
+        item.className =
+            "group-invite-search-item";
+
+        const info =
+            document.createElement("div");
+
+        info.className =
+            "group-invite-info";
+
+        info.innerHTML = `
+        <strong>
+            ${escapeSummaryHtml(
+            user.name ||
+            user.username ||
+            "Usuário"
+        )}
+        </strong>
+
+        <span>
+            @${escapeSummaryHtml(
+            user.username || "—"
+        )}
+        </span>
+
+        <span>
+            ${escapeSummaryHtml(
+            user.email || "—"
+        )}
+        </span>
+    `;
+
+        const actions =
+            document.createElement("div");
+
+        actions.className =
+            "group-invite-actions";
+
+        if (user.group_active === true) {
+            const badge =
+                document.createElement("span");
+
+            badge.className = "pill";
+            badge.textContent =
+                "Já é membro";
+
+            actions.appendChild(badge);
+
+        } else if (
+            user.group_role &&
+            user.group_active === false
+        ) {
+            const badge =
+                document.createElement("span");
+
+            badge.className = "pill";
+            badge.textContent =
+                "Vínculo inativo";
+
+            actions.appendChild(badge);
+
+        } else if (user.invitation_pending) {
+            const badge =
+                document.createElement("span");
+
+            badge.className = "pill";
+            badge.textContent =
+                "Convite pendente";
+
+            actions.appendChild(badge);
+
+        } else {
+            const roleSelect =
+                document.createElement("select");
+
+            roleSelect.className =
+                "group-invite-role";
+
+            roleSelect.innerHTML = `
+            <option value="viewer">
+                Espectador
+            </option>
+
+            <option value="user">
+                Usuário
+            </option>
+
+            <option value="admin">
+                Administrador
+            </option>
+        `;
+
+            const inviteButton =
+                document.createElement("button");
+
+            inviteButton.type =
+                "button";
+
+            inviteButton.textContent =
+                "Convidar";
+
+            inviteButton.addEventListener(
+                "click",
+                async () => {
+                    await inviteUserToCurrentGroup(
+                        user,
+                        roleSelect.value
+                    );
+                }
+            );
+
+            actions.appendChild(
+                roleSelect
+            );
+
+            actions.appendChild(
+                inviteButton
+            );
+        }
+
+        item.appendChild(info);
+        item.appendChild(actions);
+
+        container.appendChild(item);
+    }
+
+    async function inviteUserToCurrentGroup(
+        user,
+        role
+    ) {
+        const groupId =
+            getCurrentGroupId();
+
+        if (!groupId) {
+            return;
+        }
+
+        Loading.show("Enviando convite...");
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=invite-group-member",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId,
+                        user_id: user.id,
+                        role
+                    })
+                }
+            );
+
+            alert(
+                data.message ||
+                "Convite enviado."
+            );
+
+            await searchUsersForGroupInvite();
+
+        } catch (err) {
+            alert(
+                err?.message ||
+                "Não foi possível enviar o convite."
+            );
+
+        } finally {
+            Loading.hide();
+        }
     }
 
     async function renderGroupAdmin() {
@@ -2451,6 +3039,52 @@
     document.querySelectorAll(".tab").forEach((t) => {
         t.addEventListener("click", () => showTab(t.dataset.tab));
     });
+
+    // ===== convites de grupo =====
+
+    if ($("btnSearchGroupUsers")) {
+        $("btnSearchGroupUsers")
+            .addEventListener(
+                "click",
+                async () => {
+                    await searchUsersForGroupInvite();
+                }
+            );
+    }
+
+    if ($("groupInviteSearch")) {
+        $("groupInviteSearch")
+            .addEventListener(
+                "keydown",
+                async event => {
+                    if (event.key !== "Enter") {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    await searchUsersForGroupInvite();
+                }
+            );
+    }
+
+    if ($("btnUseGroupInvite")) {
+        $("btnUseGroupInvite")
+            .addEventListener(
+                "click",
+                async () => {
+                    await renderMyGroupInvites();
+
+                    $("groupInvitesPanel")
+                        ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
+                }
+            );
+    }
+
+    // ===== gestão global =====
 
     if ($("btnCreateGroup")) {
         $("btnCreateGroup").addEventListener(
@@ -8271,6 +8905,17 @@
         updateAuthUI();
         updateAllSessionUI();
         updateRankingPeriodUI();
+
+        const initialUser =
+            getCurrentUser();
+
+        if (
+            initialUser &&
+            initialUser.role !== "guest" &&
+            initialUser.role !== "organizer"
+        ) {
+            await renderMyGroupInvites();
+        }
 
         const bootUser = getCurrentUser();
 
