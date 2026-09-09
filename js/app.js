@@ -6379,11 +6379,41 @@
         $("btnAddPlayer").addEventListener("click", async () => {
             if (!requireAdmin()) return;
 
+            const name =
+                ($("newPlayerName")?.value || "")
+                    .trim();
+
+            const side =
+                $("newPlayerSide")?.value || "";
+
+            if (!name) {
+                Toast.show(
+                    "Informe o nome do jogador.",
+                    "warning"
+                );
+
+                $("newPlayerName")?.focus();
+                return;
+            }
+
+            if (!side) {
+                Toast.show(
+                    "Selecione o lado do jogador.",
+                    "warning"
+                );
+
+                $("newPlayerSide")?.focus();
+                return;
+            }
+
             Loading.show("Salvando jogador...");
 
             try {
                 await addPlayer($("newPlayerName").value);
+
                 $("newPlayerName").value = "";
+                $("newPlayerSide").value = "";
+
                 $("newPlayerName").focus();
             } finally {
                 Loading.hide();
@@ -8955,14 +8985,6 @@
                             `Sessão encerrada com ${matches.length} jogos.`,
                             "success",
                             4000
-                        );
-
-                        /*
-                         * Mantém a arte/resumo
-                         * que já existia.
-                         */
-                        await prepareSessionSummaryImage(
-                            sess
                         );
 
                     } catch (error) {
