@@ -202,6 +202,8 @@
                 state.auth.currentGroupId = groupId;
                 saveState();
 
+                clearGroupInviteSearch();
+
                 await hydrateStateFromDb();
 
                 updateAuthUI();
@@ -1113,6 +1115,7 @@
             state.auth.currentGroupId = null;
         }
 
+        clearGroupInviteSearch();
         saveState();
         updateAuthUI();
 
@@ -1338,6 +1341,26 @@
             $("groupInvitesCount").textContent = "0 convites";
         }
 
+        closeHeaderUserDropdown();
+        closeUserProfile();
+
+        if ($("headerInviteBadge")) {
+            $("headerInviteBadge")
+                .style.display = "none";
+
+            $("headerInviteBadge")
+                .textContent = "0";
+        }
+
+        if ($("headerMenuInviteCount")) {
+            $("headerMenuInviteCount")
+                .style.display = "none";
+
+            $("headerMenuInviteCount")
+                .textContent = "0";
+        }
+
+        clearGroupInviteSearch();
         saveState();
         updateAuthUI();
     }
@@ -1402,13 +1425,13 @@
 
         if ($("loginGroupSelector") && choosingGroup) {
             $("loginGroupSelector").innerHTML = `
-        <option value="">Selecione um grupo</option>
-        ${groups.map(group => `
-            <option value="${group.id}">
-                ${group.name}
-            </option>
-        `).join("")}
-    `;
+            <option value="">Selecione um grupo</option>
+            ${groups.map(group => `
+                <option value="${group.id}">
+                    ${group.name}
+                </option>
+            `).join("")}
+        `;
         }
 
         const jogosTab = document.querySelector('.tab[data-tab="jogos"]');
@@ -1534,6 +1557,637 @@
         renderMatchHistory();
     }
 
+    function clearGroupInviteSearch() {
+        if ($("groupInviteSearch")) {
+            $("groupInviteSearch").value = "";
+        }
+
+        if ($("groupInviteSearchStatus")) {
+            $("groupInviteSearchStatus").textContent = "";
+        }
+
+        if ($("groupInviteSearchResults")) {
+            $("groupInviteSearchResults").innerHTML = "";
+        }
+    }
+
+    function getUserInitials(user = getCurrentUser()) {
+        const source =
+            user?.name ||
+            user?.username ||
+            "U";
+
+        const parts = String(source)
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+        if (!parts.length) {
+            return "U";
+        }
+
+        if (parts.length === 1) {
+            return parts[0]
+                .slice(0, 2)
+                .toUpperCase();
+        }
+
+        return (
+            parts[0][0] +
+            parts[parts.length - 1][0]
+        ).toUpperCase();
+    }
+
+    function getCurrentUserRoleLabel() {
+        const user = getCurrentUser();
+
+        if (!user) return "";
+
+        if (user.role === "admin") {
+            return "Administrador global";
+        }
+
+        if (user.role === "organizer") {
+            return "Organizador";
+        }
+
+        if (user.role === "guest") {
+            return "Visitante";
+        }
+
+        const groupRole =
+            getCurrentGroupRole();
+
+        const labels = {
+            viewer: "Espectador",
+            user: "Usuário",
+            admin: "Administrador"
+        };
+
+        return labels[groupRole] ||
+            "Usuário";
+    }
+
+    function closeHeaderUserDropdown() {
+        const dropdown =
+            $("headerUserDropdown");
+
+        const button =
+            $("btnHeaderUser");
+
+        if (dropdown) {
+            dropdown.style.display = "none";
+        }
+
+        if (button) {
+            button.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+        }
+    }
+
+    function toggleHeaderUserDropdown() {
+        const dropdown =
+            $("headerUserDropdown");
+
+        const button =
+            $("btnHeaderUser");
+
+        if (!dropdown || !button) {
+            return;
+        }
+
+        const opening =
+            dropdown.style.display !== "block";
+
+        dropdown.style.display =
+            opening ? "block" : "none";
+
+        button.setAttribute(
+            "aria-expanded",
+            opening ? "true" : "false"
+        );
+    }
+
+    function updateHeaderUserIdentity() {
+        const user =
+            getCurrentUser();
+
+        const guest =
+            user?.role === "guest";
+
+        const organizer =
+            user?.role === "organizer";
+
+        const visible =
+            !!user &&
+            !guest &&
+            !organizer;
+
+        if ($("headerUserMenu")) {
+            $("headerUserMenu").style.display =
+                visible ? "block" : "none";
+        }
+
+        if (!visible) {
+            closeHeaderUserDropdown();
+            return;
+        }
+
+        const displayName =
+            user.name ||
+            user.username ||
+            "Usuário";
+
+        const initials =
+            getUserInitials(user);
+
+        const username =
+            user.username
+                ? `@${user.username}`
+                : "";
+
+        if ($("headerAvatar")) {
+            $("headerAvatar").textContent =
+                initials;
+        }
+
+        if ($("headerDropdownAvatar")) {
+            $("headerDropdownAvatar").textContent =
+                initials;
+        }
+
+        if ($("profileAvatar")) {
+            $("profileAvatar").textContent =
+                initials;
+        }
+
+        if ($("headerUserName")) {
+            $("headerUserName").textContent =
+                displayName;
+        }
+
+        if ($("headerUserRole")) {
+            $("headerUserRole").textContent =
+                getCurrentUserRoleLabel();
+        }
+
+        if ($("headerDropdownName")) {
+            $("headerDropdownName").textContent =
+                displayName;
+        }
+
+        if ($("headerDropdownUsername")) {
+            $("headerDropdownUsername")
+                .textContent = username;
+        }
+    }
+
+    function setProfileTab(tab) {
+        const panels = {
+            data: $("profilePanelData"),
+            password: $("profilePanelPassword"),
+            groups: $("profilePanelGroups")
+        };
+
+        const buttons = {
+            data: $("btnProfileTabData"),
+            password: $("btnProfileTabPassword"),
+            groups: $("btnProfileTabGroups")
+        };
+
+        Object.entries(panels)
+            .forEach(([key, panel]) => {
+                if (panel) {
+                    panel.style.display =
+                        key === tab
+                            ? "block"
+                            : "none";
+                }
+            });
+
+        Object.entries(buttons)
+            .forEach(([key, button]) => {
+                button?.classList.toggle(
+                    "active",
+                    key === tab
+                );
+            });
+    }
+
+    function renderProfileGroups(groups = []) {
+        const container =
+            $("profileGroupsList");
+
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        if (!groups.length) {
+            container.innerHTML = `
+            <div class="profile-empty-state">
+                <strong>Nenhum grupo</strong>
+                <span class="muted">
+                    Você ainda não participa de nenhum grupo.
+                </span>
+            </div>
+        `;
+
+            return;
+        }
+
+        const roleLabels = {
+            viewer: "Espectador",
+            user: "Usuário",
+            admin: "Administrador"
+        };
+
+        groups.forEach(group => {
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "profile-group-item";
+
+            const current =
+                String(group.id) ===
+                String(getCurrentGroupId());
+
+            item.innerHTML = `
+            <div class="profile-group-info">
+                <strong>
+                    ${escapeSummaryHtml(group.name)}
+                </strong>
+
+                <span class="muted">
+                    ${current
+                    ? "Grupo atual"
+                    : "Grupo disponível"
+                }
+                </span>
+            </div>
+
+            <span class="profile-group-role">
+                ${escapeSummaryHtml(
+                    roleLabels[group.role] ||
+                    "Espectador"
+                )}
+            </span>
+        `;
+
+            container.appendChild(item);
+        });
+    }
+
+    async function loadUserProfile() {
+        const data =
+            await apiJson(
+                "/api/auth?action=profile",
+                {
+                    method: "POST",
+                    body: JSON.stringify({})
+                }
+            );
+
+        const profile =
+            data.profile || {};
+
+        state.auth.user = {
+            ...state.auth.user,
+            ...profile
+        };
+
+        state.auth.groups =
+            Array.isArray(data.groups)
+                ? data.groups
+                : state.auth.groups;
+
+        saveState();
+
+        const rawWhatsapp =
+            String(profile.whatsapp || "");
+
+        const localWhatsapp =
+            rawWhatsapp.startsWith("55")
+                ? rawWhatsapp.slice(2)
+                : rawWhatsapp;
+
+        if ($("profileName")) {
+            $("profileName").value =
+                profile.name || "";
+        }
+
+        if ($("profileUsername")) {
+            $("profileUsername").value =
+                profile.username || "";
+        }
+
+        if ($("profileEmail")) {
+            $("profileEmail").value =
+                profile.email || "";
+        }
+
+        if ($("profileWhatsapp")) {
+            $("profileWhatsapp").value =
+                formatWhatsappInput(
+                    localWhatsapp
+                );
+        }
+
+        if ($("profileSubtitle")) {
+            $("profileSubtitle").textContent =
+                profile.username
+                    ? `@${profile.username}`
+                    : "Gerencie seus dados e acessos.";
+        }
+
+        renderProfileGroups(
+            data.groups || []
+        );
+
+        updateHeaderUserIdentity();
+
+        return data;
+    }
+
+    async function openUserProfile(
+        initialTab = "data"
+    ) {
+        const modal =
+            $("userProfileModal");
+
+        if (!modal) {
+            return;
+        }
+
+        closeHeaderUserDropdown();
+
+        setProfileTab(initialTab);
+
+        if ($("profileStatus")) {
+            $("profileStatus").textContent = "";
+        }
+
+        if ($("passwordStatus")) {
+            $("passwordStatus").textContent = "";
+        }
+
+        modal.classList.add("is-visible");
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        document.body.classList.add(
+            "app-is-loading"
+        );
+
+        Loading.show(
+            "Carregando seu perfil..."
+        );
+
+        try {
+            await loadUserProfile();
+        } catch (err) {
+            closeUserProfile();
+
+            alert(
+                err?.message ||
+                "Não foi possível carregar seu perfil."
+            );
+        } finally {
+            Loading.forceHide();
+        }
+    }
+
+    function closeUserProfile() {
+        const modal =
+            $("userProfileModal");
+
+        modal?.classList.remove(
+            "is-visible"
+        );
+
+        modal?.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        document.body.classList.remove(
+            "app-is-loading"
+        );
+
+        [
+            "profileCurrentPassword",
+            "profileNewPassword",
+            "profileConfirmPassword"
+        ].forEach(id => {
+            if ($(id)) {
+                $(id).value = "";
+            }
+        });
+
+        if ($("passwordStatus")) {
+            $("passwordStatus").textContent = "";
+        }
+    }
+
+    async function saveUserProfile() {
+        const status =
+            $("profileStatus");
+
+        const name =
+            ($("profileName")?.value || "")
+                .trim();
+
+        const username =
+            ($("profileUsername")?.value || "")
+                .trim();
+
+        const email =
+            ($("profileEmail")?.value || "")
+                .trim();
+
+        const whatsapp =
+            ($("profileWhatsapp")?.value || "")
+                .replace(/\D/g, "");
+
+        if (
+            !name ||
+            !username ||
+            !email
+        ) {
+            if (status) {
+                status.textContent =
+                    "Preencha nome, usuário e e-mail.";
+            }
+
+            return;
+        }
+
+        if (
+            whatsapp &&
+            whatsapp.length !== 11
+        ) {
+            if (status) {
+                status.textContent =
+                    "Informe DDD + número do WhatsApp.";
+            }
+
+            return;
+        }
+
+        Loading.show(
+            "Salvando seu perfil..."
+        );
+
+        try {
+            const data =
+                await apiJson(
+                    "/api/auth?action=update-profile",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            name,
+                            username,
+                            email,
+                            whatsapp
+                        })
+                    }
+                );
+
+            state.auth.user = {
+                ...state.auth.user,
+                ...data.profile
+            };
+
+            saveState();
+
+            updateAuthUI();
+            updateHeaderUserIdentity();
+
+            if ($("profileSubtitle")) {
+                $("profileSubtitle").textContent =
+                    `@${data.profile.username}`;
+            }
+
+            if (status) {
+                status.textContent =
+                    data.message ||
+                    "Perfil atualizado com sucesso.";
+            }
+
+        } catch (err) {
+            if (status) {
+                status.textContent =
+                    err?.message ||
+                    "Não foi possível salvar o perfil.";
+            }
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
+    async function changeUserPassword() {
+        const status =
+            $("passwordStatus");
+
+        const currentPassword =
+            $("profileCurrentPassword")
+                ?.value || "";
+
+        const newPassword =
+            $("profileNewPassword")
+                ?.value || "";
+
+        const confirmPassword =
+            $("profileConfirmPassword")
+                ?.value || "";
+
+        if (
+            !currentPassword ||
+            !newPassword ||
+            !confirmPassword
+        ) {
+            if (status) {
+                status.textContent =
+                    "Preencha todos os campos.";
+            }
+
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            if (status) {
+                status.textContent =
+                    "A nova senha deve ter pelo menos 8 caracteres.";
+            }
+
+            return;
+        }
+
+        if (
+            newPassword !==
+            confirmPassword
+        ) {
+            if (status) {
+                status.textContent =
+                    "As novas senhas não conferem.";
+            }
+
+            return;
+        }
+
+        Loading.show(
+            "Alterando sua senha..."
+        );
+
+        try {
+            const data =
+                await apiJson(
+                    "/api/auth?action=change-password",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            current_password:
+                                currentPassword,
+
+                            new_password:
+                                newPassword
+                        })
+                    }
+                );
+
+            [
+                "profileCurrentPassword",
+                "profileNewPassword",
+                "profileConfirmPassword"
+            ].forEach(id => {
+                if ($(id)) {
+                    $(id).value = "";
+                }
+            });
+
+            if (status) {
+                status.textContent =
+                    data.message ||
+                    "Senha alterada com sucesso.";
+            }
+
+        } catch (err) {
+            if (status) {
+                status.textContent =
+                    err?.message ||
+                    "Não foi possível alterar a senha.";
+            }
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
     function buildScheduleQuartaCH(pairs) {
         if (!pairs || pairs.length !== 4) return null;
 
@@ -1586,6 +2240,33 @@
                 Array.isArray(data.invitations)
                     ? data.invitations
                     : [];
+
+            const inviteTotal =
+                invitations.length;
+
+            if ($("headerInviteBadge")) {
+                $("headerInviteBadge")
+                    .textContent =
+                    String(inviteTotal);
+
+                $("headerInviteBadge")
+                    .style.display =
+                    inviteTotal
+                        ? "inline-flex"
+                        : "none";
+            }
+
+            if ($("headerMenuInviteCount")) {
+                $("headerMenuInviteCount")
+                    .textContent =
+                    String(inviteTotal);
+
+                $("headerMenuInviteCount")
+                    .style.display =
+                    inviteTotal
+                        ? "inline-flex"
+                        : "none";
+            }
 
             count.textContent =
                 `${invitations.length} ${invitations.length === 1
@@ -2066,6 +2747,8 @@
 
     async function renderGroupAdmin() {
         updateAdminModeUI();
+
+        clearGroupInviteSearch();
 
         const groupId = getCurrentGroupId();
 
@@ -3157,13 +3840,14 @@
         const hasGroup = !!getCurrentGroupId();
 
         if ($("groupAccessModal")) {
-            $("groupAccessModal").style.display =
-                logged &&
-                    !guest &&
-                    !organizer &&
-                    !hasGroup
-                    ? $("groupAccessModal").style.display
-                    : "none";
+            if (
+                !logged ||
+                guest ||
+                organizer
+            ) {
+                $("groupAccessModal")
+                    .style.display = "none";
+            }
         }
 
         const choosingGroup =
@@ -3211,23 +3895,7 @@
                     : "none";
         }
 
-        if ($("headerUserBox")) {
-            $("headerUserBox").style.display = logged ? "inline-flex" : "none";
-        }
-
-        if ($("btnHeaderLogout")) {
-            $("btnHeaderLogout").style.display = logged && !guest ? "inline-block" : "none";
-        }
-
-        if ($("headerUserText")) {
-            if (!logged) {
-                $("headerUserText").textContent = "";
-            } else if (guest) {
-                $("headerUserText").textContent = "Visitante";
-            } else {
-                $("headerUserText").textContent = `${user.username} (${user.role})`;
-            }
-        }
+        updateHeaderUserIdentity();
 
         if ($("sessionSetupCard")) {
             $("sessionSetupCard").style.display = logged && !guest && hasGroup && !hasActiveSession ? "block" : "none";
@@ -4883,6 +5551,298 @@
             alert("Saiu da conta.");
         });
     }
+
+    if ($("btnHeaderUser")) {
+        $("btnHeaderUser")
+            .addEventListener(
+                "click",
+                event => {
+                    event.stopPropagation();
+                    toggleHeaderUserDropdown();
+                }
+            );
+    }
+
+    if ($("headerUserDropdown")) {
+        $("headerUserDropdown")
+            .addEventListener(
+                "click",
+                event => {
+                    event.stopPropagation();
+                }
+            );
+    }
+
+    if ($("btnOpenProfile")) {
+        $("btnOpenProfile")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openUserProfile(
+                        "data"
+                    );
+                }
+            );
+    }
+
+    if ($("btnOpenPassword")) {
+        $("btnOpenPassword")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openUserProfile(
+                        "password"
+                    );
+                }
+            );
+    }
+
+    if ($("btnMyGroups")) {
+        $("btnMyGroups")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openUserProfile(
+                        "groups"
+                    );
+                }
+            );
+    }
+
+    if ($("btnMenuRequestGroupAccess")) {
+        $("btnMenuRequestGroupAccess")
+            .addEventListener(
+                "click",
+                async () => {
+                    closeHeaderUserDropdown();
+                    await openGroupAccessModal();
+                }
+            );
+    }
+
+    if ($("btnProfileRequestGroupAccess")) {
+        $("btnProfileRequestGroupAccess")
+            .addEventListener(
+                "click",
+                async () => {
+                    closeUserProfile();
+                    await openGroupAccessModal();
+                }
+            );
+    }
+
+    if ($("btnMenuInvites")) {
+        $("btnMenuInvites")
+            .addEventListener(
+                "click",
+                async () => {
+                    closeHeaderUserDropdown();
+
+                    await renderMyGroupInvites();
+
+                    const panel =
+                        $("groupInvitesPanel");
+
+                    if (
+                        panel &&
+                        panel.style.display !==
+                        "none"
+                    ) {
+                        panel.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center"
+                        });
+
+                    } else {
+                        alert(
+                            "Você não possui convites pendentes."
+                        );
+                    }
+                }
+            );
+    }
+
+    if ($("btnCloseProfile")) {
+        $("btnCloseProfile")
+            .addEventListener(
+                "click",
+                closeUserProfile
+            );
+    }
+
+    if ($("btnProfileTabData")) {
+        $("btnProfileTabData")
+            .addEventListener(
+                "click",
+                () => setProfileTab("data")
+            );
+    }
+
+    if ($("btnProfileTabPassword")) {
+        $("btnProfileTabPassword")
+            .addEventListener(
+                "click",
+                () => setProfileTab("password")
+            );
+    }
+
+    if ($("btnProfileTabGroups")) {
+        $("btnProfileTabGroups")
+            .addEventListener(
+                "click",
+                () => setProfileTab("groups")
+            );
+    }
+
+    if ($("btnSaveProfile")) {
+        $("btnSaveProfile")
+            .addEventListener(
+                "click",
+                saveUserProfile
+            );
+    }
+
+    if ($("btnChangePassword")) {
+        $("btnChangePassword")
+            .addEventListener(
+                "click",
+                changeUserPassword
+            );
+    }
+
+    if ($("profileWhatsapp")) {
+        $("profileWhatsapp")
+            .addEventListener(
+                "input",
+                event => {
+                    event.target.value =
+                        formatWhatsappInput(
+                            event.target.value
+                        );
+                }
+            );
+    }
+
+    if ($("headerUserDropdown")) {
+        $("headerUserDropdown")
+            .addEventListener(
+                "click",
+                event => {
+                    event.stopPropagation();
+                }
+            );
+    }
+
+    if ($("btnOpenProfile")) {
+        $("btnOpenProfile")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openUserProfile(
+                        "data"
+                    );
+                }
+            );
+    }
+
+    if ($("btnOpenPassword")) {
+        $("btnOpenPassword")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openUserProfile(
+                        "password"
+                    );
+                }
+            );
+    }
+
+    if ($("btnMyGroups")) {
+        $("btnMyGroups")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openUserProfile(
+                        "groups"
+                    );
+                }
+            );
+    }
+
+    if ($("btnMenuRequestGroupAccess")) {
+        $("btnMenuRequestGroupAccess")
+            .addEventListener(
+                "click",
+                async () => {
+                    closeHeaderUserDropdown();
+                    await openGroupAccessModal();
+                }
+            );
+    }
+
+    if ($("btnProfileRequestGroupAccess")) {
+        $("btnProfileRequestGroupAccess")
+            .addEventListener(
+                "click",
+                async () => {
+                    closeUserProfile();
+                    await openGroupAccessModal();
+                }
+            );
+    }
+
+    if ($("btnMenuInvites")) {
+        $("btnMenuInvites")
+            .addEventListener(
+                "click",
+                async () => {
+                    closeHeaderUserDropdown();
+
+                    await renderMyGroupInvites();
+
+                    const panel =
+                        $("groupInvitesPanel");
+
+                    if (
+                        panel &&
+                        panel.style.display !==
+                        "none"
+                    ) {
+                        panel.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center"
+                        });
+
+                    } else {
+                        alert(
+                            "Você não possui convites pendentes."
+                        );
+                    }
+                }
+            );
+    }
+
+    document.addEventListener(
+        "click",
+        event => {
+            const menu =
+                $("headerUserMenu");
+
+            if (
+                menu &&
+                !menu.contains(event.target)
+            ) {
+                closeHeaderUserDropdown();
+            }
+
+            if (
+                event.target.id ===
+                "userProfileModal"
+            ) {
+                closeUserProfile();
+            }
+        }
+    );
 
     if ($("btnHeaderLogout")) {
         $("btnHeaderLogout").addEventListener("click", async () => {

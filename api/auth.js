@@ -63,19 +63,19 @@ export default async function handler(req, res) {
 
       const groupsResult = await pool.query(
         `
-      SELECT
-        g.id,
-        g.name,
-        g.slug,
-        ug.role
-      FROM user_groups ug
-      INNER JOIN groups g
-        ON g.id = ug.group_id
-      WHERE ug.user_id = $1
-        AND ug.active = true
-        AND g.active = true
-      ORDER BY g.name ASC
-    `,
+          SELECT
+            g.id,
+            g.name,
+            g.slug,
+            ug.role
+          FROM user_groups ug
+          INNER JOIN groups g
+            ON g.id = ug.group_id
+          WHERE ug.user_id = $1
+            AND ug.active = true
+            AND g.active = true
+          ORDER BY g.name ASC
+        `,
         [authenticatedUser.id]
       );
 
@@ -83,6 +83,379 @@ export default async function handler(req, res) {
         ok: true,
         user: authenticatedUser,
         groups: groupsResult.rows || []
+      });
+
+    } else if (action === "profile") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const userResult = await pool.query(
+        `
+      SELECT
+        id,
+        name,
+        username,
+        email,
+        whatsapp,
+        role,
+        active
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+    `,
+        [user.id]
+      );
+
+      const profile = userResult.rows[0];
+
+      if (!profile) {
+        return res.status(404).json({
+          error: "Usuário não encontrado"
+        });
+      }
+
+      const groupsResult = await pool.query(
+        `
+          SELECT
+            g.id,
+            g.name,
+            g.slug,
+            ug.role,
+            ug.active
+          FROM user_groups ug
+
+          INNER JOIN groups g
+            ON g.id = ug.group_id
+
+          WHERE ug.user_id = $1
+            AND ug.active = true
+            AND g.active = true
+
+          ORDER BY g.name ASC
+        `,
+        [user.id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        profile,
+        groups: groupsResult.rows || []
+      });
+
+    } else if (action === "update-profile") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        name,
+        username,
+        email,
+        whatsapp
+      } = req.body || {};
+
+      const cleanName =
+        String(name || "").trim();
+
+      const cleanUsername =
+        String(username || "").trim();
+
+      const cleanEmail =
+        String(email || "")
+          .trim()
+          .toLowerCase();
+
+      const cleanWhatsapp =
+        normalizeWhatsapp(whatsapp);
+
+      if (
+        !cleanName ||
+        !cleanUsername ||
+        !cleanEmail
+      ) {
+        return res.status(400).json({
+          error:
+            "Nome, usuário e e-mail são obrigatórios"
+        });
+      }
+
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+          .test(cleanEmail)
+      ) {
+        return res.status(400).json({
+          error: "Informe um e-mail válido"
+        });
+      }
+
+      /*
+       * Usuários antigos podem ainda não ter WhatsApp.
+       * Se informar, precisa ser válido.
+       */
+      if (
+        cleanWhatsapp &&
+        !/^55[1-9][0-9]9[0-9]{8}$/
+          .test(cleanWhatsapp)
+      ) {
+        return res.status(400).json({
+          error:
+            "Informe um WhatsApp celular brasileiro válido"
+        });
+      }
+
+      const duplicateResult =
+        await pool.query(
+          `
+            SELECT
+              id,
+              username,
+              email,
+              whatsapp
+            FROM users
+
+            WHERE id <> $1
+
+              AND (
+                LOWER(username) = LOWER($2)
+                OR LOWER(email) = LOWER($3)
+                OR (
+                  $4::text IS NOT NULL
+                  AND whatsapp = $4
+                )
+              )
+
+            LIMIT 1
+          `,
+          [
+            user.id,
+            cleanUsername,
+            cleanEmail,
+            cleanWhatsapp || null
+          ]
+        );
+
+      if (duplicateResult.rows.length) {
+        const duplicate =
+          duplicateResult.rows[0];
+
+        if (
+          String(
+            duplicate.username || ""
+          ).toLowerCase() ===
+          cleanUsername.toLowerCase()
+        ) {
+          return res.status(409).json({
+            error:
+              "Este nome de usuário já está em uso"
+          });
+        }
+
+        if (
+          String(
+            duplicate.email || ""
+          ).toLowerCase() ===
+          cleanEmail
+        ) {
+          return res.status(409).json({
+            error:
+              "Este e-mail já está vinculado a outra conta"
+          });
+        }
+
+        if (
+          cleanWhatsapp &&
+          String(
+            duplicate.whatsapp || ""
+          ) === cleanWhatsapp
+        ) {
+          return res.status(409).json({
+            error:
+              "Este WhatsApp já está vinculado a outro usuário"
+          });
+        }
+
+        return res.status(409).json({
+          error:
+            "Já existe uma conta com estes dados"
+        });
+      }
+
+      try {
+        const result = await pool.query(
+          `
+            UPDATE users
+            SET
+              name = $2,
+              username = $3,
+              email = $4,
+              whatsapp = $5
+            WHERE id = $1
+
+            RETURNING
+              id,
+              name,
+              username,
+              email,
+              whatsapp,
+              role,
+              active
+          `,
+          [
+            user.id,
+            cleanName,
+            cleanUsername,
+            cleanEmail,
+            cleanWhatsapp || null
+          ]
+        );
+
+        return res.status(200).json({
+          ok: true,
+          message:
+            "Perfil atualizado com sucesso",
+          profile: result.rows[0]
+        });
+
+      } catch (err) {
+        if (err?.code === "23505") {
+          return res.status(409).json({
+            error:
+              "Usuário, e-mail ou WhatsApp já está em uso"
+          });
+        }
+
+        throw err;
+      }
+
+    } else if (action === "change-password") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        current_password,
+        new_password
+      } = req.body || {};
+
+      const currentPassword =
+        String(current_password || "");
+
+      const newPassword =
+        String(new_password || "");
+
+      if (
+        !currentPassword ||
+        !newPassword
+      ) {
+        return res.status(400).json({
+          error:
+            "Senha atual e nova senha são obrigatórias"
+        });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          error:
+            "A nova senha deve ter pelo menos 8 caracteres"
+        });
+      }
+
+      const result = await pool.query(
+        `
+      SELECT
+        id,
+        password
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+    `,
+        [user.id]
+      );
+
+      const dbUser = result.rows[0];
+
+      if (!dbUser) {
+        return res.status(404).json({
+          error: "Usuário não encontrado"
+        });
+      }
+
+      const storedPassword =
+        dbUser.password || "";
+
+      const isHashedPassword =
+        /^\$2[aby]\$\d{2}\$/
+          .test(storedPassword);
+
+      let passwordValid = false;
+
+      if (isHashedPassword) {
+        passwordValid =
+          await bcrypt.compare(
+            currentPassword,
+            storedPassword
+          );
+
+      } else {
+        /*
+         * Compatibilidade com usuários antigos
+         * que ainda possuam senha legada.
+         */
+        passwordValid =
+          storedPassword ===
+          currentPassword;
+      }
+
+      if (!passwordValid) {
+        return res.status(401).json({
+          error: "Senha atual incorreta"
+        });
+      }
+
+      const samePassword =
+        isHashedPassword
+          ? await bcrypt.compare(
+            newPassword,
+            storedPassword
+          )
+          : newPassword === storedPassword;
+
+      if (samePassword) {
+        return res.status(409).json({
+          error:
+            "A nova senha deve ser diferente da senha atual"
+        });
+      }
+
+      const hashedPassword =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      await pool.query(
+        `
+          UPDATE users
+          SET password = $1
+          WHERE id = $2
+        `,
+        [
+          hashedPassword,
+          user.id
+        ]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        message:
+          "Senha alterada com sucesso"
       });
 
     } else if (action === "logout") {

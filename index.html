@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=17">
+  <link rel="stylesheet" href="css/style.css?v=18">
 </head>
 
 <body>
@@ -23,17 +23,121 @@
         <div class="muted" id="statusLine">—</div>
       </div>
 
-      <div class="row" style="align-items:center; gap:8px; flex-wrap:wrap;">
-        <span class="pill">Hoje: <b id="todayLabel">—</b></span>
-        <span class="pill">Jogos hoje: <b id="todayGames">0</b></span>
-        <span class="pill">Ativos: <b id="activeCount">0</b></span>
+      <div class="header-right-area">
 
-        <span id="headerUserBox" class="pill" style="display:none;">
-          <span id="headerUserText">—</span>
-        </span>
+        <div class="header-stats">
+          <span class="pill">
+            Hoje:
+            <b id="todayLabel">—</b>
+          </span>
 
-        <button id="btnHeaderLogout" class="secondary" type="button" style="display:none;">Sair</button>
+          <span class="pill">
+            Jogos hoje:
+            <b id="todayGames">0</b>
+          </span>
+
+          <span class="pill">
+            Ativos:
+            <b id="activeCount">0</b>
+          </span>
+        </div>
+
+        <div id="headerUserMenu" class="header-user-menu" style="display:none;">
+
+          <button id="btnHeaderUser" class="header-user-button" type="button" aria-expanded="false"
+            aria-haspopup="true">
+
+            <span id="headerAvatar" class="header-avatar">
+              U
+            </span>
+
+            <span class="header-user-meta">
+              <strong id="headerUserName">
+                Usuário
+              </strong>
+
+              <small id="headerUserRole">
+                —
+              </small>
+            </span>
+
+            <span class="header-user-chevron">
+              ▾
+            </span>
+
+            <span id="headerInviteBadge" class="header-invite-badge" style="display:none;">
+              0
+            </span>
+
+          </button>
+
+          <div id="headerUserDropdown" class="header-user-dropdown" style="display:none;">
+
+            <div class="header-user-dropdown-profile">
+
+              <div id="headerDropdownAvatar" class="header-dropdown-avatar">
+                U
+              </div>
+
+              <div>
+                <strong id="headerDropdownName">
+                  Usuário
+                </strong>
+
+                <div id="headerDropdownUsername" class="muted">
+                  @usuario
+                </div>
+              </div>
+
+            </div>
+
+            <div class="header-menu-separator"></div>
+
+            <button id="btnOpenProfile" class="header-menu-item" type="button">
+              <span>👤</span>
+              <span>Meu perfil</span>
+            </button>
+
+            <button id="btnOpenPassword" class="header-menu-item" type="button">
+              <span>🔐</span>
+              <span>Alterar senha</span>
+            </button>
+
+            <button id="btnMyGroups" class="header-menu-item" type="button">
+              <span>👥</span>
+              <span>Meus grupos</span>
+            </button>
+
+            <button id="btnMenuRequestGroupAccess" class="header-menu-item" type="button">
+              <span>➕</span>
+              <span>Solicitar acesso a grupo</span>
+            </button>
+
+            <button id="btnMenuInvites" class="header-menu-item" type="button">
+              <span>✉️</span>
+
+              <span>
+                Convites
+              </span>
+
+              <span id="headerMenuInviteCount" class="header-menu-count" style="display:none;">
+                0
+              </span>
+            </button>
+
+            <div class="header-menu-separator"></div>
+
+            <button id="btnHeaderLogout" class="header-menu-item header-menu-logout" type="button">
+              <span>↪</span>
+              <span>Sair</span>
+            </button>
+
+          </div>
+
+        </div>
+
       </div>
+
     </div>
   </header>
 
@@ -293,6 +397,189 @@
       </div>
 
       <div id="myGroupInvites" class="group-invites-list"></div>
+
+    </section>
+
+    <section id="userProfileModal" class="user-profile-modal" aria-hidden="true">
+
+      <div class="user-profile-dialog">
+
+        <div class="user-profile-header">
+
+          <div class="user-profile-heading">
+
+            <div id="profileAvatar" class="profile-avatar">
+              U
+            </div>
+
+            <div>
+              <h2>Minha conta</h2>
+
+              <div id="profileSubtitle" class="muted">
+                Gerencie seus dados e acessos.
+              </div>
+            </div>
+
+          </div>
+
+          <button id="btnCloseProfile" class="secondary user-profile-close" type="button" aria-label="Fechar">
+            ✕
+          </button>
+
+        </div>
+
+        <div class="user-profile-tabs">
+
+          <button id="btnProfileTabData" class="user-profile-tab active" type="button">
+            Perfil
+          </button>
+
+          <button id="btnProfileTabPassword" class="user-profile-tab" type="button">
+            Senha
+          </button>
+
+          <button id="btnProfileTabGroups" class="user-profile-tab" type="button">
+            Meus grupos
+          </button>
+
+        </div>
+
+        <div class="user-profile-content">
+
+          <!-- PERFIL -->
+
+          <section id="profilePanelData" class="user-profile-panel">
+
+            <div class="profile-form-grid">
+
+              <div>
+                <div class="muted">
+                  Nome
+                </div>
+
+                <input id="profileName" type="text" autocomplete="name" />
+              </div>
+
+              <div>
+                <div class="muted">
+                  Usuário
+                </div>
+
+                <input id="profileUsername" type="text" autocomplete="username" />
+              </div>
+
+              <div>
+                <div class="muted">
+                  E-mail
+                </div>
+
+                <input id="profileEmail" type="email" autocomplete="email" />
+              </div>
+
+              <div>
+                <div class="muted">
+                  WhatsApp
+                </div>
+
+                <div class="whatsapp-input">
+
+                  <span class="whatsapp-prefix">
+                    +55
+                  </span>
+
+                  <input id="profileWhatsapp" type="tel" inputmode="numeric" maxlength="15" autocomplete="tel" />
+
+                </div>
+              </div>
+
+            </div>
+
+            <div id="profileStatus" class="muted profile-status"></div>
+
+            <div class="profile-actions">
+
+              <button id="btnSaveProfile" type="button">
+                Salvar alterações
+              </button>
+
+            </div>
+
+          </section>
+
+          <!-- SENHA -->
+
+          <section id="profilePanelPassword" class="user-profile-panel" style="display:none;">
+
+            <div class="profile-password-grid">
+
+              <div>
+                <div class="muted">
+                  Senha atual
+                </div>
+
+                <input id="profileCurrentPassword" type="password" autocomplete="current-password" />
+              </div>
+
+              <div>
+                <div class="muted">
+                  Nova senha
+                </div>
+
+                <input id="profileNewPassword" type="password" autocomplete="new-password"
+                  placeholder="Mínimo 8 caracteres" />
+              </div>
+
+              <div>
+                <div class="muted">
+                  Confirmar nova senha
+                </div>
+
+                <input id="profileConfirmPassword" type="password" autocomplete="new-password" />
+              </div>
+
+            </div>
+
+            <div id="passwordStatus" class="muted profile-status"></div>
+
+            <div class="profile-actions">
+
+              <button id="btnChangePassword" type="button">
+                Alterar senha
+              </button>
+
+            </div>
+
+          </section>
+
+          <!-- GRUPOS -->
+
+          <section id="profilePanelGroups" class="user-profile-panel" style="display:none;">
+
+            <div class="profile-groups-heading">
+
+              <div>
+                <strong>
+                  Meus grupos
+                </strong>
+
+                <div class="muted">
+                  Veja seus grupos e permissões.
+                </div>
+              </div>
+
+              <button id="btnProfileRequestGroupAccess" class="secondary" type="button">
+                Solicitar acesso
+              </button>
+
+            </div>
+
+            <div id="profileGroupsList" class="profile-groups-list"></div>
+
+          </section>
+
+        </div>
+
+      </div>
 
     </section>
 
@@ -981,7 +1268,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=22"></script>
+  <script src="js/app.js?v=23"></script>
 </body>
 
 </html>
