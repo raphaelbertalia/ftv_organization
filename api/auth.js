@@ -154,16 +154,12 @@ export default async function handler(req, res) {
 
       const {
         name,
-        username,
         email,
         whatsapp
       } = req.body || {};
 
       const cleanName =
         String(name || "").trim();
-
-      const cleanUsername =
-        String(username || "").trim();
 
       const cleanEmail =
         String(email || "")
@@ -175,12 +171,11 @@ export default async function handler(req, res) {
 
       if (
         !cleanName ||
-        !cleanUsername ||
         !cleanEmail
       ) {
         return res.status(400).json({
           error:
-            "Nome, usuário e e-mail são obrigatórios"
+            "Nome e e-mail são obrigatórios"
         });
       }
 
@@ -213,7 +208,6 @@ export default async function handler(req, res) {
           `
             SELECT
               id,
-              username,
               email,
               whatsapp
             FROM users
@@ -221,11 +215,10 @@ export default async function handler(req, res) {
             WHERE id <> $1
 
               AND (
-                LOWER(username) = LOWER($2)
-                OR LOWER(email) = LOWER($3)
+                LOWER(email) = LOWER($2)
                 OR (
-                  $4::text IS NOT NULL
-                  AND whatsapp = $4
+                  $3::text IS NOT NULL
+                  AND whatsapp = $3
                 )
               )
 
@@ -233,7 +226,6 @@ export default async function handler(req, res) {
           `,
           [
             user.id,
-            cleanUsername,
             cleanEmail,
             cleanWhatsapp || null
           ]
@@ -242,18 +234,6 @@ export default async function handler(req, res) {
       if (duplicateResult.rows.length) {
         const duplicate =
           duplicateResult.rows[0];
-
-        if (
-          String(
-            duplicate.username || ""
-          ).toLowerCase() ===
-          cleanUsername.toLowerCase()
-        ) {
-          return res.status(409).json({
-            error:
-              "Este nome de usuário já está em uso"
-          });
-        }
 
         if (
           String(
@@ -291,9 +271,8 @@ export default async function handler(req, res) {
             UPDATE users
             SET
               name = $2,
-              username = $3,
-              email = $4,
-              whatsapp = $5
+              email = $3,
+              whatsapp = $4
             WHERE id = $1
 
             RETURNING
@@ -308,7 +287,6 @@ export default async function handler(req, res) {
           [
             user.id,
             cleanName,
-            cleanUsername,
             cleanEmail,
             cleanWhatsapp || null
           ]
@@ -325,7 +303,7 @@ export default async function handler(req, res) {
         if (err?.code === "23505") {
           return res.status(409).json({
             error:
-              "Usuário, e-mail ou WhatsApp já está em uso"
+              "E-mail ou WhatsApp já está em uso"
           });
         }
 

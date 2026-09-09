@@ -65,6 +65,169 @@
         };
     })();
 
+    const Toast = (() => {
+        let hideTimer = null;
+
+        function show(
+            message,
+            type = "success",
+            duration = 3000
+        ) {
+            const toast =
+                $("appToast");
+
+            const icon =
+                $("appToastIcon");
+
+            const text =
+                $("appToastMessage");
+
+            if (
+                !toast ||
+                !text
+            ) {
+                return;
+            }
+
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+            }
+
+            const config = {
+                success: {
+                    icon: "✓"
+                },
+                error: {
+                    icon: "!"
+                },
+                warning: {
+                    icon: "⚠"
+                },
+                info: {
+                    icon: "i"
+                }
+            };
+
+            const current =
+                config[type] ||
+                config.info;
+
+            toast.classList.remove(
+                "is-success",
+                "is-error",
+                "is-warning",
+                "is-info",
+                "is-visible"
+            );
+
+            toast.classList.add(
+                `is-${type}`
+            );
+
+            if (icon) {
+                icon.textContent =
+                    current.icon;
+            }
+
+            text.textContent =
+                String(message || "");
+
+            toast.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+            requestAnimationFrame(() => {
+                toast.classList.add(
+                    "is-visible"
+                );
+            });
+
+            hideTimer = setTimeout(
+                hide,
+                duration
+            );
+        }
+
+        function hide() {
+            const toast =
+                $("appToast");
+
+            if (!toast) {
+                return;
+            }
+
+            toast.classList.remove(
+                "is-visible"
+            );
+
+            toast.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+
+            hideTimer = null;
+        }
+
+        return {
+            show,
+            hide
+        };
+    })();
+
+    function clearProfileFieldError(
+        fieldName
+    ) {
+        const field =
+            $(`profile${fieldName}Field`);
+
+        const error =
+            $(`profile${fieldName}Error`);
+
+        field?.classList.remove(
+            "has-error"
+        );
+
+        if (error) {
+            error.textContent = "";
+        }
+    }
+
+    function setProfileFieldError(
+        fieldName,
+        message
+    ) {
+        const field =
+            $(`profile${fieldName}Field`);
+
+        const error =
+            $(`profile${fieldName}Error`);
+
+        field?.classList.add(
+            "has-error"
+        );
+
+        if (error) {
+            error.textContent =
+                message;
+        }
+    }
+
+    function clearProfileErrors() {
+        [
+            "Name",
+            "Email",
+            "Whatsapp"
+        ].forEach(
+            clearProfileFieldError
+        );
+
+        if ($("profileStatus")) {
+            $("profileStatus")
+                .textContent = "";
+        }
+    }
+
     let rotationSetupExpanded = false;
     let sessionGamesExpanded = false;
     let pendingSummaryShare = null;
@@ -1994,15 +2157,10 @@
     }
 
     async function saveUserProfile() {
-        const status =
-            $("profileStatus");
+        clearProfileErrors();
 
         const name =
             ($("profileName")?.value || "")
-                .trim();
-
-        const username =
-            ($("profileUsername")?.value || "")
                 .trim();
 
         const email =
@@ -2013,28 +2171,50 @@
             ($("profileWhatsapp")?.value || "")
                 .replace(/\D/g, "");
 
-        if (
-            !name ||
-            !username ||
-            !email
-        ) {
-            if (status) {
-                status.textContent =
-                    "Preencha nome, usuário e e-mail.";
-            }
+        let hasError = false;
 
-            return;
+        if (!name) {
+            setProfileFieldError(
+                "Name",
+                "Informe seu nome."
+            );
+
+            hasError = true;
+        }
+
+        if (!email) {
+            setProfileFieldError(
+                "Email",
+                "Informe seu e-mail."
+            );
+
+            hasError = true;
+
+        } else if (
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                .test(email)
+        ) {
+            setProfileFieldError(
+                "Email",
+                "Informe um e-mail válido."
+            );
+
+            hasError = true;
         }
 
         if (
             whatsapp &&
             whatsapp.length !== 11
         ) {
-            if (status) {
-                status.textContent =
-                    "Informe DDD + número do WhatsApp.";
-            }
+            setProfileFieldError(
+                "Whatsapp",
+                "Informe DDD + número do WhatsApp."
+            );
 
+            hasError = true;
+        }
+
+        if (hasError) {
             return;
         }
 
@@ -2050,7 +2230,6 @@
                         method: "POST",
                         body: JSON.stringify({
                             name,
-                            username,
                             email,
                             whatsapp
                         })
@@ -2068,31 +2247,68 @@
             updateHeaderUserIdentity();
 
             if ($("profileSubtitle")) {
-                $("profileSubtitle").textContent =
+                $("profileSubtitle")
+                    .textContent =
                     `@${data.profile.username}`;
             }
 
-            if (status) {
-                status.textContent =
-                    data.message ||
-                    "Perfil atualizado com sucesso.";
-            }
+            Loading.hide();
+
+            closeUserProfile();
+
+            Toast.show(
+                data.message ||
+                "Perfil atualizado com sucesso.",
+                "success"
+            );
 
         } catch (err) {
-            if (status) {
-                status.textContent =
-                    err?.message ||
-                    "Não foi possível salvar o perfil.";
-            }
-
-        } finally {
             Loading.hide();
+
+            const message =
+                err?.message ||
+                "Não foi possível salvar o perfil.";
+
+            const lowerMessage =
+                message.toLowerCase();
+
+            if (
+                lowerMessage.includes(
+                    "e-mail"
+                )
+            ) {
+                setProfileFieldError(
+                    "Email",
+                    message
+                );
+
+            } else if (
+                lowerMessage.includes(
+                    "whatsapp"
+                )
+            ) {
+                setProfileFieldError(
+                    "Whatsapp",
+                    message
+                );
+
+            } else {
+                if ($("profileStatus")) {
+                    $("profileStatus")
+                        .textContent =
+                        message;
+                }
+            }
         }
     }
 
     async function changeUserPassword() {
         const status =
             $("passwordStatus");
+
+        if (status) {
+            status.textContent = "";
+        }
 
         const currentPassword =
             $("profileCurrentPassword")
@@ -2160,31 +2376,24 @@
                     }
                 );
 
-            [
-                "profileCurrentPassword",
-                "profileNewPassword",
-                "profileConfirmPassword"
-            ].forEach(id => {
-                if ($(id)) {
-                    $(id).value = "";
-                }
-            });
+            Loading.hide();
 
-            if (status) {
-                status.textContent =
-                    data.message ||
-                    "Senha alterada com sucesso.";
-            }
+            closeUserProfile();
+
+            Toast.show(
+                data.message ||
+                "Senha alterada com sucesso.",
+                "success"
+            );
 
         } catch (err) {
+            Loading.hide();
+
             if (status) {
                 status.textContent =
                     err?.message ||
                     "Não foi possível alterar a senha.";
             }
-
-        } finally {
-            Loading.hide();
         }
     }
 
@@ -5719,105 +5928,34 @@
                         formatWhatsappInput(
                             event.target.value
                         );
-                }
-            );
-    }
 
-    if ($("headerUserDropdown")) {
-        $("headerUserDropdown")
-            .addEventListener(
-                "click",
-                event => {
-                    event.stopPropagation();
-                }
-            );
-    }
-
-    if ($("btnOpenProfile")) {
-        $("btnOpenProfile")
-            .addEventListener(
-                "click",
-                async () => {
-                    await openUserProfile(
-                        "data"
+                    clearProfileFieldError(
+                        "Whatsapp"
                     );
                 }
             );
     }
 
-    if ($("btnOpenPassword")) {
-        $("btnOpenPassword")
+    if ($("profileName")) {
+        $("profileName")
             .addEventListener(
-                "click",
-                async () => {
-                    await openUserProfile(
-                        "password"
+                "input",
+                () => {
+                    clearProfileFieldError(
+                        "Name"
                     );
                 }
             );
     }
 
-    if ($("btnMyGroups")) {
-        $("btnMyGroups")
+    if ($("profileEmail")) {
+        $("profileEmail")
             .addEventListener(
-                "click",
-                async () => {
-                    await openUserProfile(
-                        "groups"
+                "input",
+                () => {
+                    clearProfileFieldError(
+                        "Email"
                     );
-                }
-            );
-    }
-
-    if ($("btnMenuRequestGroupAccess")) {
-        $("btnMenuRequestGroupAccess")
-            .addEventListener(
-                "click",
-                async () => {
-                    closeHeaderUserDropdown();
-                    await openGroupAccessModal();
-                }
-            );
-    }
-
-    if ($("btnProfileRequestGroupAccess")) {
-        $("btnProfileRequestGroupAccess")
-            .addEventListener(
-                "click",
-                async () => {
-                    closeUserProfile();
-                    await openGroupAccessModal();
-                }
-            );
-    }
-
-    if ($("btnMenuInvites")) {
-        $("btnMenuInvites")
-            .addEventListener(
-                "click",
-                async () => {
-                    closeHeaderUserDropdown();
-
-                    await renderMyGroupInvites();
-
-                    const panel =
-                        $("groupInvitesPanel");
-
-                    if (
-                        panel &&
-                        panel.style.display !==
-                        "none"
-                    ) {
-                        panel.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center"
-                        });
-
-                    } else {
-                        alert(
-                            "Você não possui convites pendentes."
-                        );
-                    }
                 }
             );
     }

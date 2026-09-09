@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=18">
+  <link rel="stylesheet" href="css/style.css?v=19">
 </head>
 
 <body>
@@ -452,31 +452,39 @@
 
             <div class="profile-form-grid">
 
-              <div>
+              <div id="profileNameField" class="profile-field">
                 <div class="muted">
                   Nome
                 </div>
 
                 <input id="profileName" type="text" autocomplete="name" />
+
+                <div id="profileNameError" class="profile-field-error"></div>
               </div>
 
-              <div>
+              <div class="profile-field">
                 <div class="muted">
                   Usuário
                 </div>
 
-                <input id="profileUsername" type="text" autocomplete="username" />
+                <input id="profileUsername" type="text" autocomplete="username" readonly aria-readonly="true" />
+
+                <div class="profile-field-hint">
+                  O usuário é seu identificador de acesso e não pode ser alterado.
+                </div>
               </div>
 
-              <div>
+              <div id="profileEmailField" class="profile-field">
                 <div class="muted">
                   E-mail
                 </div>
 
                 <input id="profileEmail" type="email" autocomplete="email" />
+
+                <div id="profileEmailError" class="profile-field-error"></div>
               </div>
 
-              <div>
+              <div id="profileWhatsappField" class="profile-field">
                 <div class="muted">
                   WhatsApp
                 </div>
@@ -490,6 +498,8 @@
                   <input id="profileWhatsapp" type="tel" inputmode="numeric" maxlength="15" autocomplete="tel" />
 
                 </div>
+
+                <div id="profileWhatsappError" class="profile-field-error"></div>
               </div>
 
             </div>
@@ -1234,6 +1244,14 @@
     </div>
   </div>
 
+  <div id="appToast" class="app-toast" role="status" aria-live="polite" aria-hidden="true">
+    <span id="appToastIcon" class="app-toast-icon">
+      ✓
+    </span>
+
+    <span id="appToastMessage" class="app-toast-message"></span>
+  </div>
+
   <!-- Loading global -->
   <div id="globalLoading" class="global-loading" aria-hidden="true" aria-live="polite">
     <div class="global-loading-box">
@@ -1268,7 +1286,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=23"></script>
+  <script src="js/app.js?v=24"></script>
 </body>
 
 </html>
