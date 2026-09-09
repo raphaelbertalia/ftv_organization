@@ -139,10 +139,39 @@ export default async function handler(req, res) {
         [user.id]
       );
 
+      const pendingRequestsResult =
+        await pool.query(
+          `
+            SELECT
+              gar.id,
+              gar.group_id,
+              gar.requested_role,
+              gar.status,
+              gar.created_at,
+
+              g.name AS group_name,
+              g.slug AS group_slug
+
+            FROM group_access_requests gar
+
+            INNER JOIN groups g
+              ON g.id = gar.group_id
+
+            WHERE gar.user_id = $1
+              AND gar.status = 'pending'
+              AND g.active = true
+
+            ORDER BY gar.created_at DESC
+          `,
+          [user.id]
+        );
+
       return res.status(200).json({
         ok: true,
         profile,
-        groups: groupsResult.rows || []
+        groups: groupsResult.rows || [],
+        pending_requests:
+          pendingRequestsResult.rows || []
       });
 
     } else if (action === "update-profile") {

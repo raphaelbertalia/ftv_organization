@@ -1480,9 +1480,7 @@
         state.auth.currentGroupId = null;
         noGroupChampionshipOpen = false;
 
-        if ($("groupAccessModal")) {
-            $("groupAccessModal").style.display = "none";
-        }
+        closeGroupAccessModal();
 
         if ($("groupAccessStatus")) {
             $("groupAccessStatus").textContent = "";
@@ -1939,20 +1937,43 @@
             });
     }
 
-    function renderProfileGroups(groups = []) {
+    function renderProfileGroups(
+        groups = [],
+        pendingRequests = []
+    ) {
         const container =
             $("profileGroupsList");
 
-        if (!container) return;
+        if (!container) {
+            return;
+        }
 
         container.innerHTML = "";
 
-        if (!groups.length) {
+        const activeGroups =
+            Array.isArray(groups)
+                ? groups
+                : [];
+
+        const pending =
+            Array.isArray(pendingRequests)
+                ? pendingRequests
+                : [];
+
+        if (
+            !activeGroups.length &&
+            !pending.length
+        ) {
             container.innerHTML = `
             <div class="profile-empty-state">
-                <strong>Nenhum grupo</strong>
+                <strong>
+                    Nenhum grupo
+                </strong>
+
                 <span class="muted">
-                    Você ainda não participa de nenhum grupo.
+                    Você ainda não participa
+                    de nenhum grupo e não possui
+                    solicitações pendentes.
                 </span>
             </div>
         `;
@@ -1966,21 +1987,29 @@
             admin: "Administrador"
         };
 
-        groups.forEach(group => {
+
+        activeGroups.forEach(group => {
             const item =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             item.className =
                 "profile-group-item";
 
             const current =
                 String(group.id) ===
-                String(getCurrentGroupId());
+                String(
+                    getCurrentGroupId()
+                );
 
             item.innerHTML = `
             <div class="profile-group-info">
+
                 <strong>
-                    ${escapeSummaryHtml(group.name)}
+                    ${escapeSummaryHtml(
+                group.name
+            )}
                 </strong>
 
                 <span class="muted">
@@ -1989,17 +2018,74 @@
                     : "Grupo disponível"
                 }
                 </span>
+
             </div>
 
             <span class="profile-group-role">
                 ${escapeSummaryHtml(
-                    roleLabels[group.role] ||
+                    roleLabels[
+                    group.role
+                    ] ||
                     "Espectador"
                 )}
             </span>
         `;
 
-            container.appendChild(item);
+            container.appendChild(
+                item
+            );
+        });
+
+
+        pending.forEach(request => {
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "profile-group-item " +
+                "is-pending";
+
+            const requestedRole =
+                roleLabels[
+                request.requested_role
+                ] ||
+                "Espectador";
+
+            item.innerHTML = `
+            <div class="profile-group-info">
+
+                <strong>
+                    ${escapeSummaryHtml(
+                request.group_name
+            )}
+                </strong>
+
+                <span class="muted">
+                    Aguardando aprovação
+                </span>
+
+            </div>
+
+            <div class="profile-group-pending-meta">
+
+                <span class="profile-group-pending">
+                    Aprovação pendente
+                </span>
+
+                <small class="muted">
+                    ${escapeSummaryHtml(
+                requestedRole
+            )}
+                </small>
+
+            </div>
+        `;
+
+            container.appendChild(
+                item
+            );
         });
     }
 
@@ -2066,7 +2152,8 @@
         }
 
         renderProfileGroups(
-            data.groups || []
+            data.groups || [],
+            data.pending_requests || []
         );
 
         updateHeaderUserIdentity();
@@ -5421,47 +5508,162 @@
         }
     }
 
-    async function openGroupAccessModal() {
-        const user = getCurrentUser();
+    function clearGroupAccessFeedback() {
+        const field =
+            $("groupAccessField");
 
-        if (!user || user.role === "guest") {
-            return alert("Faça login para solicitar acesso.");
+        const error =
+            $("groupAccessFieldError");
+
+        const status =
+            $("groupAccessStatus");
+
+        field?.classList.remove(
+            "has-error"
+        );
+
+        if (error) {
+            error.textContent = "";
         }
-
-        const modal = $("groupAccessModal");
-        const select = $("groupAccessSelect");
-        const status = $("groupAccessStatus");
-
-        if (!modal || !select) return;
-
-        modal.style.display = "block";
-
-        select.innerHTML = `
-        <option value="">Carregando grupos...</option>
-    `;
 
         if (status) {
             status.textContent = "";
+            status.classList.remove(
+                "is-error",
+                "is-warning",
+                "is-success"
+            );
+        }
+    }
+
+
+    function setGroupAccessFieldError(
+        message
+    ) {
+        const field =
+            $("groupAccessField");
+
+        const error =
+            $("groupAccessFieldError");
+
+        field?.classList.add(
+            "has-error"
+        );
+
+        if (error) {
+            error.textContent =
+                message;
+        }
+    }
+
+
+    function closeGroupAccessModal() {
+        const modal =
+            $("groupAccessModal");
+
+        modal?.classList.remove(
+            "is-visible"
+        );
+
+        modal?.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        clearGroupAccessFeedback();
+
+        if ($("groupAccessSelect")) {
+            $("groupAccessSelect").value = "";
+        }
+    }
+
+
+    async function openGroupAccessModal() {
+        const user =
+            getCurrentUser();
+
+        if (
+            !user ||
+            user.role === "guest"
+        ) {
+            Toast.show(
+                "Faça login para solicitar acesso.",
+                "warning"
+            );
+
+            return;
         }
 
-        try {
-            const data = await apiJson("/api/auth?action=access-options", {
-                method: "POST"
-            });
+        const modal =
+            $("groupAccessModal");
 
-            const groups = Array.isArray(data.groups)
-                ? data.groups
-                : [];
+        const select =
+            $("groupAccessSelect");
+
+        const status =
+            $("groupAccessStatus");
+
+        const button =
+            $("btnConfirmGroupAccess");
+
+        if (
+            !modal ||
+            !select
+        ) {
+            return;
+        }
+
+        clearGroupAccessFeedback();
+
+        modal.classList.add(
+            "is-visible"
+        );
+
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        select.disabled = true;
+
+        if (button) {
+            button.disabled = true;
+        }
+
+        select.innerHTML = `
+        <option value="">
+            Carregando grupos...
+        </option>
+    `;
+
+        try {
+            const data =
+                await apiJson(
+                    "/api/auth?action=access-options",
+                    {
+                        method: "POST"
+                    }
+                );
+
+            const groups =
+                Array.isArray(data.groups)
+                    ? data.groups
+                    : [];
 
             if (!groups.length) {
                 select.innerHTML = `
-                <option value="">Nenhum grupo disponível</option>
+                <option value="">
+                    Nenhum grupo disponível
+                </option>
             `;
 
-                select.disabled = true;
+                if (status) {
+                    status.textContent =
+                        "Não há grupos disponíveis para solicitação no momento.";
 
-                if ($("btnConfirmGroupAccess")) {
-                    $("btnConfirmGroupAccess").disabled = true;
+                    status.classList.add(
+                        "is-warning"
+                    );
                 }
 
                 return;
@@ -5469,28 +5671,47 @@
 
             select.disabled = false;
 
-            if ($("btnConfirmGroupAccess")) {
-                $("btnConfirmGroupAccess").disabled = false;
+            if (button) {
+                button.disabled = false;
             }
 
             select.innerHTML = `
-            <option value="">Selecione um grupo</option>
-            ${groups.map(group => {
-                let label = group.name;
+            <option value="">
+                Selecione um grupo
+            </option>
 
-                if (group.already_member) {
-                    label += " — Você já participa";
-                } else if (group.request_status === "pending") {
-                    label += " — Solicitação pendente";
+            ${groups.map(group => {
+                let label =
+                    group.name;
+
+                if (
+                    group.already_member
+                ) {
+                    label +=
+                        " — Você já participa";
+
+                } else if (
+                    group.request_status ===
+                    "pending"
+                ) {
+                    label +=
+                        " — Solicitação pendente";
                 }
 
                 return `
                     <option
                         value="${group.id}"
-                        data-member="${group.already_member ? "true" : "false"}"
-                        data-status="${group.request_status || ""}"
+                        data-member="${group.already_member
+                        ? "true"
+                        : "false"
+                    }"
+                        data-status="${group.request_status ||
+                    ""
+                    }"
                     >
-                        ${label}
+                        ${escapeSummaryHtml(
+                        label
+                    )}
                     </option>
                 `;
             }).join("")}
@@ -5498,145 +5719,302 @@
 
         } catch (err) {
             select.innerHTML = `
-            <option value="">Erro ao carregar grupos</option>
+            <option value="">
+                Erro ao carregar grupos
+            </option>
         `;
 
             if (status) {
                 status.textContent =
-                    err.message || "Não foi possível carregar os grupos.";
+                    err?.message ||
+                    "Não foi possível carregar os grupos.";
+
+                status.classList.add(
+                    "is-error"
+                );
             }
         }
     }
 
+
     if ($("btnRequestGroupAccess")) {
-        $("btnRequestGroupAccess").addEventListener("click", async () => {
-            await openGroupAccessModal();
-        });
+        $("btnRequestGroupAccess")
+            .addEventListener(
+                "click",
+                async () => {
+                    await openGroupAccessModal();
+                }
+            );
     }
+
 
     if ($("btnGoChampionships")) {
-        $("btnGoChampionships").addEventListener("click", () => {
+        $("btnGoChampionships")
+            .addEventListener(
+                "click",
+                () => {
 
-            noGroupChampionshipOpen = true;
+                    noGroupChampionshipOpen =
+                        true;
 
-            if ($("noGroupScreen")) {
-                $("noGroupScreen").style.display = "none";
-            }
+                    if ($("noGroupScreen")) {
+                        $("noGroupScreen")
+                            .style.display =
+                            "none";
+                    }
 
-            if ($("appContent")) {
-                $("appContent").style.display = "block";
-            }
+                    if ($("appContent")) {
+                        $("appContent")
+                            .style.display =
+                            "block";
+                    }
 
-            showTab("sorteios");
-        });
+                    showTab("sorteios");
+                }
+            );
     }
+
 
     if ($("btnCancelGroupAccess")) {
-        $("btnCancelGroupAccess").addEventListener("click", () => {
-            $("groupAccessModal").style.display = "none";
-
-            if ($("groupAccessStatus")) {
-                $("groupAccessStatus").textContent = "";
-            }
-        });
+        $("btnCancelGroupAccess")
+            .addEventListener(
+                "click",
+                closeGroupAccessModal
+            );
     }
+
+
+    if ($("btnCloseGroupAccess")) {
+        $("btnCloseGroupAccess")
+            .addEventListener(
+                "click",
+                closeGroupAccessModal
+            );
+    }
+
 
     if ($("groupAccessSelect")) {
-        $("groupAccessSelect").addEventListener("change", () => {
-            const select = $("groupAccessSelect");
-            const option = select.options[select.selectedIndex];
-            const status = $("groupAccessStatus");
-            const button = $("btnConfirmGroupAccess");
+        $("groupAccessSelect")
+            .addEventListener(
+                "change",
+                () => {
 
-            if (!option || !option.value) {
-                if (status) status.textContent = "";
-                if (button) button.disabled = false;
-                return;
-            }
+                    const select =
+                        $("groupAccessSelect");
 
-            const alreadyMember = option.dataset.member === "true";
-            const requestStatus = option.dataset.status;
+                    const option =
+                        select.options[
+                        select.selectedIndex
+                        ];
 
-            if (alreadyMember) {
-                if (status) {
-                    status.textContent =
-                        "Você já participa deste grupo.";
+                    const status =
+                        $("groupAccessStatus");
+
+                    const button =
+                        $("btnConfirmGroupAccess");
+
+                    clearGroupAccessFeedback();
+
+                    if (
+                        !option ||
+                        !option.value
+                    ) {
+                        if (button) {
+                            button.disabled =
+                                false;
+                        }
+
+                        return;
+                    }
+
+                    const alreadyMember =
+                        option.dataset.member ===
+                        "true";
+
+                    const requestStatus =
+                        option.dataset.status;
+
+                    if (alreadyMember) {
+                        if (status) {
+                            status.textContent =
+                                "Você já participa deste grupo.";
+
+                            status.classList.add(
+                                "is-warning"
+                            );
+                        }
+
+                        if (button) {
+                            button.disabled =
+                                true;
+                        }
+
+                        return;
+                    }
+
+                    if (
+                        requestStatus ===
+                        "pending"
+                    ) {
+                        if (status) {
+                            status.textContent =
+                                "Sua solicitação para este grupo está aguardando aprovação.";
+
+                            status.classList.add(
+                                "is-warning"
+                            );
+                        }
+
+                        if (button) {
+                            button.disabled =
+                                true;
+                        }
+
+                        return;
+                    }
+
+                    if (button) {
+                        button.disabled =
+                            false;
+                    }
                 }
-
-                if (button) button.disabled = true;
-                return;
-            }
-
-            if (requestStatus === "pending") {
-                if (status) {
-                    status.textContent =
-                        "Sua solicitação para este grupo ainda está pendente. Entre em contato com o responsável pelo grupo.";
-                }
-
-                if (button) button.disabled = true;
-                return;
-            }
-
-            if (status) status.textContent = "";
-            if (button) button.disabled = false;
-        });
+            );
     }
 
+
     if ($("btnConfirmGroupAccess")) {
-        $("btnConfirmGroupAccess").addEventListener("click", async () => {
-            const user = getCurrentUser();
-            const select = $("groupAccessSelect");
-            const status = $("groupAccessStatus");
-            const button = $("btnConfirmGroupAccess");
+        $("btnConfirmGroupAccess")
+            .addEventListener(
+                "click",
+                async () => {
 
-            if (!user || user.role === "guest") {
-                return alert("Faça login para solicitar acesso.");
-            }
+                    const user =
+                        getCurrentUser();
 
-            const groupId = select?.value;
+                    const select =
+                        $("groupAccessSelect");
 
-            if (!groupId) {
-                if (status) {
-                    status.textContent =
-                        "Selecione um grupo para enviar a solicitação.";
-                }
+                    const button =
+                        $("btnConfirmGroupAccess");
 
-                return;
-            }
+                    const status =
+                        $("groupAccessStatus");
 
-            try {
-                if (button) button.disabled = true;
+                    if (
+                        !user ||
+                        user.role === "guest"
+                    ) {
+                        Toast.show(
+                            "Faça login para solicitar acesso.",
+                            "warning"
+                        );
 
-                if (status) {
-                    status.textContent = "Enviando solicitação...";
-                }
-
-                const data = await apiJson(
-                    "/api/auth?action=request-group-access",
-                    {
-                        method: "POST",
-                        body: JSON.stringify({
-                            group_id: groupId
-                        })
+                        return;
                     }
-                );
 
-                await openGroupAccessModal();
+                    const groupId =
+                        select?.value;
 
-                if (status) {
-                    status.textContent =
-                        data.message || "Solicitação enviada com sucesso.";
+                    if (!groupId) {
+                        setGroupAccessFieldError(
+                            "Selecione um grupo."
+                        );
+
+                        select?.focus();
+
+                        return;
+                    }
+
+                    const option =
+                        select.options[
+                        select.selectedIndex
+                        ];
+
+                    if (
+                        option?.dataset.member ===
+                        "true"
+                    ) {
+                        if (status) {
+                            status.textContent =
+                                "Você já participa deste grupo.";
+
+                            status.classList.add(
+                                "is-warning"
+                            );
+                        }
+
+                        return;
+                    }
+
+                    if (
+                        option?.dataset.status ===
+                        "pending"
+                    ) {
+                        if (status) {
+                            status.textContent =
+                                "Sua solicitação para este grupo já está aguardando aprovação.";
+
+                            status.classList.add(
+                                "is-warning"
+                            );
+                        }
+
+                        return;
+                    }
+
+                    Loading.show(
+                        "Enviando solicitação..."
+                    );
+
+                    if (button) {
+                        button.disabled = true;
+                    }
+
+                    try {
+                        const data =
+                            await apiJson(
+                                "/api/auth?action=request-group-access",
+                                {
+                                    method: "POST",
+
+                                    body:
+                                        JSON.stringify({
+                                            group_id:
+                                                groupId
+                                        })
+                                }
+                            );
+
+                        Loading.hide();
+
+                        closeGroupAccessModal();
+
+                        Toast.show(
+                            data.message ||
+                            "Solicitação enviada com sucesso.",
+                            "success"
+                        );
+
+                    } catch (err) {
+                        Loading.hide();
+
+                        if (button) {
+                            button.disabled =
+                                false;
+                        }
+
+                        if (status) {
+                            status.textContent =
+                                err?.message ||
+                                "Não foi possível enviar a solicitação.";
+
+                            status.classList.add(
+                                "is-error"
+                            );
+                        }
+                    }
                 }
-
-            } catch (err) {
-                if (status) {
-                    status.textContent =
-                        err.message || "Não foi possível enviar a solicitação.";
-                }
-
-                if (button) button.disabled = false;
-            }
-        });
+            );
     }
 
     if ($("btnConfirmLoginGroup")) {
@@ -5863,8 +6241,9 @@
                         });
 
                     } else {
-                        alert(
-                            "Você não possui convites pendentes."
+                        Toast.show(
+                            "Você não possui convites pendentes.",
+                            "info"
                         );
                     }
                 }
@@ -5978,6 +6357,12 @@
                 "userProfileModal"
             ) {
                 closeUserProfile();
+            }
+            if (
+                event.target.id ===
+                "groupAccessModal"
+            ) {
+                closeGroupAccessModal();
             }
         }
     );

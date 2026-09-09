@@ -4257,3 +4257,377 @@ button.user-profile-tab.active {
   }
 
 }
+
+/* =========================================================
+   FASE 2 — SOLICITAÇÃO DE ACESSO / GRUPOS PENDENTES
+   ========================================================= */
+
+
+/* =========================================================
+   MODAL DE SOLICITAÇÃO DE ACESSO
+   ========================================================= */
+
+.group-access-modal {
+  position: fixed;
+  inset: 0;
+
+  z-index: 10015;
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+
+  padding: 18px;
+
+  background:
+    rgba(2, 6, 23, .84);
+
+  backdrop-filter: blur(9px);
+}
+
+.group-access-modal.is-visible {
+  display: flex;
+}
+
+
+.group-access-dialog {
+  width: min(500px, 100%);
+
+  max-height:
+    calc(100vh - 36px);
+
+  overflow: auto;
+
+  border:
+    1px solid rgba(255, 255, 255, .10);
+
+  border-radius: 22px;
+
+  background:
+    linear-gradient(180deg,
+      #101827,
+      #0a101c);
+
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, .58);
+}
+
+
+/* ----- Cabeçalho ----- */
+
+.group-access-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding: 20px;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, .07);
+}
+
+.group-access-header>div {
+  min-width: 0;
+}
+
+.group-access-header h2 {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.group-access-header .muted {
+  margin-top: 6px;
+
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+
+button.group-access-close {
+  flex: 0 0 auto;
+
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  font-size: 15px;
+}
+
+
+/* ----- Conteúdo ----- */
+
+.group-access-content {
+  padding: 20px;
+}
+
+.group-access-field {
+  width: 100%;
+}
+
+.group-access-field>.muted {
+  margin-bottom: 6px;
+
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.group-access-field select {
+  width: 100%;
+}
+
+
+/* ----- Crítica do select ----- */
+
+.group-access-field-error {
+  min-height: 17px;
+
+  margin-top: 6px;
+
+  color: #fca5a5;
+
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.group-access-field.has-error select {
+  border-color:
+    rgba(239, 68, 68, .78);
+
+  background:
+    rgba(239, 68, 68, .07);
+
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, .08);
+}
+
+.group-access-field.has-error select:focus {
+  border-color:
+    rgba(239, 68, 68, .95);
+
+  background:
+    rgba(239, 68, 68, .09);
+}
+
+
+/* ----- Status dentro do modal ----- */
+
+.group-access-status {
+  margin-top: 4px;
+
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.group-access-status:empty {
+  display: none;
+}
+
+.group-access-status.is-warning,
+.group-access-status.is-error,
+.group-access-status.is-success {
+  display: block;
+
+  margin-top: 12px;
+
+  padding: 10px 12px;
+
+  border-radius: 12px;
+}
+
+
+.group-access-status.is-warning {
+  border:
+    1px solid rgba(245, 158, 11, .25);
+
+  background:
+    rgba(245, 158, 11, .075);
+
+  color: #fcd34d;
+}
+
+
+.group-access-status.is-error {
+  border:
+    1px solid rgba(239, 68, 68, .26);
+
+  background:
+    rgba(239, 68, 68, .075);
+
+  color: #fca5a5;
+}
+
+
+.group-access-status.is-success {
+  border:
+    1px solid rgba(34, 197, 94, .25);
+
+  background:
+    rgba(34, 197, 94, .075);
+
+  color: #86efac;
+}
+
+
+/* ----- Rodapé / ações ----- */
+
+.group-access-actions {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  padding: 16px 20px 20px;
+
+  border-top:
+    1px solid rgba(255, 255, 255, .07);
+}
+
+.group-access-actions button {
+  width: auto;
+}
+
+.group-access-actions #btnConfirmGroupAccess {
+  min-width: 150px;
+}
+
+
+/* =========================================================
+   MEUS GRUPOS — SOLICITAÇÃO PENDENTE
+   ========================================================= */
+
+.profile-group-item.is-pending {
+  border-color:
+    rgba(245, 158, 11, .24);
+
+  background:
+    linear-gradient(135deg,
+      rgba(245, 158, 11, .07),
+      rgba(255, 255, 255, .02));
+}
+
+
+.profile-group-item.is-pending .profile-group-info strong {
+  color: #fde68a;
+}
+
+
+.profile-group-pending-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+
+  flex-shrink: 0;
+
+  gap: 4px;
+}
+
+
+.profile-group-pending {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 5px 9px;
+
+  border:
+    1px solid rgba(245, 158, 11, .28);
+
+  border-radius: 999px;
+
+  background:
+    rgba(245, 158, 11, .09);
+
+  color: #fcd34d;
+
+  font-size: 10px;
+  font-weight: 850;
+
+  white-space: nowrap;
+}
+
+
+.profile-group-pending-meta small {
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 720px) {
+
+  .group-access-modal {
+    padding: 10px;
+  }
+
+
+  .group-access-dialog {
+    max-height:
+      calc(100vh - 20px);
+
+    border-radius: 18px;
+  }
+
+
+  .group-access-header {
+    padding: 16px;
+  }
+
+
+  .group-access-header h2 {
+    font-size: 18px;
+  }
+
+
+  .group-access-content {
+    padding: 16px;
+  }
+
+
+  .group-access-actions {
+    flex-direction: column;
+
+    padding: 14px 16px 16px;
+  }
+
+
+  .group-access-actions button,
+  .group-access-actions #btnConfirmGroupAccess {
+    width: 100%;
+  }
+
+
+  button.group-access-close {
+    width: 40px;
+    min-width: 40px;
+  }
+
+
+  .profile-group-item.is-pending {
+    align-items: flex-start;
+  }
+
+
+  .profile-group-pending-meta {
+    align-items: flex-end;
+  }
+
+}
