@@ -4256,6 +4256,24 @@ button.user-profile-tab.active {
       calc(100vw - 32px);
   }
 
+  .global-loading {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+
+    padding: 16px;
+
+    align-items: center;
+    justify-content: center;
+  }
+
+  .global-loading-box {
+    margin: 0 auto;
+
+    width: min(310px,
+        calc(100vw - 32px));
+  }
+
 }
 
 /* =========================================================
