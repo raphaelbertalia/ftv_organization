@@ -6721,6 +6721,12 @@
 
         saveState();
 
+        /*
+ * Reflete imediatamente no card superior
+ * o confronto escolhido manualmente.
+ */
+        updateNextGameUI();
+
         await apiJson(
             "/api/sessions",
             {
