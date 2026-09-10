@@ -8334,6 +8334,8 @@
                             }
                         );
 
+                        updateAllSessionUI();
+
                         if (
                             $("sessionName")
                         ) {
