@@ -6689,6 +6689,103 @@
         }
     }
 
+    async function persistManualFixedMatchSelection() {
+        const session = getCurrentSession();
+
+        if (
+            !session ||
+            session.playMode !== "fixed"
+        ) {
+            return;
+        }
+
+        const pairAId =
+            $("pairA")?.value || "";
+
+        const pairBId =
+            $("pairB")?.value || "";
+
+        if (
+            !pairAId ||
+            !pairBId ||
+            pairAId === pairBId
+        ) {
+            return;
+        }
+
+        session.pendingPairAId =
+            pairAId;
+
+        session.pendingPairBId =
+            pairBId;
+
+        saveState();
+
+        await apiJson(
+            "/api/sessions",
+            {
+                method: "PATCH",
+                body: JSON.stringify({
+                    id:
+                        session.id,
+
+                    pending_pair_a_id:
+                        pairAId,
+
+                    pending_pair_b_id:
+                        pairBId,
+
+                    group_id:
+                        getCurrentGroupId()
+                })
+            }
+        );
+    }
+
+    ["pairA", "pairB"].forEach(
+        selectId => {
+            const select =
+                $(selectId);
+
+            if (!select) return;
+
+            select.addEventListener(
+                "change",
+                async () => {
+                    const session =
+                        getCurrentSession();
+
+                    if (
+                        !session ||
+                        session.playMode !== "fixed"
+                    ) {
+                        return;
+                    }
+
+                    try {
+                        await persistManualFixedMatchSelection();
+
+                        Toast.show(
+                            "Confronto alterado para este jogo.",
+                            "info",
+                            2500
+                        );
+                    } catch (error) {
+                        console.error(
+                            "Erro ao alterar confronto:",
+                            error
+                        );
+
+                        Toast.show(
+                            "Não foi possível salvar a alteração do confronto.",
+                            "warning"
+                        );
+                    }
+                }
+            );
+        }
+    );
+
     function getPlayerName(playerId) {
         return (state.players || []).find(
             player => String(player.id) === String(playerId)
