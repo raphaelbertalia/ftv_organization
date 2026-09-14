@@ -1350,6 +1350,9 @@
         const name =
             ($("registerName")?.value || "").trim();
 
+        const nickname =
+            ($("registerNickname")?.value || "").trim();
+
         const username =
             ($("registerUsername")?.value || "").trim();
 
@@ -1420,6 +1423,7 @@
                     method: "POST",
                     body: JSON.stringify({
                         name,
+                        nickname,
                         username,
                         email,
                         whatsapp,
@@ -1435,6 +1439,7 @@
 
             [
                 "registerName",
+                "registerNickname",
                 "registerUsername",
                 "registerEmail",
                 "registerWhatsapp",
@@ -1448,9 +1453,9 @@
 
             setRegisterMode(false);
 
-            alert(
-                "Conta criada com sucesso ✅\n\n" +
-                "Agora é só entrar com seu usuário e senha."
+            Toast.show(
+                "Conta criada com sucesso. Agora entre com seu usuário e senha.",
+                "success"
             );
 
             $("loginPassword")?.focus();
@@ -2128,6 +2133,11 @@
                 profile.name || "";
         }
 
+        if ($("profileNickname")) {
+            $("profileNickname").value =
+                profile.nickname || "";
+        }
+
         if ($("profileUsername")) {
             $("profileUsername").value =
                 profile.username || "";
@@ -2251,6 +2261,10 @@
             ($("profileName")?.value || "")
                 .trim();
 
+        const nickname =
+            ($("profileNickname")?.value || "")
+                .trim();
+
         const email =
             ($("profileEmail")?.value || "")
                 .trim();
@@ -2318,6 +2332,7 @@
                         method: "POST",
                         body: JSON.stringify({
                             name,
+                            nickname,
                             email,
                             whatsapp
                         })

@@ -94,18 +94,19 @@ export default async function handler(req, res) {
 
       const userResult = await pool.query(
         `
-      SELECT
-        id,
-        name,
-        username,
-        email,
-        whatsapp,
-        role,
-        active
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-    `,
+          SELECT
+            id,
+            name,
+            nickname,
+            username,
+            email,
+            whatsapp,
+            role,
+            active
+          FROM users
+          WHERE id = $1
+          LIMIT 1
+        `,
         [user.id]
       );
 
@@ -183,12 +184,18 @@ export default async function handler(req, res) {
 
       const {
         name,
+        nickname,
         email,
         whatsapp
       } = req.body || {};
 
       const cleanName =
         String(name || "").trim();
+
+      const cleanNickname =
+        String(nickname || "")
+          .trim()
+          .slice(0, 60);
 
       const cleanEmail =
         String(email || "")
@@ -300,13 +307,15 @@ export default async function handler(req, res) {
             UPDATE users
             SET
               name = $2,
-              email = $3,
-              whatsapp = $4
+              nickname = $3,
+              email = $4,
+              whatsapp = $5
             WHERE id = $1
 
             RETURNING
               id,
               name,
+              nickname,
               username,
               email,
               whatsapp,
@@ -316,6 +325,7 @@ export default async function handler(req, res) {
           [
             user.id,
             cleanName,
+            cleanNickname || null,
             cleanEmail,
             cleanWhatsapp || null
           ]
@@ -478,6 +488,7 @@ export default async function handler(req, res) {
     } else if (action === "register") {
       const {
         name,
+        nickname,
         username,
         email,
         whatsapp,
@@ -485,6 +496,7 @@ export default async function handler(req, res) {
       } = req.body || {};
 
       const cleanName = String(name || "").trim();
+      const cleanNickname = String(nickname || "").trim().slice(0, 60);
       const cleanUsername = String(username || "").trim();
       const cleanEmail = String(email || "").trim().toLowerCase();
       const cleanWhatsapp = normalizeWhatsapp(whatsapp);
@@ -517,17 +529,17 @@ export default async function handler(req, res) {
 
       const existingUser = await pool.query(
         `
-    SELECT
-      id,
-      username,
-      email,
-      whatsapp
-    FROM users
-    WHERE LOWER(username) = LOWER($1)
-       OR LOWER(email) = LOWER($2)
-       OR whatsapp = $3
-    LIMIT 1
-  `,
+          SELECT
+            id,
+            username,
+            email,
+            whatsapp
+          FROM users
+          WHERE LOWER(username) = LOWER($1)
+            OR LOWER(email) = LOWER($2)
+            OR whatsapp = $3
+          LIMIT 1
+        `,
         [
           cleanUsername,
           cleanEmail,
@@ -577,38 +589,42 @@ export default async function handler(req, res) {
 
       const result = await pool.query(
         `
-    INSERT INTO users (
-      id,
-      name,
-      username,
-      email,
-      whatsapp,
-      password,
-      role,
-      active
-    )
-    VALUES (
-      $1,
-      $2,
-      $3,
-      $4,
-      $5,
-      $6,
-      'user',
-      true
-    )
-    RETURNING
-      id,
-      name,
-      username,
-      email,
-      whatsapp,
-      role,
-      active
-  `,
+          INSERT INTO users (
+            id,
+            name,
+            nickname,
+            username,
+            email,
+            whatsapp,
+            password,
+            role,
+            active
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            'user',
+            true
+          )
+          RETURNING
+            id,
+            name,
+            nickname,
+            username,
+            email,
+            whatsapp,
+            role,
+            active
+        `,
         [
           userId,
           cleanName,
+          cleanNickname || null,
           cleanUsername,
           cleanEmail,
           cleanWhatsapp,
