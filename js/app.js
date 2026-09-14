@@ -234,6 +234,149 @@
     let noGroupChampionshipOpen = false;
     let adminViewMode = "group";
 
+    let profileCompletionRequired = false;
+    let profileMissingFields = [];
+
+    function updateProfileCompletionUI() {
+        const modal =
+            $("userProfileModal");
+
+        const notice =
+            $("profileCompletionNotice");
+
+        const missing =
+            $("profileCompletionMissing");
+
+        const closeButton =
+            $("btnCloseProfile");
+
+        const passwordTab =
+            $("btnProfileTabPassword");
+
+        const groupsTab =
+            $("btnProfileTabGroups");
+
+
+        if (modal) {
+            modal.classList.toggle(
+                "is-profile-required",
+                profileCompletionRequired
+            );
+        }
+
+
+        if (notice) {
+            notice.style.display =
+                profileCompletionRequired
+                    ? "flex"
+                    : "none";
+        }
+
+
+        if (closeButton) {
+            closeButton.style.display =
+                profileCompletionRequired
+                    ? "none"
+                    : "";
+        }
+
+
+        if (passwordTab) {
+            passwordTab.disabled =
+                profileCompletionRequired;
+        }
+
+        if (groupsTab) {
+            groupsTab.disabled =
+                profileCompletionRequired;
+        }
+
+
+        if (missing) {
+            const labels = {
+                name: "Nome",
+                email: "E-mail",
+                whatsapp: "WhatsApp"
+            };
+
+            const fields =
+                profileMissingFields
+                    .map(
+                        field =>
+                            labels[field] ||
+                            field
+                    );
+
+            missing.textContent =
+                fields.length
+                    ? `Falta preencher: ${fields.join(", ")}`
+                    : "";
+        }
+
+
+        if (
+            profileCompletionRequired
+        ) {
+            setProfileTab("data");
+        }
+    }
+
+
+    function applyProfileCompletionState(
+        data = {}
+    ) {
+        if (
+            typeof data.profile_complete !==
+            "boolean"
+        ) {
+            return;
+        }
+
+        profileCompletionRequired =
+            !data.profile_complete;
+
+        profileMissingFields =
+            Array.isArray(
+                data.missing_fields
+            )
+                ? data.missing_fields
+                : [];
+
+        updateProfileCompletionUI();
+    }
+
+    async function refreshProfileCompletion() {
+        const data =
+            await apiJson(
+                "/api/auth?action=me",
+                {
+                    method: "POST",
+                    body: JSON.stringify({})
+                }
+            );
+
+        state.auth.user = {
+            ...state.auth.user,
+            ...data.user
+        };
+
+        state.auth.groups =
+            Array.isArray(data.groups)
+                ? data.groups
+                : state.auth.groups;
+
+        applyProfileCompletionState(
+            data
+        );
+
+        saveState();
+
+        updateAuthUI();
+        updateHeaderUserIdentity();
+
+        return data;
+    }
+
     function updateAdminModeUI() {
         const groupButton = $("btnAdminCurrentGroup");
         const globalButton = $("btnAdminGlobal");
@@ -1286,6 +1429,7 @@
         updateAuthUI();
 
         await renderMyGroupInvites();
+        await refreshProfileCompletion();
     }
 
     async function refreshAuthAfterGroupInvite(
@@ -1511,7 +1655,6 @@
         }
 
         closeHeaderUserDropdown();
-        closeUserProfile();
 
         if ($("headerInviteBadge")) {
             $("headerInviteBadge")
@@ -1542,6 +1685,13 @@
 
         saveState();
         updateAuthUI();
+
+        profileCompletionRequired = false;
+        profileMissingFields = [];
+
+        updateProfileCompletionUI();
+
+        closeUserProfile(true);
     }
 
     function enterGuestMode() {
@@ -1925,6 +2075,14 @@
     }
 
     function setProfileTab(tab) {
+
+        if (
+            profileCompletionRequired &&
+            tab !== "data"
+        ) {
+            tab = "data";
+        }
+
         const panels = {
             data: $("profilePanelData"),
             password: $("profilePanelPassword"),
@@ -2121,6 +2279,10 @@
         const profile =
             data.profile || {};
 
+        applyProfileCompletionState(
+            data
+        );
+
         state.auth.user = {
             ...state.auth.user,
             ...profile
@@ -2224,7 +2386,7 @@
         try {
             await loadUserProfile();
         } catch (err) {
-            closeUserProfile();
+            closeUserProfile(true);
 
             alert(
                 err?.message ||
@@ -2235,7 +2397,20 @@
         }
     }
 
-    function closeUserProfile() {
+    function closeUserProfile(
+        force = false
+    ) {
+        if (
+            profileCompletionRequired &&
+            !force
+        ) {
+            Toast.show(
+                "Complete seu cadastro para continuar.",
+                "warning"
+            );
+
+            return;
+        }
         const modal =
             $("userProfileModal");
 
@@ -2317,8 +2492,15 @@
             hasError = true;
         }
 
-        if (
-            whatsapp &&
+        if (!whatsapp) {
+            setProfileFieldError(
+                "Whatsapp",
+                "Informe seu WhatsApp."
+            );
+
+            hasError = true;
+
+        } else if (
             whatsapp.length !== 11
         ) {
             setProfileFieldError(
@@ -2357,10 +2539,7 @@
                 ...data.profile
             };
 
-            saveState();
-
-            updateAuthUI();
-            updateHeaderUserIdentity();
+            await refreshProfileCompletion();
 
             if ($("profileSubtitle")) {
                 $("profileSubtitle")
@@ -2370,7 +2549,18 @@
 
             Loading.hide();
 
-            closeUserProfile();
+            if (!profileCompletionRequired) {
+                closeUserProfile(true);
+
+                if (isOrganizer()) {
+                    showTab("sorteios");
+
+                } else if (
+                    getCurrentGroupId()
+                ) {
+                    showTab("jogos");
+                }
+            }
 
             Toast.show(
                 data.message ||
@@ -4099,6 +4289,25 @@
         const user = getCurrentUser();
         const guest = user?.role === "guest";
         const organizer = isOrganizer();
+
+        if (
+            user &&
+            !guest &&
+            profileCompletionRequired
+        ) {
+            const modal =
+                $("userProfileModal");
+
+            if (
+                !modal?.classList.contains(
+                    "is-visible"
+                )
+            ) {
+                openUserProfile("data");
+            }
+
+            return;
+        }
 
         const hasGroup = !!getCurrentGroupId();
 
@@ -12945,6 +13154,20 @@
 
         const initialUser =
             getCurrentUser();
+
+        if (
+            initialUser &&
+            initialUser.role !== "guest"
+        ) {
+            try {
+                await refreshProfileCompletion();
+            } catch (err) {
+                console.warn(
+                    "Não foi possível validar o perfil:",
+                    err
+                );
+            }
+        }
 
         if (
             initialUser &&

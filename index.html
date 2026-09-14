@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=22">
+  <link rel="stylesheet" href="css/style.css?v=24">
 </head>
 
 <body>
@@ -476,6 +476,25 @@
           <!-- PERFIL -->
 
           <section id="profilePanelData" class="user-profile-panel">
+
+            <div id="profileCompletionNotice" class="profile-completion-notice" style="display:none;">
+              <div class="profile-completion-icon">
+                !
+              </div>
+
+              <div>
+                <strong>
+                  Complete seu cadastro
+                </strong>
+
+                <div class="profile-completion-text">
+                  Antes de continuar, precisamos que você
+                  complete algumas informações da sua conta.
+                </div>
+
+                <div id="profileCompletionMissing" class="profile-completion-missing"></div>
+              </div>
+            </div>
 
             <div class="profile-form-grid">
 
@@ -1421,7 +1440,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=29"></script>
+  <script src="js/app.js?v=30"></script>
 </body>
 
 </html>

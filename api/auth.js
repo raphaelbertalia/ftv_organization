@@ -44,6 +44,50 @@ function normalizeWhatsapp(value) {
   return digits;
 }
 
+function getProfileCompletion(profile = {}) {
+  const missingFields = [];
+
+  const name =
+    String(profile.name || "").trim();
+
+  const email =
+    String(profile.email || "")
+      .trim()
+      .toLowerCase();
+
+  const whatsapp =
+    normalizeWhatsapp(
+      profile.whatsapp
+    );
+
+  if (!name) {
+    missingFields.push("name");
+  }
+
+  if (
+    !email ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      .test(email)
+  ) {
+    missingFields.push("email");
+  }
+
+  if (
+    !/^55[1-9][0-9]9[0-9]{8}$/
+      .test(whatsapp)
+  ) {
+    missingFields.push("whatsapp");
+  }
+
+  return {
+    profile_complete:
+      missingFields.length === 0,
+
+    missing_fields:
+      missingFields
+  };
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -60,6 +104,43 @@ export default async function handler(req, res) {
           error: "Sessão inválida ou expirada"
         });
       }
+
+      const currentUserResult =
+        await pool.query(
+          `
+            SELECT
+              id,
+              name,
+              nickname,
+              username,
+              email,
+              whatsapp,
+              role,
+              active
+            FROM users
+            WHERE id = $1
+            LIMIT 1
+          `,
+          [authenticatedUser.id]
+        );
+
+      const currentUser =
+        currentUserResult.rows[0];
+
+      if (
+        !currentUser ||
+        !currentUser.active
+      ) {
+        return res.status(401).json({
+          error:
+            "Usuário não encontrado ou inativo"
+        });
+      }
+
+      const profileCompletion =
+        getProfileCompletion(
+          currentUser
+        );
 
       const groupsResult = await pool.query(
         `
@@ -81,8 +162,16 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        user: authenticatedUser,
-        groups: groupsResult.rows || []
+
+        user: {
+          ...authenticatedUser,
+          ...currentUser
+        },
+
+        groups:
+          groupsResult.rows || [],
+
+        ...profileCompletion
       });
 
     } else if (action === "profile") {
@@ -111,6 +200,11 @@ export default async function handler(req, res) {
       );
 
       const profile = userResult.rows[0];
+
+      const profileCompletion =
+        getProfileCompletion(
+          profile
+        );
 
       if (!profile) {
         return res.status(404).json({
@@ -172,7 +266,9 @@ export default async function handler(req, res) {
         profile,
         groups: groupsResult.rows || [],
         pending_requests:
-          pendingRequestsResult.rows || []
+          pendingRequestsResult.rows || [],
+
+        ...profileCompletion
       });
 
     } else if (action === "update-profile") {
@@ -207,11 +303,12 @@ export default async function handler(req, res) {
 
       if (
         !cleanName ||
-        !cleanEmail
+        !cleanEmail ||
+        !cleanWhatsapp
       ) {
         return res.status(400).json({
           error:
-            "Nome e e-mail são obrigatórios"
+            "Nome, e-mail e WhatsApp são obrigatórios"
         });
       }
 
@@ -229,7 +326,6 @@ export default async function handler(req, res) {
        * Se informar, precisa ser válido.
        */
       if (
-        cleanWhatsapp &&
         !/^55[1-9][0-9]9[0-9]{8}$/
           .test(cleanWhatsapp)
       ) {
