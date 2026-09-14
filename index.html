@@ -1090,21 +1090,76 @@
       <!-- TAB: JOGADORES -->
       <section id="tab-jogadores" style="display:none;">
         <div class="card">
-          <b>Jogadores</b>
-          <div class="row" style="margin-top:10px; align-items:end;">
+
+          <b>Adicionar jogador</b>
+
+          <div class="muted" style="margin-top:6px;">
+            Procure primeiro uma pessoa cadastrada na plataforma.
+          </div>
+
+          <div class="row" style="margin-top:12px; align-items:end; gap:10px;">
+            <div style="flex:1; min-width:220px;">
+              <div class="muted">
+                Buscar usuário
+              </div>
+
+              <input id="playerUserSearch" type="text" placeholder="Nome, apelido ou usuário" autocomplete="off"
+                style="width:100%;" />
+            </div>
+
+            <button id="btnSearchPlayerUser" type="button">
+              Buscar
+            </button>
+          </div>
+
+          <div id="playerUserSearchResults" style="margin-top:12px;"></div>
+
+          <div style="
+      margin:16px 0;
+      border-top:1px solid rgba(255,255,255,.12);
+    "></div>
+
+          <button id="btnToggleManualPlayer" class="secondary" type="button">
+            Cadastrar jogador avulso
+          </button>
+
+          <div id="manualPlayerForm" class="row" style="
+      margin-top:12px;
+      align-items:end;
+      display:none;
+    ">
             <input id="newPlayerName" placeholder="Nome do jogador" />
 
             <select id="newPlayerSide" required>
-              <option value="" selected disabled>Selecione o lado</option>
-              <option value="left">Esquerdo</option>
-              <option value="right">Direito</option>
-              <option value="both">Coringa</option>
+              <option value="" selected disabled>
+                Selecione o lado
+              </option>
+              <option value="left">
+                Esquerdo
+              </option>
+              <option value="right">
+                Direito
+              </option>
+              <option value="both">
+                Coringa
+              </option>
             </select>
 
-            <button id="btnAddPlayer">Adicionar</button>
-            <button id="btnActivateAll" class="secondary">Ativar todos</button>
-            <button id="btnDeactivateAll" class="secondary">Desativar todos</button>
+            <button id="btnAddPlayer" type="button">
+              Adicionar
+            </button>
           </div>
+
+          <div class="row" style="margin-top:16px;">
+            <button id="btnActivateAll" class="secondary" type="button">
+              Ativar todos
+            </button>
+
+            <button id="btnDeactivateAll" class="secondary" type="button">
+              Desativar todos
+            </button>
+          </div>
+
         </div>
 
         <div class="card">
@@ -1329,7 +1384,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=27"></script>
+  <script src="js/app.js?v=28"></script>
 </body>
 
 </html>

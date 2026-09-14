@@ -1044,6 +1044,97 @@ export default async function handler(req, res) {
         members: result.rows || []
       });
 
+    } else if (action === "search-player-users") {
+      const {
+        group_id,
+        q
+      } = req.body || {};
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const search =
+        String(q || "")
+          .trim()
+          .slice(0, 80);
+
+      if (search.length < 2) {
+        return res.status(400).json({
+          error:
+            "Informe pelo menos 2 caracteres para pesquisar"
+        });
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            u.id,
+            u.name,
+            u.nickname,
+            u.username
+
+          FROM users u
+
+          LEFT JOIN players p
+            ON p.user_id = u.id
+          AND p.group_id = $1
+
+          WHERE u.active = true
+            AND p.id IS NULL
+
+            AND (
+              LOWER(u.name)
+                LIKE LOWER($2)
+
+              OR LOWER(
+                COALESCE(u.nickname, '')
+              ) LIKE LOWER($2)
+
+              OR LOWER(u.username)
+                LIKE LOWER($2)
+            )
+
+          ORDER BY
+            CASE
+              WHEN LOWER(u.username) =
+                  LOWER($3)
+                THEN 0
+
+              WHEN LOWER(
+                COALESCE(u.nickname, '')
+              ) = LOWER($3)
+                THEN 1
+
+              ELSE 2
+            END,
+
+            COALESCE(
+              NULLIF(u.nickname, ''),
+              u.name
+            ) ASC
+
+          LIMIT 20
+        `,
+        [
+          group_id,
+          `%${search}%`,
+          search
+        ]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        users: result.rows || []
+      });
+
+
     } else if (action === "search-users-for-group") {
       const {
         group_id,

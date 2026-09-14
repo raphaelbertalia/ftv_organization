@@ -5628,39 +5628,339 @@
     `;
     }
 
-    async function addPlayer(name) {
-        const clean = (name || "").trim();
-        if (!clean) return alert("Nome vazio 😅");
+    async function addPlayer(
+        name,
+        userId = null,
+        sideOverride = null
+    ) {
+        const clean =
+            (name || "").trim();
 
-        if ((state.players || []).some((p) => (p.name || "").toLowerCase() === clean.toLowerCase())) {
-            return alert("Já tem esse nome.");
+        if (!clean) {
+            Toast.show(
+                "Informe o nome do jogador.",
+                "warning"
+            );
+
+            return false;
         }
 
-        const side = $("newPlayerSide")?.value || "";
+        /*
+         * Mantemos a proteção histórica para
+         * jogadores manuais.
+         *
+         * Usuários vinculados são identificados
+         * pelo user_id.
+         */
+        if (
+            !userId &&
+            (state.players || []).some(
+                p =>
+                    (p.name || "")
+                        .toLowerCase() ===
+                    clean.toLowerCase()
+            )
+        ) {
+            Toast.show(
+                "Já existe um jogador com esse nome.",
+                "warning"
+            );
+
+            return false;
+        }
+
+        const side =
+            sideOverride ??
+            $("newPlayerSide")?.value ??
+            "";
+
+        if (!side) {
+            Toast.show(
+                "Selecione o lado do jogador.",
+                "warning"
+            );
+
+            return false;
+        }
 
         const player = {
             id: uid(),
             name: clean,
             active: true,
-            side
+            side,
+            user_id:
+                userId || null
         };
 
-        state.players.push(player);
-        saveState();
-        renderPlayers();
-        renderPairsEditor();
-        updateTopStats();
+        try {
+            await apiJson(
+                "/api/players",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        ...player,
+                        group_id:
+                            getCurrentGroupId()
+                    })
+                }
+            );
+
+            state.players.push(player);
+
+            saveState();
+            renderPlayers();
+            renderPairsEditor();
+            updateTopStats();
+
+            return true;
+
+        } catch (err) {
+            console.error(
+                "Erro salvando jogador:",
+                err
+            );
+
+            Toast.show(
+                err?.message ||
+                "Não foi possível adicionar o jogador.",
+                "error"
+            );
+
+            return false;
+        }
+    }
+
+    function clearPlayerUserSearch() {
+        if ($("playerUserSearch")) {
+            $("playerUserSearch").value = "";
+        }
+
+        if ($("playerUserSearchResults")) {
+            $("playerUserSearchResults")
+                .innerHTML = "";
+        }
+    }
+
+
+    function renderPlayerUserSearchResults(
+        users = []
+    ) {
+        const container =
+            $("playerUserSearchResults");
+
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = "";
+
+        if (!users.length) {
+            container.innerHTML = `
+            <div class="muted">
+                Nenhum usuário disponível encontrado.
+            </div>
+        `;
+
+            return;
+        }
+
+        users.forEach(user => {
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "group-member-item";
+
+            const info =
+                document.createElement("div");
+
+            info.className =
+                "group-member-info";
+
+            const displayName =
+                user.nickname ||
+                user.name ||
+                user.username;
+
+            info.innerHTML = `
+            <strong>
+                ${escapeSummaryHtml(
+                displayName
+            )}
+            </strong>
+
+            ${user.nickname
+                    ? `
+                    <span>
+                        ${escapeSummaryHtml(
+                        user.name || ""
+                    )}
+                    </span>
+                `
+                    : ""
+                }
+
+            <span class="muted">
+                @${escapeSummaryHtml(
+                    user.username || ""
+                )}
+            </span>
+        `;
+
+            const actions =
+                document.createElement("div");
+
+            actions.className =
+                "group-member-actions";
+
+            const side =
+                document.createElement("select");
+
+            side.innerHTML = `
+            <option value="">
+                Lado
+            </option>
+
+            <option value="left">
+                Esquerdo
+            </option>
+
+            <option value="right">
+                Direito
+            </option>
+
+            <option value="both">
+                Coringa
+            </option>
+        `;
+
+            const addButton =
+                document.createElement("button");
+
+            addButton.type =
+                "button";
+
+            addButton.textContent =
+                "Adicionar";
+
+            addButton.addEventListener(
+                "click",
+                async () => {
+                    if (!side.value) {
+                        Toast.show(
+                            "Selecione o lado do jogador.",
+                            "warning"
+                        );
+
+                        side.focus();
+                        return;
+                    }
+
+                    Loading.show(
+                        `Adicionando ${displayName}...`
+                    );
+
+                    try {
+                        const added =
+                            await addPlayer(
+                                displayName,
+                                user.id,
+                                side.value
+                            );
+
+                        if (!added) {
+                            return;
+                        }
+
+                        Toast.show(
+                            `${displayName} adicionado ao grupo.`,
+                            "success"
+                        );
+
+                        /*
+                         * Remove o usuário da lista,
+                         * pois ele já virou player.
+                         */
+                        item.remove();
+
+                        if (
+                            !container.children.length
+                        ) {
+                            container.innerHTML = `
+                            <div class="muted">
+                                Nenhum outro usuário disponível.
+                            </div>
+                        `;
+                        }
+
+                    } finally {
+                        Loading.hide();
+                    }
+                }
+            );
+
+            actions.appendChild(side);
+            actions.appendChild(addButton);
+
+            item.appendChild(info);
+            item.appendChild(actions);
+
+            container.appendChild(item);
+        });
+    }
+
+
+    async function searchPlayerUsers() {
+        if (!requireAdmin()) {
+            return;
+        }
+
+        const query =
+            ($("playerUserSearch")?.value || "")
+                .trim();
+
+        if (query.length < 2) {
+            Toast.show(
+                "Digite pelo menos 2 caracteres para buscar.",
+                "warning"
+            );
+
+            $("playerUserSearch")?.focus();
+            return;
+        }
+
+        Loading.show(
+            "Buscando usuários..."
+        );
 
         try {
-            await apiJson("/api/players", {
-                method: "POST",
-                body: JSON.stringify({
-                    ...player,
-                    group_id: getCurrentGroupId()
-                })
-            });
+            const data =
+                await apiJson(
+                    "/api/auth?action=search-player-users",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            group_id:
+                                getCurrentGroupId(),
+
+                            q: query
+                        })
+                    }
+                );
+
+            renderPlayerUserSearchResults(
+                data.users || []
+            );
+
         } catch (err) {
-            console.error("Erro salvando jogador no banco:", err);
+            Toast.show(
+                err?.message ||
+                "Não foi possível buscar usuários.",
+                "error"
+            );
+
+        } finally {
+            Loading.hide();
         }
     }
 
@@ -6531,6 +6831,67 @@
         });
     }
 
+    if ($("btnToggleManualPlayer")) {
+        $("btnToggleManualPlayer")
+            .addEventListener(
+                "click",
+                () => {
+                    const form =
+                        $("manualPlayerForm");
+
+                    if (!form) {
+                        return;
+                    }
+
+                    const opening =
+                        form.style.display ===
+                        "none";
+
+                    form.style.display =
+                        opening
+                            ? "flex"
+                            : "none";
+
+                    $("btnToggleManualPlayer")
+                        .textContent =
+                        opening
+                            ? "Ocultar cadastro avulso"
+                            : "Cadastrar jogador avulso";
+
+                    if (opening) {
+                        $("newPlayerName")
+                            ?.focus();
+                    }
+                }
+            );
+    }
+
+
+    if ($("btnSearchPlayerUser")) {
+        $("btnSearchPlayerUser")
+            .addEventListener(
+                "click",
+                searchPlayerUsers
+            );
+    }
+
+
+    if ($("playerUserSearch")) {
+        $("playerUserSearch")
+            .addEventListener(
+                "keydown",
+                async event => {
+                    if (
+                        event.key === "Enter"
+                    ) {
+                        event.preventDefault();
+
+                        await searchPlayerUsers();
+                    }
+                }
+            );
+    }
+
     if ($("btnAddPlayer")) {
         $("btnAddPlayer").addEventListener("click", async () => {
             if (!requireAdmin()) return;
@@ -6565,10 +6926,22 @@
             Loading.show("Salvando jogador...");
 
             try {
-                await addPlayer($("newPlayerName").value);
+                const added =
+                    await addPlayer(
+                        $("newPlayerName").value
+                    );
+
+                if (!added) {
+                    return;
+                }
 
                 $("newPlayerName").value = "";
                 $("newPlayerSide").value = "";
+
+                Toast.show(
+                    "Jogador avulso adicionado.",
+                    "success"
+                );
 
                 $("newPlayerName").focus();
             } finally {
