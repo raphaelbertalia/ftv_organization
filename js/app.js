@@ -366,6 +366,7 @@
                 saveState();
 
                 clearGroupInviteSearch();
+                clearPlayerUserSearch();
 
                 await hydrateStateFromDb();
 
@@ -1279,6 +1280,8 @@
         }
 
         clearGroupInviteSearch();
+        clearPlayerUserSearch();
+
         saveState();
         updateAuthUI();
 
@@ -1527,6 +1530,16 @@
         }
 
         clearGroupInviteSearch();
+        clearPlayerUserSearch();
+
+        if ($("newPlayerName")) {
+            $("newPlayerName").value = "";
+        }
+
+        if ($("newPlayerSide")) {
+            $("newPlayerSide").value = "";
+        }
+
         saveState();
         updateAuthUI();
     }
@@ -4405,146 +4418,1104 @@
     // ---------- Players ----------
     function renderPlayers() {
         const wrap = $("playersList");
-        if (!wrap) return;
+
+        if (!wrap) {
+            return;
+        }
 
         wrap.innerHTML = "";
 
         const players = (state.players || [])
             .slice()
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            .sort((a, b) =>
+                (a.name || "")
+                    .localeCompare(
+                        b.name || "",
+                        "pt-BR"
+                    )
+            );
 
-        players.forEach((p) => {
-            const div = document.createElement("div");
-            div.className = "player-item";
+        const activePlayers =
+            players.filter(
+                player => !!player.active
+            ).length;
 
-            const chk = document.createElement("input");
-            chk.type = "checkbox";
-            chk.checked = !!p.active;
-            chk.addEventListener("change", async () => {
-                p.active = chk.checked;
-                saveState();
-                renderPairsEditor();
-                updateTopStats();
+        if ($("playersCountLabel")) {
+            $("playersCountLabel").textContent =
+                `${players.length} jogador${players.length === 1 ? "" : "es"}`
+                + ` • ${activePlayers} ativo${activePlayers === 1 ? "" : "s"}`;
+        }
 
-                await apiJson("/api/players", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        id: p.id,
-                        name: p.name,
-                        active: p.active,
-                        side: p.side || "",
-                        group_id: getCurrentGroupId()
-                    })
-                });
-            });
+        if (!players.length) {
+            wrap.innerHTML = `
+            <div class="players-empty-state">
+                <strong>
+                    Nenhum jogador cadastrado
+                </strong>
 
-            const name = document.createElement("input");
-            name.value = p.name || "";
-            name.addEventListener("change", async () => {
-                const clean = (name.value || "").trim();
-                if (!clean) return;
-
-                p.name = clean;
-                saveState();
-                renderPairsEditor();
-                renderPairSelects();
-                window.renderRanking();
-
-                await apiJson("/api/players", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        id: p.id,
-                        name: p.name,
-                        active: p.active,
-                        side: p.side || "",
-                        group_id: getCurrentGroupId()
-                    })
-                });
-            });
-
-            const side = document.createElement("select");
-            side.innerHTML = `
-            <option value="">Lado</option>
-            <option value="left">Esquerdo</option>
-            <option value="right">Direito</option>
-            <option value="both">Coringa</option>
+                <span>
+                    Use a busca acima ou cadastre um jogador avulso.
+                </span>
+            </div>
         `;
-            side.value = p.side || "";
-            side.addEventListener("change", async () => {
-                p.side = side.value;
-                saveState();
 
-                await apiJson("/api/players", {
+            return;
+        }
+
+        const sideLabels = {
+            left: "Esquerdo",
+            right: "Direito",
+            both: "Coringa"
+        };
+
+
+        /*
+         * Salva alteração de um player já existente.
+         *
+         * user_id não é enviado aqui.
+         * O vínculo existente é preservado pelo backend.
+         */
+        async function updateExistingPlayer(
+            player,
+            updates
+        ) {
+            const nextPlayer = {
+                ...player,
+                ...updates
+            };
+
+            await apiJson(
+                "/api/players",
+                {
                     method: "POST",
+
                     body: JSON.stringify({
-                        id: p.id,
-                        name: p.name,
-                        active: p.active,
-                        side: p.side || "",
-                        group_id: getCurrentGroupId()
+                        id: nextPlayer.id,
+                        name: nextPlayer.name,
+                        active:
+                            !!nextPlayer.active,
+                        side:
+                            nextPlayer.side || "",
+                        group_id:
+                            getCurrentGroupId()
                     })
-                });
-            });
+                }
+            );
 
-            const right = document.createElement("div");
-            right.className = "right";
+            Object.assign(
+                player,
+                updates
+            );
 
-            const pill = document.createElement("span");
-            pill.className = "pill";
-            pill.textContent = p.active ? "ativo" : "inativo";
+            saveState();
 
-            const del = document.createElement("span");
-            del.className = "link";
-            del.textContent = "remover";
-            del.addEventListener("click", async () => {
-                if (!requireAdmin()) return;
+            renderPlayers();
+            renderPairsEditor();
+            renderPairSelects();
+            updateTopStats();
 
-                const used = (state.matches || []).some((m) => {
-                    const sess = (state.sessions || []).find((s) => s.id === m.sessionId);
-                    if (!sess) return false;
+            if (
+                typeof window.renderRanking ===
+                "function"
+            ) {
+                window.renderRanking();
+            }
+        }
 
-                    const pairA = (sess.pairs || []).find((pair) => pair.id === m.pairAId);
-                    const pairB = (sess.pairs || []).find((pair) => pair.id === m.pairBId);
+
+        /*
+         * Verifica se o player já apareceu
+         * em alguma partida histórica.
+         */
+        function playerHasHistory(playerId) {
+            return (state.matches || [])
+                .some(match => {
+                    const session =
+                        (state.sessions || [])
+                            .find(item =>
+                                String(item.id) ===
+                                String(match.sessionId)
+                            );
+
+                    if (!session) {
+                        return false;
+                    }
+
+                    const pairA =
+                        (session.pairs || [])
+                            .find(pair =>
+                                String(pair.id) ===
+                                String(match.pairAId)
+                            );
+
+                    const pairB =
+                        (session.pairs || [])
+                            .find(pair =>
+                                String(pair.id) ===
+                                String(match.pairBId)
+                            );
 
                     const playersInMatch = [
-                        pairA?.p1, pairA?.p2,
-                        pairB?.p1, pairB?.p2
-                    ].filter(Boolean);
+                        pairA?.p1,
+                        pairA?.p2,
+                        pairB?.p1,
+                        pairB?.p2
+                    ]
+                        .filter(Boolean)
+                        .map(String);
 
-                    return playersInMatch.includes(p.id);
+                    return playersInMatch.includes(
+                        String(playerId)
+                    );
                 });
+        }
 
-                if (used) return alert("Esse jogador já tem jogos no histórico. Desativa ao invés de remover.");
-                if (!confirm(`Remover ${p.name}?`)) return;
 
-                state.players = (state.players || []).filter((x) => x.id !== p.id);
-                saveState();
-                renderPlayers();
-                renderPairsEditor();
-                renderPairSelects();
-                updateTopStats();
+        players.forEach(player => {
 
-                Loading.show("Removendo jogador...");
+            const card =
+                document.createElement("div");
 
-                try {
-                    await apiJson("/api/players", {
-                        method: "DELETE",
-                        body: JSON.stringify({ id: p.id, group_id: getCurrentGroupId() })
-                    });
-                } finally {
-                    Loading.hide();
+            card.className =
+                "player-card";
+
+
+            /*
+             * DADOS PRINCIPAIS
+             */
+            const main =
+                document.createElement("div");
+
+            main.className =
+                "player-card-main";
+
+
+            const heading =
+                document.createElement("div");
+
+            heading.className =
+                "player-card-heading";
+
+
+            const name =
+                document.createElement("div");
+
+            name.className =
+                "player-card-name";
+
+            name.textContent =
+                player.name || "Sem nome";
+
+
+            const status =
+                document.createElement("span");
+
+            status.className =
+                "player-status-badge " +
+                (
+                    player.active
+                        ? "is-active"
+                        : "is-inactive"
+                );
+
+            status.textContent =
+                player.active
+                    ? "Ativo"
+                    : "Inativo";
+
+
+            heading.appendChild(name);
+            heading.appendChild(status);
+
+
+            const side =
+                document.createElement("div");
+
+            side.className =
+                "player-card-side";
+
+            side.textContent =
+                sideLabels[player.side] ||
+                "Lado não definido";
+
+
+            /*
+             * CONTA VINCULADA / AVULSO
+             */
+            const account =
+                document.createElement("div");
+
+            const linked =
+                !!player.user_id;
+
+            account.className =
+                "player-account-status " +
+                (
+                    linked
+                        ? "is-linked"
+                        : "is-manual"
+                );
+
+            if (linked) {
+                const username =
+                    player.linked_username
+                        ? `@${player.linked_username}`
+                        : "Conta vinculada";
+
+                account.innerHTML = `
+                <span>✓</span>
+
+                <span>
+                    Conta vinculada
+                </span>
+
+                ${player.linked_username
+                        ? `
+                            <span class="player-account-username">
+                                ${escapeSummaryHtml(
+                            username
+                        )}
+                            </span>
+                        `
+                        : ""
+                    }
+            `;
+
+            } else {
+                account.innerHTML = `
+                <span>○</span>
+                <span>Jogador avulso</span>
+            `;
+            }
+
+
+            main.appendChild(heading);
+            main.appendChild(side);
+            main.appendChild(account);
+
+
+            /*
+             * AÇÕES PRINCIPAIS
+             */
+            const actions =
+                document.createElement("div");
+
+            actions.className =
+                "player-card-actions";
+
+
+            if (!linked) {
+                const linkAccount =
+                    document.createElement("button");
+
+                linkAccount.type =
+                    "button";
+
+                linkAccount.className =
+                    "secondary player-link-account-button";
+
+                linkAccount.textContent =
+                    "Vincular conta";
+
+                actions.appendChild(
+                    linkAccount
+                );
+
+
+                linkAccount.addEventListener(
+                    "click",
+                    () => {
+                        const existing =
+                            card.querySelector(
+                                ".player-link-panel"
+                            );
+
+                        if (existing) {
+                            existing.remove();
+                            return;
+                        }
+
+                        card
+                            .querySelector(
+                                ".player-card-edit"
+                            )
+                            ?.remove();
+
+                        card
+                            .querySelector(
+                                ".player-action-menu"
+                            )
+                            ?.remove();
+
+
+                        const panel =
+                            document.createElement(
+                                "div"
+                            );
+
+                        panel.className =
+                            "player-link-panel";
+
+                        panel.innerHTML = `
+                        <div class="player-link-panel-title">
+                            Vincular conta a
+                            ${escapeSummaryHtml(
+                            player.name
+                        )}
+                        </div>
+
+                        <div class="player-link-search">
+                            <input
+                                type="text"
+                                class="player-link-search-input"
+                                placeholder="Nome, apelido ou usuário"
+                                autocomplete="off"
+                            />
+
+                            <button
+                                type="button"
+                                class="player-link-search-button"
+                            >
+                                Buscar
+                            </button>
+                        </div>
+
+                        <div
+                            class="player-link-results"
+                        ></div>
+                    `;
+
+                        card.appendChild(panel);
+
+                        const input =
+                            panel.querySelector(
+                                ".player-link-search-input"
+                            );
+
+                        const searchButton =
+                            panel.querySelector(
+                                ".player-link-search-button"
+                            );
+
+                        const results =
+                            panel.querySelector(
+                                ".player-link-results"
+                            );
+
+
+                        const executeSearch =
+                            async () => {
+                                const query =
+                                    (
+                                        input?.value ||
+                                        ""
+                                    ).trim();
+
+                                if (
+                                    query.length < 2
+                                ) {
+                                    Toast.show(
+                                        "Digite pelo menos 2 caracteres para buscar.",
+                                        "warning"
+                                    );
+
+                                    input?.focus();
+                                    return;
+                                }
+
+                                Loading.show(
+                                    "Buscando usuários..."
+                                );
+
+                                try {
+                                    const data =
+                                        await apiJson(
+                                            "/api/auth?action=search-player-users",
+                                            {
+                                                method:
+                                                    "POST",
+
+                                                body:
+                                                    JSON.stringify({
+                                                        group_id:
+                                                            getCurrentGroupId(),
+
+                                                        q:
+                                                            query
+                                                    })
+                                            }
+                                        );
+
+                                    const users =
+                                        Array.isArray(
+                                            data.users
+                                        )
+                                            ? data.users
+                                            : [];
+
+                                    results.innerHTML =
+                                        "";
+
+                                    if (
+                                        !users.length
+                                    ) {
+                                        results.innerHTML = `
+                                        <div class="muted">
+                                            Nenhum usuário disponível encontrado.
+                                        </div>
+                                    `;
+
+                                        return;
+                                    }
+
+                                    users.forEach(
+                                        user => {
+                                            const row =
+                                                document.createElement(
+                                                    "div"
+                                                );
+
+                                            row.className =
+                                                "player-link-result-item";
+
+
+                                            const userInfo =
+                                                document.createElement(
+                                                    "div"
+                                                );
+
+                                            userInfo.className =
+                                                "player-link-result-info";
+
+                                            const displayName =
+                                                user.nickname ||
+                                                user.name ||
+                                                user.username;
+
+                                            userInfo.innerHTML = `
+                                            <strong>
+                                                ${escapeSummaryHtml(
+                                                displayName
+                                            )}
+                                            </strong>
+
+                                            ${user.nickname &&
+                                                    user.name
+                                                    ? `
+                                                        <span>
+                                                            ${escapeSummaryHtml(
+                                                        user.name
+                                                    )}
+                                                        </span>
+                                                    `
+                                                    : ""
+                                                }
+
+                                            <small>
+                                                @${escapeSummaryHtml(
+                                                    user.username ||
+                                                    ""
+                                                )}
+                                            </small>
+                                        `;
+
+
+                                            const button =
+                                                document.createElement(
+                                                    "button"
+                                                );
+
+                                            button.type =
+                                                "button";
+
+                                            button.textContent =
+                                                "Vincular";
+
+
+                                            button.addEventListener(
+                                                "click",
+                                                async () => {
+                                                    if (
+                                                        !confirm(
+                                                            `Vincular ${player.name} à conta @${user.username}?`
+                                                        )
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    Loading.show(
+                                                        `Vinculando ${player.name}...`
+                                                    );
+
+                                                    try {
+                                                        await apiJson(
+                                                            "/api/players",
+                                                            {
+                                                                method:
+                                                                    "POST",
+
+                                                                body:
+                                                                    JSON.stringify({
+                                                                        id:
+                                                                            player.id,
+
+                                                                        name:
+                                                                            player.name,
+
+                                                                        active:
+                                                                            !!player.active,
+
+                                                                        side:
+                                                                            player.side ||
+                                                                            "",
+
+                                                                        group_id:
+                                                                            getCurrentGroupId(),
+
+                                                                        user_id:
+                                                                            user.id
+                                                                    })
+                                                            }
+                                                        );
+
+                                                        await hydrateStateFromDb();
+
+                                                        renderPlayers();
+
+                                                        /*
+                                                         * Remove também qualquer
+                                                         * resultado antigo da busca
+                                                         * superior.
+                                                         */
+                                                        clearPlayerUserSearch();
+
+                                                        Toast.show(
+                                                            `${player.name} vinculado a @${user.username}.`,
+                                                            "success"
+                                                        );
+
+                                                    } catch (
+                                                    err
+                                                    ) {
+                                                        Toast.show(
+                                                            err?.message ||
+                                                            "Não foi possível vincular a conta.",
+                                                            "error"
+                                                        );
+
+                                                    } finally {
+                                                        Loading.hide();
+                                                    }
+                                                }
+                                            );
+
+
+                                            row.appendChild(
+                                                userInfo
+                                            );
+
+                                            row.appendChild(
+                                                button
+                                            );
+
+                                            results.appendChild(
+                                                row
+                                            );
+                                        }
+                                    );
+
+                                } catch (err) {
+                                    Toast.show(
+                                        err?.message ||
+                                        "Não foi possível buscar usuários.",
+                                        "error"
+                                    );
+
+                                } finally {
+                                    Loading.hide();
+                                }
+                            };
+
+
+                        searchButton
+                            ?.addEventListener(
+                                "click",
+                                executeSearch
+                            );
+
+
+                        input
+                            ?.addEventListener(
+                                "keydown",
+                                event => {
+                                    if (
+                                        event.key ===
+                                        "Enter"
+                                    ) {
+                                        event.preventDefault();
+                                        executeSearch();
+                                    }
+                                }
+                            );
+
+
+                        input?.focus();
+                    }
+                );
+            }
+
+
+            /*
+             * EDITAR
+             */
+            const edit =
+                document.createElement("button");
+
+            edit.type =
+                "button";
+
+            edit.className =
+                "secondary";
+
+            edit.textContent =
+                "Editar dados";
+
+
+            edit.addEventListener(
+                "click",
+                () => {
+                    const existing =
+                        card.querySelector(
+                            ".player-card-edit"
+                        );
+
+                    if (existing) {
+                        existing.remove();
+                        return;
+                    }
+
+                    card
+                        .querySelector(
+                            ".player-link-panel"
+                        )
+                        ?.remove();
+
+                    card
+                        .querySelector(
+                            ".player-action-menu"
+                        )
+                        ?.remove();
+
+
+                    const editPanel =
+                        document.createElement(
+                            "div"
+                        );
+
+                    editPanel.className =
+                        "player-card-edit";
+
+
+                    const nameInput =
+                        document.createElement(
+                            "input"
+                        );
+
+                    nameInput.type =
+                        "text";
+
+                    nameInput.value =
+                        player.name || "";
+
+                    nameInput.placeholder =
+                        "Nome";
+
+
+                    const sideSelect =
+                        document.createElement(
+                            "select"
+                        );
+
+                    sideSelect.innerHTML = `
+                    <option value="">
+                        Lado
+                    </option>
+
+                    <option value="left">
+                        Esquerdo
+                    </option>
+
+                    <option value="right">
+                        Direito
+                    </option>
+
+                    <option value="both">
+                        Coringa
+                    </option>
+                `;
+
+                    sideSelect.value =
+                        player.side || "";
+
+
+                    const statusSelect =
+                        document.createElement(
+                            "select"
+                        );
+
+                    statusSelect.innerHTML = `
+                    <option value="true">
+                        Ativo
+                    </option>
+
+                    <option value="false">
+                        Inativo
+                    </option>
+                `;
+
+                    statusSelect.value =
+                        player.active
+                            ? "true"
+                            : "false";
+
+
+                    const editActions =
+                        document.createElement(
+                            "div"
+                        );
+
+                    editActions.className =
+                        "player-card-edit-actions";
+
+
+                    const save =
+                        document.createElement(
+                            "button"
+                        );
+
+                    save.type =
+                        "button";
+
+                    save.textContent =
+                        "Salvar";
+
+
+                    const cancel =
+                        document.createElement(
+                            "button"
+                        );
+
+                    cancel.type =
+                        "button";
+
+                    cancel.className =
+                        "secondary";
+
+                    cancel.textContent =
+                        "Cancelar";
+
+
+                    cancel.addEventListener(
+                        "click",
+                        () => {
+                            editPanel.remove();
+                        }
+                    );
+
+
+                    save.addEventListener(
+                        "click",
+                        async () => {
+                            const cleanName =
+                                (
+                                    nameInput.value ||
+                                    ""
+                                ).trim();
+
+                            if (!cleanName) {
+                                Toast.show(
+                                    "Informe o nome do jogador.",
+                                    "warning"
+                                );
+
+                                nameInput.focus();
+                                return;
+                            }
+
+                            if (
+                                !sideSelect.value
+                            ) {
+                                Toast.show(
+                                    "Selecione o lado do jogador.",
+                                    "warning"
+                                );
+
+                                sideSelect.focus();
+                                return;
+                            }
+
+                            Loading.show(
+                                "Salvando jogador..."
+                            );
+
+                            try {
+                                await updateExistingPlayer(
+                                    player,
+                                    {
+                                        name:
+                                            cleanName,
+
+                                        side:
+                                            sideSelect.value,
+
+                                        active:
+                                            statusSelect.value ===
+                                            "true"
+                                    }
+                                );
+
+                                Toast.show(
+                                    "Jogador atualizado.",
+                                    "success"
+                                );
+
+                            } catch (err) {
+                                Toast.show(
+                                    err?.message ||
+                                    "Não foi possível atualizar o jogador.",
+                                    "error"
+                                );
+
+                            } finally {
+                                Loading.hide();
+                            }
+                        }
+                    );
+
+
+                    editActions.appendChild(
+                        save
+                    );
+
+                    editActions.appendChild(
+                        cancel
+                    );
+
+
+                    editPanel.appendChild(
+                        nameInput
+                    );
+
+                    editPanel.appendChild(
+                        sideSelect
+                    );
+
+                    editPanel.appendChild(
+                        statusSelect
+                    );
+
+                    editPanel.appendChild(
+                        editActions
+                    );
+
+
+                    card.appendChild(
+                        editPanel
+                    );
+
+                    nameInput.focus();
                 }
-            });
+            );
 
-            right.appendChild(pill);
-            right.appendChild(del);
 
-            div.appendChild(chk);
-            div.appendChild(name);
-            div.appendChild(side);
-            div.appendChild(right);
+            /*
+             * MENU •••
+             */
+            const more =
+                document.createElement("button");
 
-            wrap.appendChild(div);
+            more.type =
+                "button";
+
+            more.className =
+                "secondary player-more-button";
+
+            more.textContent =
+                "•••";
+
+            more.setAttribute(
+                "aria-label",
+                `Mais ações para ${player.name}`
+            );
+
+
+            more.addEventListener(
+                "click",
+                () => {
+                    const existing =
+                        card.querySelector(
+                            ".player-action-menu"
+                        );
+
+                    if (existing) {
+                        existing.remove();
+                        return;
+                    }
+
+                    card
+                        .querySelector(
+                            ".player-card-edit"
+                        )
+                        ?.remove();
+
+                    card
+                        .querySelector(
+                            ".player-link-panel"
+                        )
+                        ?.remove();
+
+
+                    const menu =
+                        document.createElement(
+                            "div"
+                        );
+
+                    menu.className =
+                        "player-action-menu";
+
+
+                    const remove =
+                        document.createElement(
+                            "button"
+                        );
+
+                    remove.type =
+                        "button";
+
+                    remove.className =
+                        "secondary player-remove-button";
+
+                    remove.textContent =
+                        "Remover jogador";
+
+
+                    remove.addEventListener(
+                        "click",
+                        async () => {
+                            if (!requireAdmin()) {
+                                return;
+                            }
+
+                            if (
+                                playerHasHistory(
+                                    player.id
+                                )
+                            ) {
+                                Toast.show(
+                                    "Esse jogador já possui jogos no histórico. Desative-o em vez de remover.",
+                                    "warning",
+                                    4500
+                                );
+
+                                return;
+                            }
+
+                            if (
+                                !confirm(
+                                    `Remover ${player.name}?`
+                                )
+                            ) {
+                                return;
+                            }
+
+                            Loading.show(
+                                `Removendo ${player.name}...`
+                            );
+
+                            try {
+                                /*
+                                 * Banco primeiro.
+                                 * Só tiramos da tela após
+                                 * o DELETE ser confirmado.
+                                 */
+                                await apiJson(
+                                    "/api/players",
+                                    {
+                                        method:
+                                            "DELETE",
+
+                                        body:
+                                            JSON.stringify({
+                                                id:
+                                                    player.id,
+
+                                                group_id:
+                                                    getCurrentGroupId()
+                                            })
+                                    }
+                                );
+
+                                state.players =
+                                    (
+                                        state.players ||
+                                        []
+                                    ).filter(
+                                        item =>
+                                            String(
+                                                item.id
+                                            ) !==
+                                            String(
+                                                player.id
+                                            )
+                                    );
+
+                                saveState();
+
+                                renderPlayers();
+                                renderPairsEditor();
+                                renderPairSelects();
+                                updateTopStats();
+
+                                clearPlayerUserSearch();
+
+                                Toast.show(
+                                    `${player.name} removido.`,
+                                    "success"
+                                );
+
+                            } catch (err) {
+                                Toast.show(
+                                    err?.message ||
+                                    "Não foi possível remover o jogador.",
+                                    "error"
+                                );
+
+                            } finally {
+                                Loading.hide();
+                            }
+                        }
+                    );
+
+
+                    menu.appendChild(
+                        remove
+                    );
+
+                    card.appendChild(
+                        menu
+                    );
+                }
+            );
+
+
+            actions.appendChild(edit);
+            actions.appendChild(more);
+
+
+            card.appendChild(main);
+            card.appendChild(actions);
+
+            wrap.appendChild(card);
         });
     }
 

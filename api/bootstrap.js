@@ -16,11 +16,21 @@ export default async function handler(req, res) {
         }
 
         const playersResult = await pool.query(`
-            SELECT *
-            FROM players
-            WHERE group_id = $1
-            ORDER BY name ASC
-        `, [group_id]);
+                SELECT
+                    p.*,
+                    u.username AS linked_username,
+                    u.name AS linked_user_name,
+                    u.nickname AS linked_user_nickname
+
+                FROM players p
+
+                LEFT JOIN users u
+                    ON u.id = p.user_id
+
+                WHERE p.group_id = $1
+
+                ORDER BY p.name ASC
+            `, [group_id]);
 
         const sessionsResult = await pool.query(`
             SELECT *

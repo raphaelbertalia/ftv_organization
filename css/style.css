@@ -4649,3 +4649,690 @@ button.group-access-close {
   }
 
 }
+
+/* =========================================================
+   JOGADORES — NOVA INTERFACE
+   ========================================================= */
+
+#tab-jogadores {
+  width: 100%;
+}
+
+
+/* ---------- adicionar jogador ---------- */
+
+.players-add-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.players-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.players-section-heading .muted {
+  margin-top: 5px;
+  font-size: 13px;
+}
+
+
+/* busca */
+
+.player-search-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.player-search-field {
+  min-width: 0;
+}
+
+.player-search-field label,
+.player-manual-field label {
+  display: block;
+  margin-bottom: 6px;
+
+  color: var(--muted);
+
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.player-search-field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-search-button {
+  min-width: 110px;
+}
+
+
+/* resultados da busca */
+
+.player-user-search-results:empty {
+  display: none;
+}
+
+.player-user-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+
+/* divisor */
+
+.players-add-divider {
+  width: 100%;
+  height: 1px;
+
+  background:
+    rgba(255, 255, 255, .08);
+}
+
+
+/* jogador avulso */
+
+.player-manual-toggle {
+  align-self: flex-start;
+}
+
+.player-manual-form {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1fr)
+    minmax(160px, 220px)
+    auto;
+
+  gap: 10px;
+  align-items: end;
+
+  padding: 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background:
+    rgba(255, 255, 255, .025);
+}
+
+.player-manual-field {
+  min-width: 0;
+}
+
+.player-manual-field input,
+.player-manual-field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-manual-add {
+  white-space: nowrap;
+}
+
+
+/* ---------- lista ---------- */
+
+.players-list-card {
+  margin-top: 12px;
+}
+
+.players-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 14px;
+}
+
+.players-count-label {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.players-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.players-bulk-actions button {
+  padding: 8px 12px;
+
+  font-size: 12px;
+
+  white-space: nowrap;
+}
+
+.players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+/* =========================================================
+   NOVO CARD DE JOGADOR
+   ========================================================= */
+
+.player-card {
+  position: relative;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  gap: 16px;
+
+  padding: 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, .04),
+      rgba(255, 255, 255, .02)
+    );
+
+  transition:
+    border-color .15s ease,
+    background .15s ease;
+}
+
+.player-card:hover {
+  border-color:
+    rgba(255, 255, 255, .14);
+
+  background:
+    rgba(255, 255, 255, .045);
+}
+
+
+/* dados principais */
+
+.player-card-main {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.player-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-width: 0;
+}
+
+.player-card-name {
+  overflow: hidden;
+
+  font-size: 15px;
+  font-weight: 850;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-status-badge {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 4px 8px;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 900;
+
+  text-transform: uppercase;
+  letter-spacing: .04em;
+
+  white-space: nowrap;
+}
+
+.player-status-badge.is-active {
+  color: #86efac;
+
+  border-color:
+    rgba(34, 197, 94, .3);
+
+  background:
+    rgba(34, 197, 94, .1);
+}
+
+.player-status-badge.is-inactive {
+  color: var(--muted);
+
+  background:
+    rgba(255, 255, 255, .03);
+}
+
+
+/* lado */
+
+.player-card-side {
+  color: var(--muted);
+
+  font-size: 12px;
+}
+
+
+/* vínculo */
+
+.player-account-status {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  margin-top: 3px;
+
+  font-size: 12px;
+}
+
+.player-account-status.is-linked {
+  color: #86efac;
+}
+
+.player-account-status.is-manual {
+  color: var(--muted);
+}
+
+.player-account-username {
+  color: #60a5fa;
+
+  font-weight: 750;
+}
+
+
+/* ações */
+
+.player-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 8px;
+}
+
+.player-card-actions button {
+  padding: 8px 11px;
+
+  font-size: 11px;
+
+  white-space: nowrap;
+}
+
+.player-link-account-button {
+  border-color:
+    rgba(96, 165, 250, .35) !important;
+
+  color: #93c5fd !important;
+
+  background:
+    rgba(59, 130, 246, .08) !important;
+}
+
+.player-more-button {
+  width: 38px !important;
+  min-width: 38px;
+
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+
+  font-size: 18px !important;
+}
+
+
+/* formulário de edição */
+
+.player-card-edit {
+  grid-column: 1 / -1;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(160px, 1fr)
+    minmax(140px, 200px)
+    minmax(120px, 160px)
+    auto;
+
+  gap: 10px;
+
+  padding-top: 14px;
+
+  border-top:
+    1px solid var(--border);
+}
+
+.player-card-edit input,
+.player-card-edit select {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-card-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+
+/* vínculo inline */
+
+.player-link-panel {
+  grid-column: 1 / -1;
+
+  padding: 14px;
+
+  border-top:
+    1px solid var(--border);
+}
+
+.player-link-panel-title {
+  margin-bottom: 10px;
+
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.player-link-search {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  gap: 8px;
+}
+
+.player-link-search input {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-link-results {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 720px) {
+
+  #tab-jogadores .card {
+    padding: 12px;
+  }
+
+
+  /* busca */
+
+  .player-search-box {
+    grid-template-columns: 1fr;
+  }
+
+  .player-search-button {
+    width: 100%;
+  }
+
+
+  /* cadastro avulso */
+
+  .player-manual-toggle {
+    width: 100%;
+  }
+
+  .player-manual-form {
+    grid-template-columns: 1fr;
+  }
+
+  .player-manual-form input,
+  .player-manual-form select,
+  .player-manual-form button {
+    width: 100%;
+  }
+
+
+  /* toolbar */
+
+  .players-list-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .players-bulk-actions {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .players-bulk-actions button {
+    width: 100%;
+  }
+
+
+  /* card */
+
+  .player-card {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+
+    padding: 14px;
+  }
+
+  .player-card-heading {
+    justify-content:
+      space-between;
+  }
+
+  .player-card-name {
+    white-space: normal;
+  }
+
+  .player-card-actions {
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto;
+
+    width: 100%;
+  }
+
+  .player-card-actions button {
+    width: 100%;
+  }
+
+  .player-card-actions
+  .player-more-button {
+    width: 42px !important;
+  }
+
+
+  /* edição */
+
+  .player-card-edit {
+    grid-template-columns: 1fr;
+  }
+
+  .player-card-edit input,
+  .player-card-edit select,
+  .player-card-edit button {
+    width: 100%;
+  }
+
+  .player-card-edit-actions {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+
+  /* vincular */
+
+  .player-link-search {
+    grid-template-columns: 1fr;
+  }
+
+  .player-link-search button {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   JOGADORES — COMPLEMENTOS DE AÇÕES
+   ========================================================= */
+
+.players-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 5px;
+
+  min-height: 120px;
+
+  padding: 24px;
+
+  text-align: center;
+
+  color: var(--muted);
+}
+
+.players-empty-state strong {
+  color: var(--text);
+}
+
+
+/* menu de ações */
+
+.player-action-menu {
+  grid-column: 1 / -1;
+
+  display: flex;
+  justify-content: flex-end;
+
+  padding-top: 12px;
+
+  border-top:
+    1px solid var(--border);
+}
+
+.player-remove-button {
+  border-color:
+    rgba(239, 68, 68, .35) !important;
+
+  color:
+    #fca5a5 !important;
+
+  background:
+    rgba(239, 68, 68, .08) !important;
+}
+
+
+/* resultado de busca para vínculo */
+
+.player-link-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 10px 12px;
+
+  border:
+    1px solid var(--border);
+
+  border-radius: 12px;
+
+  background:
+    rgba(255, 255, 255, .025);
+}
+
+.player-link-result-info {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  gap: 2px;
+}
+
+.player-link-result-info strong {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-link-result-info span,
+.player-link-result-info small {
+  color: var(--muted);
+}
+
+.player-link-result-item button {
+  flex-shrink: 0;
+
+  padding: 8px 11px;
+
+  font-size: 11px;
+}
+
+
+/* melhoria para vínculo visível */
+
+.player-account-status {
+  flex-wrap: wrap;
+}
+
+
+/* mobile */
+
+@media (max-width: 720px) {
+
+  .player-link-result-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .player-link-result-item button {
+    width: 100%;
+  }
+
+  .player-action-menu {
+    justify-content: stretch;
+  }
+
+  .player-action-menu button {
+    width: 100%;
+  }
+}

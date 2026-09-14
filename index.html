@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=21">
+  <link rel="stylesheet" href="css/style.css?v=22">
 </head>
 
 <body>
@@ -1088,83 +1088,120 @@
       </section>
 
       <!-- TAB: JOGADORES -->
+      <!-- TAB: JOGADORES -->
       <section id="tab-jogadores" style="display:none;">
-        <div class="card">
 
-          <b>Adicionar jogador</b>
+        <!-- ADICIONAR JOGADOR -->
+        <div class="card players-add-card">
 
-          <div class="muted" style="margin-top:6px;">
-            Procure primeiro uma pessoa cadastrada na plataforma.
+          <div class="players-section-heading">
+            <div>
+              <b>Adicionar jogador</b>
+
+              <div class="muted">
+                Procure uma conta cadastrada ou adicione um jogador avulso.
+              </div>
+            </div>
           </div>
 
-          <div class="row" style="margin-top:12px; align-items:end; gap:10px;">
-            <div style="flex:1; min-width:220px;">
-              <div class="muted">
-                Buscar usuário
-              </div>
+          <div class="player-search-box">
 
-              <input id="playerUserSearch" type="text" placeholder="Nome, apelido ou usuário" autocomplete="off"
-                style="width:100%;" />
+            <div class="player-search-field">
+              <label for="playerUserSearch">
+                Buscar usuário
+              </label>
+
+              <input id="playerUserSearch" type="text" placeholder="Nome, apelido ou usuário" autocomplete="off" />
             </div>
 
-            <button id="btnSearchPlayerUser" type="button">
+            <button id="btnSearchPlayerUser" type="button" class="player-search-button">
               Buscar
             </button>
+
           </div>
 
-          <div id="playerUserSearchResults" style="margin-top:12px;"></div>
+          <div id="playerUserSearchResults" class="player-user-search-results"></div>
 
-          <div style="
-      margin:16px 0;
-      border-top:1px solid rgba(255,255,255,.12);
-    "></div>
+          <div class="players-add-divider"></div>
 
-          <button id="btnToggleManualPlayer" class="secondary" type="button">
-            Cadastrar jogador avulso
+          <button id="btnToggleManualPlayer" class="secondary player-manual-toggle" type="button">
+            + Cadastrar jogador avulso
           </button>
 
-          <div id="manualPlayerForm" class="row" style="
-      margin-top:12px;
-      align-items:end;
-      display:none;
-    ">
-            <input id="newPlayerName" placeholder="Nome do jogador" />
+          <div id="manualPlayerForm" class="player-manual-form" style="display:none;">
 
-            <select id="newPlayerSide" required>
-              <option value="" selected disabled>
-                Selecione o lado
-              </option>
-              <option value="left">
-                Esquerdo
-              </option>
-              <option value="right">
-                Direito
-              </option>
-              <option value="both">
-                Coringa
-              </option>
-            </select>
+            <div class="player-manual-field">
+              <label for="newPlayerName">
+                Nome
+              </label>
 
-            <button id="btnAddPlayer" type="button">
-              Adicionar
+              <input id="newPlayerName" placeholder="Nome do jogador" />
+            </div>
+
+            <div class="player-manual-field">
+              <label for="newPlayerSide">
+                Lado
+              </label>
+
+              <select id="newPlayerSide" required>
+                <option value="" selected disabled>
+                  Selecione o lado
+                </option>
+
+                <option value="left">
+                  Esquerdo
+                </option>
+
+                <option value="right">
+                  Direito
+                </option>
+
+                <option value="both">
+                  Coringa
+                </option>
+              </select>
+            </div>
+
+            <button id="btnAddPlayer" type="button" class="player-manual-add">
+              Adicionar jogador
             </button>
-          </div>
 
-          <div class="row" style="margin-top:16px;">
-            <button id="btnActivateAll" class="secondary" type="button">
-              Ativar todos
-            </button>
-
-            <button id="btnDeactivateAll" class="secondary" type="button">
-              Desativar todos
-            </button>
           </div>
 
         </div>
 
-        <div class="card">
-          <div id="playersList"></div>
+
+        <!-- LISTA DE JOGADORES -->
+        <div class="card players-list-card">
+
+          <div class="players-list-toolbar">
+
+            <div>
+              <b>Jogadores do grupo</b>
+
+              <div id="playersCountLabel" class="muted players-count-label">
+                —
+              </div>
+            </div>
+
+            <div class="players-bulk-actions">
+
+              <button id="btnActivateAll" class="secondary" type="button">
+                Ativar todos
+              </button>
+
+              <button id="btnDeactivateAll" class="secondary" type="button">
+                Desativar todos
+              </button>
+
+            </div>
+
+          </div>
+
+          <div id="playersList" class="players-list"></div>
+
         </div>
+
       </section>
 
       <!-- TAB: ADMINISTRAÇÃO DO GRUPO -->
@@ -1384,7 +1421,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=28"></script>
+  <script src="js/app.js?v=29"></script>
 </body>
 
 </html>
