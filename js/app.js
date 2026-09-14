@@ -216,6 +216,7 @@
     function clearProfileErrors() {
         [
             "Name",
+            "Nickname",
             "Email",
             "Whatsapp"
         ].forEach(
@@ -295,6 +296,7 @@
         if (missing) {
             const labels = {
                 name: "Nome",
+                nickname: "Apelido",
                 email: "E-mail",
                 whatsapp: "WhatsApp"
             };
@@ -1520,6 +1522,7 @@
 
         if (
             !name ||
+            !nickname ||
             !username ||
             !email ||
             !whatsapp ||
@@ -2467,6 +2470,15 @@
             setProfileFieldError(
                 "Name",
                 "Informe seu nome."
+            );
+
+            hasError = true;
+        }
+
+        if (!nickname) {
+            setProfileFieldError(
+                "Nickname",
+                "Informe seu apelido."
             );
 
             hasError = true;

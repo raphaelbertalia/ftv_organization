@@ -50,6 +50,9 @@ function getProfileCompletion(profile = {}) {
   const name =
     String(profile.name || "").trim();
 
+  const nickname =
+    String(profile.nickname || "").trim();
+
   const email =
     String(profile.email || "")
       .trim()
@@ -62,6 +65,10 @@ function getProfileCompletion(profile = {}) {
 
   if (!name) {
     missingFields.push("name");
+  }
+
+  if (!nickname) {
+    missingFields.push("nickname");
   }
 
   if (
@@ -303,12 +310,13 @@ export default async function handler(req, res) {
 
       if (
         !cleanName ||
+        !cleanNickname ||
         !cleanEmail ||
         !cleanWhatsapp
       ) {
         return res.status(400).json({
           error:
-            "Nome, e-mail e WhatsApp são obrigatórios"
+            "Nome, apelido, e-mail e WhatsApp são obrigatórios"
         });
       }
 
@@ -600,6 +608,7 @@ export default async function handler(req, res) {
 
       if (
         !cleanName ||
+        !cleanNickname ||
         !cleanUsername ||
         !cleanEmail ||
         !cleanWhatsapp ||
@@ -607,7 +616,7 @@ export default async function handler(req, res) {
       ) {
         return res.status(400).json({
           error:
-            "Nome, usuário, e-mail, WhatsApp e senha são obrigatórios"
+            "Nome, apelido, usuário, e-mail, WhatsApp e senha são obrigatórios"
         });
       }
 
