@@ -1649,7 +1649,8 @@
 
         if (adminGrupoTab) {
             adminGrupoTab.style.display =
-                isAdmin() && hasGroup
+                isGlobalAdmin() ||
+                    (isAdmin() && hasGroup)
                     ? "inline-block"
                     : "none";
         }
@@ -3090,6 +3091,100 @@
         }
     }
 
+    async function openGlobalGroupAdminContext(group) {
+        if (
+            !group?.id ||
+            !isGlobalAdmin()
+        ) {
+            return;
+        }
+
+        Loading.show(
+            `Abrindo ${group.name || "grupo"}...`
+        );
+
+        try {
+            state.auth =
+                state.auth || {};
+
+            const groups =
+                Array.isArray(state.auth.groups)
+                    ? [...state.auth.groups]
+                    : [];
+
+            const existingIndex =
+                groups.findIndex(
+                    item =>
+                        String(item.id) ===
+                        String(group.id)
+                );
+
+            /*
+             * Para o Global Admin esse registro
+             * representa acesso administrativo,
+             * não necessariamente vínculo em
+             * user_groups.
+             */
+            const effectiveGroup = {
+                id: group.id,
+                name: group.name,
+                slug: group.slug,
+                role: "admin",
+                globalAccess: true
+            };
+
+            if (existingIndex >= 0) {
+                groups[existingIndex] = {
+                    ...groups[existingIndex],
+                    ...effectiveGroup
+                };
+            } else {
+                groups.push(
+                    effectiveGroup
+                );
+            }
+
+            state.auth.groups = groups;
+
+            state.auth.currentGroupId =
+                group.id;
+
+            adminViewMode =
+                "group";
+
+            saveState();
+
+            await hydrateStateFromDb();
+
+            updateAuthUI();
+            updateAllSessionUI();
+
+            showTab(
+                "admin-grupo"
+            );
+
+            Toast.show(
+                `Administrando ${group.name}.`,
+                "success"
+            );
+
+        } catch (err) {
+            console.error(
+                "Erro abrindo grupo:",
+                err
+            );
+
+            Toast.show(
+                err?.message ||
+                "Não foi possível abrir o grupo.",
+                "error"
+            );
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
     async function renderGlobalGroups() {
         const container = $("globalGroupsList");
 
@@ -3182,6 +3277,32 @@
                 actions.className =
                     "group-member-actions";
 
+                const manageButton =
+                    document.createElement(
+                        "button"
+                    );
+
+                manageButton.type =
+                    "button";
+
+                manageButton.className =
+                    "secondary";
+
+                manageButton.textContent =
+                    "Administrar";
+
+                manageButton.disabled =
+                    !group.active;
+
+                manageButton.addEventListener(
+                    "click",
+                    async () => {
+                        await openGlobalGroupAdminContext(
+                            group
+                        );
+                    }
+                );
+
                 const editButton =
                     document.createElement("button");
 
@@ -3223,6 +3344,7 @@
                 );
 
                 actions.appendChild(status);
+                actions.appendChild(manageButton);
                 actions.appendChild(editButton);
                 actions.appendChild(activeButton);
 
@@ -3269,12 +3391,19 @@
                 }
             );
 
-            alert(
+            await renderGlobalGroups();
+
+            Toast.show(
                 data.message ||
-                "Grupo criado com sucesso"
+                "Grupo criado com sucesso.",
+                "success"
             );
 
-            await renderGlobalGroups();
+            if (data.group) {
+                await openGlobalGroupAdminContext(
+                    data.group
+                );
+            }
 
         } catch (err) {
             alert(
@@ -4135,14 +4264,25 @@
         const hasGroups = groups.length > 0;
         const hasGroup = !!getCurrentGroupId();
 
-        if ($("groupAccessModal")) {
+        const groupAccessModal =
+            $("groupAccessModal");
+
+        if (groupAccessModal) {
+            /*
+             * O CSS controla a exibição do modal
+             * através da classe .is-visible.
+             *
+             * Limpamos qualquer display inline
+             * deixado pelo estado de login.
+             */
+            groupAccessModal.style.display = "";
+
             if (
                 !logged ||
                 guest ||
                 organizer
             ) {
-                $("groupAccessModal")
-                    .style.display = "none";
+                closeGroupAccessModal();
             }
         }
 
@@ -4157,7 +4297,8 @@
             logged &&
             !guest &&
             !organizer &&
-            !hasGroups;
+            !hasGroups &&
+            !isGlobalAdmin();
 
         const hasActiveSession = !!getCurrentSession();
 
