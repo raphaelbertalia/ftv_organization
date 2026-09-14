@@ -4375,6 +4375,21 @@
             name = "ranking";
         }
 
+        /*
+        * Guarda a última aba válida acessada.
+        * Assim F5 / Ctrl+Shift+R mantém o usuário
+        * na tela em que estava.
+        */
+        if (
+            user &&
+            user.role !== "guest"
+        ) {
+            localStorage.setItem(
+                "quartaChLastTab",
+                name
+            );
+        }
+
         document.querySelectorAll('[id^="tab-"]').forEach((el) => (el.style.display = "none"));
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
 
@@ -13311,12 +13326,24 @@
 
         const bootUser = getCurrentUser();
 
-        if (!bootUser || bootUser.role === "guest") {
+        if (
+            !bootUser ||
+            bootUser.role === "guest"
+        ) {
             showTab("ranking");
+
         } else if (isOrganizer()) {
             showTab("sorteios");
+
         } else if (getCurrentGroupId()) {
-            showTab("jogos");
+            const lastTab =
+                localStorage.getItem(
+                    "quartaChLastTab"
+                );
+
+            showTab(
+                lastTab || "jogos"
+            );
         }
     })();
 
