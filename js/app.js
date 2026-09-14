@@ -5176,23 +5176,15 @@
                                                         await apiJson(
                                                             "/api/players",
                                                             {
-                                                                method:
-                                                                    "POST",
+                                                                method: "POST",
 
                                                                 body:
                                                                     JSON.stringify({
-                                                                        id:
+                                                                        action:
+                                                                            "link-user",
+
+                                                                        player_id:
                                                                             player.id,
-
-                                                                        name:
-                                                                            player.name,
-
-                                                                        active:
-                                                                            !!player.active,
-
-                                                                        side:
-                                                                            player.side ||
-                                                                            "",
 
                                                                         group_id:
                                                                             getCurrentGroupId(),
@@ -5608,6 +5600,100 @@
                     menu.className =
                         "player-action-menu";
 
+                    /*
+* DESVINCULAR CONTA
+*/
+                    if (linked) {
+                        const unlink =
+                            document.createElement(
+                                "button"
+                            );
+
+                        unlink.type =
+                            "button";
+
+                        unlink.className =
+                            "secondary";
+
+                        unlink.textContent =
+                            "Desvincular conta";
+
+
+                        unlink.addEventListener(
+                            "click",
+                            async () => {
+                                if (!requireAdmin()) {
+                                    return;
+                                }
+
+                                const username =
+                                    player.linked_username
+                                        ? `@${player.linked_username}`
+                                        : "a conta vinculada";
+
+                                if (
+                                    !confirm(
+                                        `Desvincular ${username} de ${player.name}?\n\n` +
+                                        "O jogador e todo o histórico de partidas serão mantidos."
+                                    )
+                                ) {
+                                    return;
+                                }
+
+                                Loading.show(
+                                    `Desvinculando ${player.name}...`
+                                );
+
+                                try {
+                                    await apiJson(
+                                        "/api/players",
+                                        {
+                                            method:
+                                                "POST",
+
+                                            body:
+                                                JSON.stringify({
+                                                    action:
+                                                        "unlink-user",
+
+                                                    player_id:
+                                                        player.id,
+
+                                                    group_id:
+                                                        getCurrentGroupId()
+                                                })
+                                        }
+                                    );
+
+                                    await hydrateStateFromDb();
+
+                                    renderPlayers();
+
+                                    clearPlayerUserSearch();
+
+                                    Toast.show(
+                                        `Conta desvinculada de ${player.name}.`,
+                                        "success"
+                                    );
+
+                                } catch (err) {
+                                    Toast.show(
+                                        err?.message ||
+                                        "Não foi possível desvincular a conta.",
+                                        "error"
+                                    );
+
+                                } finally {
+                                    Loading.hide();
+                                }
+                            }
+                        );
+
+
+                        menu.appendChild(
+                            unlink
+                        );
+                    }
 
                     const remove =
                         document.createElement(
