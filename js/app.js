@@ -4304,6 +4304,10 @@
                 )
             ) {
                 openUserProfile("data");
+                Toast.show(
+                    "Complete seu cadastro para continuar.",
+                    "warning"
+                );
             }
 
             return;
@@ -7734,6 +7738,23 @@
                 $("loginPassword").value = "";
 
                 Loading.hide();
+
+                /*
+                 * Perfil incompleto:
+                 * interrompe qualquer navegação
+                 * e força atualização imediatamente.
+                 */
+                if (profileCompletionRequired) {
+                    await openUserProfile("data");
+
+                    Toast.show(
+                        "Complete seu cadastro para continuar.",
+                        "warning",
+                        4500
+                    );
+
+                    return;
+                }
 
                 if (isOrganizer()) {
                     showTab("sorteios");
@@ -13167,6 +13188,19 @@
                     err
                 );
             }
+        }
+
+        /*
+        * Sessão restaurada com perfil incompleto.
+        * Não permite renderizar/navegar pelo app.
+        */
+        if (
+            initialUser &&
+            initialUser.role !== "guest" &&
+            profileCompletionRequired
+        ) {
+            await openUserProfile("data");
+            return;
         }
 
         if (
