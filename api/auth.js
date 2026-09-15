@@ -1171,7 +1171,7 @@ export default async function handler(req, res) {
        */
       const result = await pool.query(
         `
-          SELECT DISTINCT
+          SELECT
             p.id AS player_id,
             p.group_id,
 
