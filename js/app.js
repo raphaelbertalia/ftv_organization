@@ -9470,9 +9470,21 @@
             method: "PATCH",
             body: JSON.stringify({
                 id: session.id,
-                play_mode: session.playMode,
-                participant_ids: session.participantIds,
-                group_id: getCurrentGroupId()
+
+                play_mode:
+                    session.playMode,
+
+                participant_ids:
+                    session.participantIds,
+
+                pending_pair_a_id:
+                    null,
+
+                pending_pair_b_id:
+                    null,
+
+                group_id:
+                    getCurrentGroupId()
             })
         });
     }
@@ -9521,6 +9533,17 @@
         session.playMode = "rotation";
         session.participantIds = remainingParticipants;
         session.schedule = null;
+
+        /*
+         * Qualquer confronto que estava preparado
+         * pertence ao modo de duplas fixas.
+         *
+         * Ao entrar no rodízio precisamos descartá-lo,
+         * principalmente porque pode conter justamente
+         * o jogador que acabou de sair.
+         */
+        session.pendingPairAId = null;
+        session.pendingPairBId = null;
 
         /*
          * roster representa todo mundo que fez ou poderia ter feito
