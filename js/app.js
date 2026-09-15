@@ -1292,12 +1292,28 @@
                     s.play_mode ??
                     "fixed";
 
+                const matchFlowMode =
+                    s.matchFlowMode ??
+                    s.match_flow_mode ??
+                    "smart";
+
                 const normalized = {
                     ...s,
-                    dateISO: s.dateISO ?? s.date_iso ?? null,
-                    createdAt: s.createdAt ?? s.created_at ?? null,
+
+                    dateISO:
+                        s.dateISO ??
+                        s.date_iso ??
+                        null,
+
+                    createdAt:
+                        s.createdAt ??
+                        s.created_at ??
+                        null,
 
                     playMode,
+
+                    matchFlowMode,
+
                     participantIds,
 
                     pendingPairAId:
@@ -8746,12 +8762,155 @@
         });
     }
 
+    function updateMatchFlowSelector() {
+        const selector =
+            $("matchFlowSelector");
+
+        if (!selector) {
+            return;
+        }
+
+        const activePlayers =
+            (state.players || [])
+                .filter(
+                    player =>
+                        player.active
+                );
+
+        const activeCount =
+            activePlayers.length;
+
+        const session =
+            getCurrentSession();
+
+        /*
+         * Durante uma sessão ativa a escolha
+         * já foi feita e não pode ser alterada.
+         */
+        if (session) {
+            selector.style.display =
+                "none";
+
+            return;
+        }
+
+        /*
+         * A escolha só aparece em sessões
+         * de duplas fixas.
+         */
+        const shouldShow =
+            activeCount >= 4 &&
+            activeCount % 2 === 0;
+
+        selector.style.display =
+            shouldShow
+                ? "block"
+                : "none";
+
+        if (!shouldShow) {
+            return;
+        }
+
+        const smartInput =
+            $("matchFlowSmart");
+
+        const classicInput =
+            $("matchFlowClassic");
+
+        const classicHint =
+            $("matchFlowClassicHint");
+
+        const smartOption =
+            selector.querySelector(
+                '[data-match-flow="smart"]'
+            );
+
+        const classicOption =
+            selector.querySelector(
+                '[data-match-flow="classic"]'
+            );
+
+        /*
+         * O modo clássico foi desenhado
+         * especificamente para 4 duplas.
+         */
+        const classicAvailable =
+            activeCount === 8;
+
+        if (classicInput) {
+            classicInput.disabled =
+                !classicAvailable;
+        }
+
+        classicOption?.classList.toggle(
+            "is-disabled",
+            !classicAvailable
+        );
+
+        if (classicHint) {
+            classicHint.style.display =
+                classicAvailable
+                    ? "none"
+                    : "block";
+        }
+
+        /*
+         * Se classic estava selecionado
+         * e a quantidade mudou, volta para smart.
+         */
+        if (
+            !classicAvailable &&
+            classicInput?.checked
+        ) {
+            classicInput.checked =
+                false;
+
+            if (smartInput) {
+                smartInput.checked =
+                    true;
+            }
+        }
+
+        smartOption?.classList.toggle(
+            "is-selected",
+            !!smartInput?.checked
+        );
+
+        classicOption?.classList.toggle(
+            "is-selected",
+            !!classicInput?.checked
+        );
+    }
+
+    [
+        "matchFlowSmart",
+        "matchFlowClassic"
+    ].forEach(
+        inputId => {
+            const input =
+                $(inputId);
+
+            if (!input) {
+                return;
+            }
+
+            input.addEventListener(
+                "change",
+                () => {
+                    updateMatchFlowSelector();
+                }
+            );
+        }
+    );
+
     // ---------- Sessão + Duplas fixas ----------
     // Editor: 4 duplas (8 jogadores). Depois a gente deixa dinâmico se quiser.
     function renderPairsEditor() {
         const wrap = $("pairsEditor");
 
         if (!wrap) return;
+
+        updateMatchFlowSelector();
 
         const players = (state.players || [])
             .filter(player => player.active)
@@ -10391,6 +10550,25 @@
                         ? "fixed"
                         : "rotation";
 
+                const selectedMatchFlowMode =
+                    playMode === "fixed"
+                        ? (
+                            document.querySelector(
+                                'input[name="matchFlowMode"]:checked'
+                            )?.value ||
+                            "smart"
+                        )
+                        : "smart";
+
+                const matchFlowMode =
+                    (
+                        selectedMatchFlowMode ===
+                        "classic" &&
+                        participantIds.length === 8
+                    )
+                        ? "classic"
+                        : "smart";
+
                 const inputName =
                     (
                         $("sessionName")
@@ -10537,6 +10715,9 @@
                                 {
                                     playMode:
                                         "fixed",
+
+                                    matchFlowMode,
+
                                     participantIds
                                 }
                             );
@@ -12976,6 +13157,168 @@
         return getWinnerLoserPairId(prev, ref.type); // "winner" ou "loser"
     }
 
+    function computeClassicNextPlannedGame(
+        sess,
+        pairs
+    ) {
+        if (
+            !sess ||
+            !Array.isArray(pairs) ||
+            pairs.length !== 4
+        ) {
+            return null;
+        }
+
+        recomputeNextIndex(sess);
+
+        const nextIndex =
+            Number(
+                sess.nextIndex || 0
+            );
+
+        /*
+         * Jogo 1.
+         *
+         * Normalmente já estará preparado
+         * através de pendingPairA/B.
+         */
+        if (nextIndex === 0) {
+            return {
+                pairAId:
+                    pairs[0]?.id,
+
+                pairBId:
+                    pairs[1]?.id,
+
+                label:
+                    "Jogo 1"
+            };
+        }
+
+        /*
+         * Jogo 2:
+         * entram as duas duplas que
+         * não participaram do Jogo 1.
+         */
+        if (nextIndex === 1) {
+            const firstMatch =
+                getMatchByScheduleIndex(
+                    sess,
+                    0
+                );
+
+            if (!firstMatch) {
+                return null;
+            }
+
+            const usedPairIds =
+                new Set([
+                    String(
+                        firstMatch.pairAId
+                    ),
+                    String(
+                        firstMatch.pairBId
+                    )
+                ]);
+
+            const remainingPairs =
+                pairs.filter(
+                    pair =>
+                        !usedPairIds.has(
+                            String(pair.id)
+                        )
+                );
+
+            if (
+                remainingPairs.length !== 2
+            ) {
+                return null;
+            }
+
+            return {
+                pairAId:
+                    remainingPairs[0].id,
+
+                pairBId:
+                    remainingPairs[1].id,
+
+                label:
+                    "Jogo 2"
+            };
+        }
+
+        /*
+         * A partir do Jogo 3:
+         *
+         * J3 = vencedores J1/J2
+         * J4 = perdedores J1/J2
+         *
+         * J5 = vencedores J3/J4
+         * J6 = perdedores J3/J4
+         *
+         * e assim sucessivamente.
+         */
+        const sourceStartIndex =
+            (
+                Math.floor(
+                    nextIndex / 2
+                ) * 2
+            ) - 2;
+
+        const firstSourceMatch =
+            getMatchByScheduleIndex(
+                sess,
+                sourceStartIndex
+            );
+
+        const secondSourceMatch =
+            getMatchByScheduleIndex(
+                sess,
+                sourceStartIndex + 1
+            );
+
+        if (
+            !firstSourceMatch ||
+            !secondSourceMatch
+        ) {
+            return null;
+        }
+
+        const resultType =
+            nextIndex % 2 === 0
+                ? "winner"
+                : "loser";
+
+        const pairAId =
+            getWinnerLoserPairId(
+                firstSourceMatch,
+                resultType
+            );
+
+        const pairBId =
+            getWinnerLoserPairId(
+                secondSourceMatch,
+                resultType
+            );
+
+        if (
+            !pairAId ||
+            !pairBId ||
+            String(pairAId) ===
+            String(pairBId)
+        ) {
+            return null;
+        }
+
+        return {
+            pairAId,
+            pairBId,
+
+            label:
+                `Jogo ${nextIndex + 1}`
+        };
+    }
+
     function computeNextPlannedGame(sess) {
         if (
             !sess ||
@@ -13029,6 +13372,16 @@
                 label:
                     `Jogo ${(sess.nextIndex || 0) + 1}`
             };
+        }
+
+        if (
+            sess.matchFlowMode ===
+            "classic"
+        ) {
+            return computeClassicNextPlannedGame(
+                sess,
+                pairs
+            );
         }
 
         const matches =
@@ -13471,7 +13824,14 @@
         }
 
         if (modeBadge) {
-            modeBadge.textContent = "🎮 Duplas fixas";
+            const flowLabel =
+                sess.matchFlowMode ===
+                    "classic"
+                    ? "🏆 Previsível"
+                    : "🧠 Inteligente";
+
+            modeBadge.textContent =
+                `🎮 Duplas fixas • ${flowLabel}`;
         }
 
         const next = computeNextPlannedGame(sess);

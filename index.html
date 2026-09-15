@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=26">
+  <link rel="stylesheet" href="css/style.css?v=27">
 </head>
 
 <body>
@@ -687,6 +687,95 @@
             <div>
               <div class="muted">Sessão</div>
               <input id="sessionName" placeholder="Nome da sessão (ex: Quarta CH)" />
+              <div id="matchFlowSelector" class="match-flow-selector" style="display:none;">
+
+                <div class="match-flow-heading">
+                  <div>
+                    <strong>Dinâmica dos jogos</strong>
+
+                    <div class="muted">
+                      Escolha como o sistema deve montar os próximos confrontos.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="match-flow-options">
+
+                  <div class="match-flow-option is-selected" data-match-flow="smart">
+
+                    <input id="matchFlowSmart" type="radio" name="matchFlowMode" value="smart" checked />
+
+                    <label for="matchFlowSmart" class="match-flow-label">
+
+                      <span class="match-flow-icon">
+                        🧠
+                      </span>
+
+                      <span class="match-flow-copy">
+                        <strong>Inteligente</strong>
+                        <small>Equilíbrio e variedade</small>
+                      </span>
+
+                    </label>
+
+                    <div class="match-flow-tooltip-wrap">
+
+                      <button class="match-flow-tooltip-button" type="button"
+                        aria-label="Como funciona o modo Inteligente?">
+                        i
+                      </button>
+
+                      <div class="match-flow-tooltip">
+                        Equilibra a quantidade de jogos entre as duplas,
+                        varia os adversários e evita repetições em sequência.
+                        O resultado vale para o ranking, mas não define o próximo confronto.
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  <div class="match-flow-option" data-match-flow="classic">
+
+                    <input id="matchFlowClassic" type="radio" name="matchFlowMode" value="classic" />
+
+                    <label for="matchFlowClassic" class="match-flow-label">
+
+                      <span class="match-flow-icon">
+                        🏆
+                      </span>
+
+                      <span class="match-flow-copy">
+                        <strong>Previsível</strong>
+                        <small>Vencedores x vencedores</small>
+                      </span>
+
+                    </label>
+
+                    <div class="match-flow-tooltip-wrap">
+
+                      <button class="match-flow-tooltip-button" type="button"
+                        aria-label="Como funciona o modo Previsível?">
+                        i
+                      </button>
+
+                      <div class="match-flow-tooltip">
+                        Segue a lógica clássica:
+                        vencedores enfrentam vencedores e perdedores enfrentam perdedores.
+                        O resultado de cada jogo define os próximos confrontos.
+                      </div>
+
+                    </div>
+
+                    <div id="matchFlowClassicHint" class="match-flow-disabled-hint" style="display:none;">
+                      Disponível com 8 jogadores.
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
               <div id="cycleStartGameBox" style="display:none;">
                 <div class="muted">Primeira dupla a jogar</div>
                 <select id="cycleGame1PairA"></select>
@@ -1432,7 +1521,7 @@
 
   <script src="js/storage.js"></script>
   <script src="js/state.js"></script>
-  <script src="js/sessions.js"></script>
+  <script src="js/sessions.js?v=2"></script>
   <script src="js/matches.js"></script>
   <script src="js/ranking.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -1441,7 +1530,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=38"></script>
+  <script src="js/app.js?v=39"></script>
 </body>
 
 </html>

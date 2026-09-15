@@ -5800,3 +5800,194 @@ button.group-access-close {
   }
 
 }
+
+/* =========================================================
+   DINÂMICA DOS JOGOS
+   ========================================================= */
+
+.match-flow-selector {
+  width: 100%;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.match-flow-heading {
+  margin-bottom: 10px;
+}
+
+.match-flow-heading strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.match-flow-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.match-flow-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .025);
+  transition:
+    border-color .15s ease,
+    background .15s ease,
+    transform .08s ease;
+}
+
+.match-flow-option:hover {
+  background: rgba(255, 255, 255, .045);
+}
+
+.match-flow-option.is-selected {
+  border-color: rgba(34, 197, 94, .5);
+  background:
+    linear-gradient(180deg,
+      rgba(34, 197, 94, .14),
+      rgba(34, 197, 94, .06));
+}
+
+.match-flow-option.is-disabled {
+  opacity: .55;
+}
+
+.match-flow-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.match-flow-label {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.match-flow-option.is-disabled .match-flow-label {
+  cursor: not-allowed;
+}
+
+.match-flow-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .05);
+  font-size: 20px;
+}
+
+.match-flow-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.match-flow-copy strong {
+  font-size: 14px;
+}
+
+.match-flow-copy small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.match-flow-tooltip-wrap {
+  position: relative;
+  margin-left: 8px;
+}
+
+button.match-flow-tooltip-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .04);
+  color: var(--text);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.match-flow-tooltip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 40;
+
+  width: 260px;
+  padding: 11px 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: #111827;
+  color: var(--text);
+
+  box-shadow: var(--shadow2);
+
+  font-size: 12px;
+  line-height: 1.45;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+
+  pointer-events: none;
+
+  transition:
+    opacity .15s ease,
+    transform .15s ease,
+    visibility .15s ease;
+}
+
+.match-flow-tooltip-wrap:hover .match-flow-tooltip,
+.match-flow-tooltip-wrap:focus-within .match-flow-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.match-flow-disabled-hint {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -19px;
+
+  color: var(--muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+
+  .match-flow-options {
+    grid-template-columns: 1fr;
+  }
+
+  button.match-flow-tooltip-button {
+    width: 28px;
+  }
+
+  .match-flow-tooltip {
+    width: min(260px, calc(100vw - 60px));
+  }
+}

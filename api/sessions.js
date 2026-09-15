@@ -3,20 +3,34 @@ import { pool } from "../lib/db.js";
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
-      const result = await pool.query(`
-        SELECT
-          id,
-          date_iso,
-          name,
-          created_at,
-          status,
-          play_mode,
-          participant_ids,
-          pending_pair_a_id,
-          pending_pair_b_id
-        FROM sessions
-        ORDER BY created_at DESC
-      `);
+      const { group_id } = req.query || {};
+
+      if (!group_id) {
+        return res.status(400).json({
+          error: "group_id é obrigatório"
+        });
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            id,
+            date_iso,
+            name,
+            created_at,
+            status,
+            play_mode,
+            match_flow_mode,
+            participant_ids,
+            pending_pair_a_id,
+            pending_pair_b_id,
+            group_id
+          FROM sessions
+          WHERE group_id = $1
+          ORDER BY created_at DESC
+        `,
+        [group_id]
+      );
 
       return res.status(200).json(result.rows);
     }
@@ -29,14 +43,20 @@ export default async function handler(req, res) {
         name,
         playMode,
         play_mode,
+        matchFlowMode,
+        match_flow_mode,
         participantIds,
         participant_ids,
         group_id
       } = req.body || {};
 
+      const finalPlayMode = play_mode || playMode || "fixed";
       const finalDateIso = date_iso || dateISO || null;
       const finalName = name || null;
-      const finalPlayMode = play_mode || playMode || "fixed";
+      const finalMatchFlowMode =
+        match_flow_mode ||
+        matchFlowMode ||
+        "smart";
 
       const finalParticipantIds = Array.isArray(participant_ids)
         ? participant_ids
@@ -56,41 +76,68 @@ export default async function handler(req, res) {
         });
       }
 
+      if (
+        !["smart", "classic"]
+          .includes(finalMatchFlowMode)
+      ) {
+        return res.status(400).json({
+          error: "match_flow_mode inválido"
+        });
+      }
+
+      /*
+       * A dinâmica clássica só faz sentido
+       * com duplas fixas.
+       */
+      if (
+        finalPlayMode !== "fixed" &&
+        finalMatchFlowMode === "classic"
+      ) {
+        return res.status(400).json({
+          error:
+            "A dinâmica previsível só pode ser usada com duplas fixas"
+        });
+      }
+
       await pool.query(
         `
-        INSERT INTO sessions (
-          id,
-          date_iso,
-          name,
-          created_at,
-          status,
-          play_mode,
-          participant_ids,
-          group_id
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          NOW(),
-          'em_andamento',
-          $4,
-          $5::jsonb,
-          $6
-        )
-        ON CONFLICT (id)
-        DO UPDATE SET
-          date_iso = EXCLUDED.date_iso,
-          name = EXCLUDED.name,
-          play_mode = EXCLUDED.play_mode,
-          participant_ids = EXCLUDED.participant_ids,
-          group_id = EXCLUDED.group_id
+          INSERT INTO sessions (
+            id,
+            date_iso,
+            name,
+            created_at,
+            status,
+            play_mode,
+            match_flow_mode,
+            participant_ids,
+            group_id
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            NOW(),
+            'em_andamento',
+            $4,
+            $5,
+            $6::jsonb,
+            $7
+          )
+            ON CONFLICT (id)
+            DO UPDATE SET
+              date_iso = EXCLUDED.date_iso,
+              name = EXCLUDED.name,
+              play_mode = EXCLUDED.play_mode,
+              match_flow_mode = EXCLUDED.match_flow_mode,
+              participant_ids = EXCLUDED.participant_ids,
+              group_id = EXCLUDED.group_id
         `,
         [
           id,
           finalDateIso,
           finalName,
           finalPlayMode,
+          finalMatchFlowMode,
           JSON.stringify(finalParticipantIds),
           group_id
         ]
@@ -107,6 +154,8 @@ export default async function handler(req, res) {
         status,
         playMode,
         play_mode,
+        matchFlowMode,
+        match_flow_mode,
         participantIds,
         participant_ids,
         pendingPairAId,
@@ -125,6 +174,10 @@ export default async function handler(req, res) {
       const finalPlayMode =
         play_mode ??
         playMode;
+
+      const finalMatchFlowMode =
+        match_flow_mode ??
+        matchFlowMode;
 
       const hasParticipantIds =
         Object.prototype.hasOwnProperty.call(body, "participant_ids") ||
@@ -164,9 +217,19 @@ export default async function handler(req, res) {
         });
       }
 
+      if (
+        finalMatchFlowMode &&
+        !["smart", "classic"].includes(finalMatchFlowMode)
+      ) {
+        return res.status(400).json({
+          error: "match_flow_mode inválido"
+        });
+      }
+
       const hasAnyChange =
         typeof status !== "undefined" ||
         typeof finalPlayMode !== "undefined" ||
+        typeof finalMatchFlowMode !== "undefined" ||
         hasParticipantIds ||
         hasPendingPairA ||
         hasPendingPairB;
@@ -177,7 +240,7 @@ export default async function handler(req, res) {
         });
       }
 
-      await pool.query(
+      const updateResult = await pool.query(
         `
           UPDATE sessions
           SET
@@ -191,23 +254,29 @@ export default async function handler(req, res) {
               ELSE play_mode
             END,
 
+            match_flow_mode = CASE
+              WHEN $6::boolean THEN $7
+              ELSE match_flow_mode
+            END,
+
             participant_ids = CASE
-              WHEN $6::boolean THEN $7::jsonb
+              WHEN $8::boolean THEN $9::jsonb
               ELSE participant_ids
             END,
 
             pending_pair_a_id = CASE
-              WHEN $8::boolean THEN $9
+              WHEN $10::boolean THEN $11
               ELSE pending_pair_a_id
             END,
 
             pending_pair_b_id = CASE
-              WHEN $10::boolean THEN $11
+              WHEN $12::boolean THEN $13
               ELSE pending_pair_b_id
             END
+
           WHERE id = $1
-            AND group_id = $12
-    `,
+            AND group_id = $14
+        `,
         [
           id,
 
@@ -216,6 +285,9 @@ export default async function handler(req, res) {
 
           typeof finalPlayMode !== "undefined",
           finalPlayMode ?? null,
+
+          typeof finalMatchFlowMode !== "undefined",
+          finalMatchFlowMode ?? null,
 
           hasParticipantIds,
           hasParticipantIds
@@ -231,6 +303,12 @@ export default async function handler(req, res) {
           group_id
         ]
       );
+
+      if (!updateResult.rowCount) {
+        return res.status(404).json({
+          error: "Sessão não encontrada para este grupo"
+        });
+      }
 
       return res.status(200).json({ ok: true });
     }

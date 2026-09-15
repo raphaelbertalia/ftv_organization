@@ -36,6 +36,7 @@ async function syncSessionToDb(session) {
       date_iso: session.dateISO,
       name: session.name,
       play_mode: session.playMode || "fixed",
+      match_flow_mode: session.matchFlowMode || "smart",
       participant_ids: session.participantIds || [],
       group_id: state.auth?.currentGroupId || null
     })
@@ -125,12 +126,39 @@ async function createSession(
         : "rotation"
     );
 
+  const matchFlowMode =
+    playMode === "fixed"
+      ? (
+        options.matchFlowMode ||
+        "smart"
+      )
+      : "smart";
+
+
   if (
     !["fixed", "rotation"]
       .includes(playMode)
   ) {
     throw new Error(
       "Modo de sessão inválido."
+    );
+  }
+
+  if (
+    !["smart", "classic"]
+      .includes(matchFlowMode)
+  ) {
+    throw new Error(
+      "Dinâmica de jogos inválida."
+    );
+  }
+
+  if (
+    playMode !== "fixed" &&
+    matchFlowMode === "classic"
+  ) {
+    throw new Error(
+      "A dinâmica previsível só pode ser usada com duplas fixas."
     );
   }
 
@@ -176,6 +204,15 @@ async function createSession(
      * Ímpar = rodízio
      */
     playMode,
+
+    /*
+     * smart   = equilíbrio e variedade
+     * classic = vencedores/perdedores
+     *
+     * Em rodízio este valor permanece
+     * como smart.
+     */
+    matchFlowMode,
 
     participantIds,
 
