@@ -1823,7 +1823,12 @@
 
         if (cicloTab) {
             cicloTab.style.display =
-                isAdmin() && hasGroup ? "inline-block" : "none";
+                logged &&
+                    !guest &&
+                    !organizer &&
+                    hasGroup
+                    ? "inline-block"
+                    : "none";
         }
 
         if (adminGrupoTab) {
@@ -2162,30 +2167,51 @@
                                 false;
 
                             return `
-                            <div class="profile-stat-group">
+                        <div
+                            class="
+                                profile-stat-group
+                                ${active
+                                    ? "is-clickable"
+                                    : "is-disabled"}
+                                "
+                                data-group-id="${escapeSummaryHtml(
+                                        group.group_id
+                                    )}"
+                                data-group-name="${escapeSummaryHtml(
+                                        group.group_name ||
+                                        "Grupo"
+                                    )}"
+                                data-group-active="${active
+                                    ? "true"
+                                    : "false"}"
+                                    role="button"
+                                    tabindex="0"
+                                >
 
                                 <div class="profile-stat-group-header">
 
                                     <div>
                                         <strong>
                                             ${escapeSummaryHtml(
-                                group.group_name ||
-                                "Grupo"
-                            )}
+                                        group.group_name ||
+                                        "Grupo"
+                                    )}
                                         </strong>
 
                                         <div class="muted">
                                             ${Number(
-                                group.sessions
-                            ) || 0}
+                                        group.sessions
+                                    ) || 0}
                                             ${Number(
-                                group.sessions
-                            ) === 1
+                                        group.sessions
+                                    ) === 1
                                     ? "sessão"
                                     : "sessões"
                                 }
                                         </div>
                                     </div>
+
+                                    <div class="profile-stat-group-action">
 
                                     <span class="
                                         profile-stat-group-status
@@ -2197,6 +2223,15 @@
                                     ? "Ativo"
                                     : "Inativo"}
                                     </span>
+
+                                    <span
+                                        class="profile-stat-group-chevron"
+                                        aria-hidden="true"
+                                    >
+                                        ›
+                                    </span>
+
+                                </div>
 
                                 </div>
 
@@ -2370,6 +2405,134 @@
                 ${groupHtml}
             </div>
         `;
+
+            const openGroupCycle =
+                async card => {
+
+                    const groupId =
+                        card?.dataset
+                            ?.groupId;
+
+                    const groupName =
+                        card?.dataset
+                            ?.groupName ||
+                        "Este grupo";
+
+                    const active =
+                        card?.dataset
+                            ?.groupActive ===
+                        "true";
+
+
+                    /*
+                     * Grupo inativo:
+                     * mantém histórico visível,
+                     * mas não permite navegação.
+                     */
+                    if (!active) {
+                        Toast.show(
+                            `${groupName} está inativo e não pode ser acessado no momento.`,
+                            "error"
+                        );
+
+                        return;
+                    }
+
+
+                    /*
+                     * O histórico pode existir mesmo que
+                     * o usuário não tenha mais acesso atual
+                     * ao grupo.
+                     */
+                    const accessible =
+                        isGlobalAdmin() ||
+                        (state.auth?.groups || [])
+                            .some(
+                                item =>
+                                    String(item.id) ===
+                                    String(groupId)
+                            );
+
+                    if (!accessible) {
+                        Toast.show(
+                            `Você não possui acesso ativo ao grupo ${groupName}.`,
+                            "error"
+                        );
+
+                        return;
+                    }
+
+
+                    Loading.show(
+                        `Abrindo ${groupName}...`
+                    );
+
+                    try {
+                        state.auth.currentGroupId =
+                            groupId;
+
+                        saveState();
+
+                        clearGroupInviteSearch();
+                        clearPlayerUserSearch();
+
+                        await hydrateStateFromDb();
+
+                        updateAuthUI();
+                        updateAllSessionUI();
+
+                        closeUserProfile(true);
+
+                        showTab("ciclo");
+
+                    } catch (err) {
+                        Toast.show(
+                            err?.message ||
+                            "Não foi possível abrir o grupo.",
+                            "error"
+                        );
+
+                    } finally {
+                        Loading.hide();
+                    }
+                };
+
+
+            container
+                .querySelectorAll(
+                    ".profile-stat-group"
+                )
+                .forEach(card => {
+
+                    card.addEventListener(
+                        "click",
+                        () =>
+                            openGroupCycle(
+                                card
+                            )
+                    );
+
+
+                    card.addEventListener(
+                        "keydown",
+                        event => {
+
+                            if (
+                                event.key !==
+                                "Enter" &&
+                                event.key !== " "
+                            ) {
+                                return;
+                            }
+
+                            event.preventDefault();
+
+                            openGroupCycle(
+                                card
+                            );
+                        }
+                    );
+                });
 
         } catch (err) {
             container.innerHTML = `
@@ -4686,12 +4849,13 @@
             (
                 name === "jogadores" ||
                 name === "dados" ||
-                name === "ciclo" ||
                 name === "admin-grupo"
             ) &&
             !isAdmin()
         ) {
-            name = user && !guest ? "jogos" : "ranking";
+            name = user && !guest
+                ? "jogos"
+                : "ranking";
         }
 
         if (name === "jogos" && (!user || guest)) {
@@ -6494,6 +6658,22 @@
         const listView = $("cycleListView");
         const detailsView = $("cycleDetailsView");
         const listWrap = $("cycleList");
+
+        const managementDetails =
+            $("cycleManagementDetails");
+
+        if (managementDetails) {
+            managementDetails.style.display =
+                isAdmin()
+                    ? "block"
+                    : "none";
+
+            if (!isAdmin()) {
+                managementDetails.removeAttribute(
+                    "open"
+                );
+            }
+        }
 
         if (
             !info ||

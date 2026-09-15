@@ -5594,6 +5594,100 @@ button.group-access-close {
     rgba(255, 255, 255, .025);
 }
 
+.profile-stat-group {
+  position: relative;
+
+  transition:
+    transform .12s ease,
+    border-color .15s ease,
+    background .15s ease,
+    opacity .15s ease;
+}
+
+
+.profile-stat-group.is-clickable {
+  cursor: pointer;
+}
+
+
+.profile-stat-group.is-clickable:hover {
+  transform:
+    translateY(-1px);
+
+  border-color:
+    rgba(34, 197, 94, .28);
+
+  background:
+    rgba(34, 197, 94, .045);
+}
+
+
+.profile-stat-group.is-clickable:active {
+  transform:
+    translateY(0);
+}
+
+
+.profile-stat-group.is-clickable:focus-visible {
+  outline:
+    2px solid rgba(34, 197, 94, .55);
+
+  outline-offset: 2px;
+}
+
+
+.profile-stat-group.is-disabled {
+  cursor: pointer;
+
+  border-color:
+    rgba(148, 163, 184, .10);
+
+  background:
+    rgba(148, 163, 184, .035);
+
+  opacity: .58;
+}
+
+
+.profile-stat-group.is-disabled:hover {
+  opacity: .72;
+}
+
+
+.profile-stat-group-action {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+}
+
+
+.profile-stat-group-chevron {
+  color: var(--muted);
+
+  font-size: 22px;
+  line-height: 1;
+
+  transition:
+    transform .15s ease,
+    color .15s ease;
+}
+
+
+.profile-stat-group.is-clickable:hover .profile-stat-group-chevron {
+  color: #86efac;
+
+  transform:
+    translateX(2px);
+}
+
+
+.profile-stat-group.is-disabled .profile-stat-group-chevron {
+  color:
+    rgba(148, 163, 184, .45);
+}
+
 
 .profile-stat-group-header {
   display: flex;
