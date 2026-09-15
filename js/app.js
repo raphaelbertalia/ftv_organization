@@ -1211,26 +1211,25 @@
                 createdAt: m.createdAt ?? m.created_at ?? null
             }));
 
-            state.cycles = rawCycles.map(c => {
-                const cycleId = c.id;
-
-                const cyclePairs = rawPairs
-                    .filter(p => String(p.cycle_id ?? p.cycleId) === String(cycleId))
-                    .map(p => ({
-                        id: p.id,
-                        p1: p.p1,
-                        p2: p.p2,
-                        position: p.position
-                    }));
-
-                return {
+            state.cycles =
+                rawCycles.map(c => ({
                     ...c,
-                    startDate: c.startDate ?? c.start_date ?? null,
-                    endDate: c.endDate ?? c.end_date ?? null,
-                    createdAt: c.createdAt ?? c.created_at ?? null,
-                    pairs: cyclePairs
-                };
-            });
+
+                    startDate:
+                        c.startDate ??
+                        c.start_date ??
+                        null,
+
+                    endDate:
+                        c.endDate ??
+                        c.end_date ??
+                        null,
+
+                    createdAt:
+                        c.createdAt ??
+                        c.created_at ??
+                        null
+                }));
 
             const activeCycle = (state.cycles || []).find(
                 c => c.status === "em_andamento"
@@ -1437,6 +1436,13 @@
 
         saveState();
         updateAuthUI();
+
+        if (getCurrentGroupId()) {
+            await hydrateStateFromDb();
+
+            updateAuthUI();
+            updateAllSessionUI();
+        }
 
         await renderMyGroupInvites();
         await refreshProfileCompletion();
@@ -4895,7 +4901,7 @@
         }
         if (name === "ciclo") renderCycleTab();
         if (name === "sorteios") {
-            window.renderChampionshipDrawsTab();
+            renderChampionshipDrawsTab();
         }
     }
 
@@ -6654,7 +6660,6 @@
         const info = $("cycleInfo");
         const rankingWrap = $("cycleIndividualRanking");
         const sessionsWrap = $("cycleSessionsList");
-        const legacyEditor = $("cyclePairsEditor");
         const listView = $("cycleListView");
         const detailsView = $("cycleDetailsView");
         const listWrap = $("cycleList");
@@ -6679,7 +6684,6 @@
             !info ||
             !rankingWrap ||
             !sessionsWrap ||
-            !legacyEditor ||
             !listView ||
             !detailsView ||
             !listWrap
@@ -7310,109 +7314,6 @@
 
             </div>
         `;
-        }
-
-        /*
-         * DUPLAS FIXAS LEGADAS
-         */
-        const pairs =
-            getActiveCycle()?.pairs || [];
-
-        legacyEditor.innerHTML = pairs.length
-            ? `
-            <div class="cycle-legacy-pairs">
-
-                ${pairs.map((pair, index) => {
-                const player1 =
-                    (state.players || []).find(
-                        player =>
-                            String(player.id) ===
-                            String(pair.p1)
-                    );
-
-                const player2 =
-                    (state.players || []).find(
-                        player =>
-                            String(player.id) ===
-                            String(pair.p2)
-                    );
-
-                const player1Name =
-                    player1?.name || "?";
-
-                const player2Name =
-                    player2?.name || "?";
-
-                return `
-                        <div class="cycle-legacy-pair">
-
-                            <span>
-                                Dupla ${index + 1}
-                            </span>
-
-                            <strong>
-                                ${player1Name}
-                                +
-                                ${player2Name}
-                            </strong>
-
-                        </div>
-                    `;
-            }).join("")}
-
-            </div>
-        `
-            : `
-            <div class="muted">
-                Nenhuma dupla fixa salva
-                para o ciclo ativo.
-            </div>
-        `;
-
-        renderCyclePairsManualEditor();
-    }
-
-    function renderCyclePairsManualEditor() {
-        const wrap = $("cyclePairsManualEditor");
-        if (!wrap) return;
-
-        const players = (state.players || [])
-            .filter(p => p.active)
-            .slice()
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-        const makeSelect = (id) => {
-            const sel = document.createElement("select");
-            sel.id = id;
-
-            sel.innerHTML = `<option value="">— selecione —</option>`;
-
-            players.forEach(p => {
-                const opt = document.createElement("option");
-                opt.value = p.id;
-                opt.textContent = p.name;
-                sel.appendChild(opt);
-            });
-
-            return sel;
-        };
-
-        wrap.innerHTML = "";
-
-        for (let i = 1; i <= 4; i++) {
-            const card = document.createElement("div");
-            card.className = "player-item";
-            card.style.marginTop = "8px";
-
-            card.innerHTML = `<b>Dupla ${i}</b>`;
-
-            const s1 = makeSelect(`cycle_p${i}_1`);
-            const s2 = makeSelect(`cycle_p${i}_2`);
-
-            card.appendChild(s1);
-            card.appendChild(s2);
-
-            wrap.appendChild(card);
         }
     }
 
@@ -10136,27 +10037,6 @@
         return pairs;
     }
 
-    function readCyclePairsFromEditor() {
-        const pairs = [];
-        const used = new Set();
-
-        for (let i = 1; i <= 4; i++) {
-            const p1 = $(`cycle_p${i}_1`)?.value || "";
-            const p2 = $(`cycle_p${i}_2`)?.value || "";
-
-            if (!p1 || !p2) throw new Error("Preencha todas as duplas do ciclo.");
-            if (p1 === p2) throw new Error("Dupla não pode repetir jogador.");
-            if (used.has(p1) || used.has(p2)) throw new Error("Um jogador foi usado em mais de uma dupla.");
-
-            used.add(p1);
-            used.add(p2);
-
-            pairs.push({ id: uid(), p1, p2 });
-        }
-
-        return pairs;
-    }
-
     function shuffleArray(arr) {
         return arr
             .map(item => ({ item, sort: Math.random() }))
@@ -10813,7 +10693,6 @@
                         name,
                         start_date: start,
                         end_date: end,
-                        pairs: [],
                         group_id: getCurrentGroupId()
                     })
                 });
@@ -10826,47 +10705,6 @@
             } catch (err) {
                 Loading.hide();
                 alert(err.message);
-            }
-        });
-    }
-
-    if ($("btnSaveCyclePairs")) {
-        $("btnSaveCyclePairs").addEventListener("click", async () => {
-            if (!requireAdmin()) return;
-
-            const cycle = getActiveCycle();
-            if (!cycle) return alert("Crie um ciclo primeiro.");
-
-            let pairs;
-            try {
-                pairs = readCyclePairsFromEditor();
-            } catch (err) {
-                return alert(err.message);
-            }
-
-            Loading.show("Salvando duplas do ciclo...");
-
-            try {
-                await apiJson("/api/monthly-cycles", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        id: cycle.id,
-                        name: cycle.name,
-                        start_date: cycle.startDate,
-                        end_date: cycle.endDate,
-                        pairs,
-                        group_id: getCurrentGroupId()
-                    })
-                });
-
-                await hydrateStateFromDb();
-                renderCycleTab();
-
-                Loading.hide();
-                alert("Duplas do ciclo salvas ✅");
-            } catch (err) {
-                Loading.hide();
-                alert(err.message || "Erro ao salvar duplas do ciclo");
             }
         });
     }
@@ -10931,60 +10769,6 @@
 
                 Loading.hide();
                 alert("Ciclo removido 🗑️");
-            } catch (err) {
-                Loading.hide();
-                alert(err.message);
-            }
-        });
-    }
-
-    if ($("btnDrawCyclePairs")) {
-        $("btnDrawCyclePairs").addEventListener("click", async () => {
-            if (!requireAdmin()) return;
-
-            const cycle = (state.cycles || []).find(c => c.id === state.currentCycleId);
-            if (!cycle) return alert("Cria um ciclo primeiro.");
-
-            const activePlayers = (state.players || []).filter(p => p.active);
-
-            if (activePlayers.length < 8) {
-                return alert("Precisa de pelo menos 8 jogadores ativos.");
-            }
-
-            const shuffled = activePlayers
-                .sort(() => Math.random() - 0.5)
-                .slice(0, 8);
-
-            const pairs = [];
-
-            for (let i = 0; i < 4; i++) {
-                pairs.push({
-                    id: uid(),
-                    p1: shuffled[i * 2].id,
-                    p2: shuffled[i * 2 + 1].id
-                });
-            }
-
-            Loading.show("Sorteando duplas do ciclo...");
-
-            try {
-                await apiJson("/api/monthly-cycles", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        id: cycle.id,
-                        name: cycle.name,
-                        start_date: cycle.startDate,
-                        end_date: cycle.endDate,
-                        pairs,
-                        group_id: getCurrentGroupId()
-                    })
-                });
-
-                await hydrateStateFromDb();
-                renderCycleTab();
-
-                Loading.hide();
-                alert("Duplas sorteadas 🔥");
             } catch (err) {
                 Loading.hide();
                 alert(err.message);
