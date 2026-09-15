@@ -11522,17 +11522,50 @@
                     $("absentPlayerSelect").value = "";
                 }
 
-                await prepareAutomaticRotationMatch(
-                    getCurrentSession()
-                );
+                const prepared =
+                    await prepareAutomaticRotationMatch(
+                        getCurrentSession()
+                    );
+
+                if (!prepared) {
+                    throw new Error(
+                        "Não foi possível preparar automaticamente o próximo jogo."
+                    );
+                }
+
+                /*
+                 * Recarrega a sessão do banco após a transição
+                 * fixed → rotation.
+                 *
+                 * Assim os novos pares e os pendingPairA/B
+                 * passam a vir da mesma fonte persistida,
+                 * evitando estado intermediário na tela.
+                 */
+                await hydrateStateFromDb();
+
+                updateAllSessionUI();
 
                 Loading.hide();
-                alert(
-                    "Rodízio com 7 iniciado ✅\n\nO próximo jogo foi montado automaticamente."
+
+                Toast.show(
+                    "Rodízio com 7 iniciado. Próximo confronto preparado.",
+                    "success",
+                    4000
                 );
             } catch (err) {
                 Loading.hide();
-                alert(err.message || "Erro ao iniciar rodízio.");
+
+                console.error(
+                    "Erro ao iniciar rodízio:",
+                    err
+                );
+
+                Toast.show(
+                    err?.message ||
+                    "Erro ao iniciar rodízio.",
+                    "error",
+                    5000
+                );
             }
         });
     }
