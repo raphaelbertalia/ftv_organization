@@ -230,7 +230,18 @@
     }
 
     let rotationSetupExpanded = false;
+
+    /*
+     * Controla se a lista mostra apenas
+     * os 4 primeiros jogos ou todos.
+     */
     let sessionGamesExpanded = false;
+
+    /*
+     * Controla se o accordion "Jogos"
+     * está aberto ou fechado.
+     */
+    let sessionGamesAccordionOpen = false;
     let pendingSummaryShare = null;
     let noGroupChampionshipOpen = false;
     let adminViewMode = "group";
@@ -11654,6 +11665,7 @@
             button.dataset.id;
 
         sessionGamesExpanded = false;
+        sessionGamesAccordionOpen = false;
 
         saveState();
         renderSessionsTab();
@@ -11673,6 +11685,7 @@
 
         state.viewSessionId = null;
         sessionGamesExpanded = false;
+        sessionGamesAccordionOpen = false;
 
         saveState();
         renderSessionsTab();
@@ -12395,8 +12408,29 @@
         `;
         }
 
+        const currentParticipantIds =
+            new Set(
+                (
+                    Array.isArray(session?.participantIds)
+                        ? session.participantIds
+                        : []
+                ).map(String)
+            );
+
+        const balanceParticipation =
+            session.playMode === "rotation"
+                ? participation.filter(
+                    player =>
+                        currentParticipantIds.has(
+                            String(player.playerId)
+                        )
+                )
+                : participation;
+
         const balance =
-            getRotationBalanceInfo(participation);
+            getRotationBalanceInfo(
+                balanceParticipation
+            );
 
         return `
         <div style="
@@ -13005,7 +13039,11 @@
                     </div>
                 </details>
 
-                <details class="session-accordion">
+                <details
+                    class="session-accordion"
+                    data-session-section="games"
+                    ${sessionGamesAccordionOpen ? "open" : ""}
+                >
                     <summary>
                         <span>
                             🎮 Jogos
@@ -14289,6 +14327,25 @@
             alert(err.message || "Erro ao excluir ciclo");
         }
     });
+
+    document.addEventListener(
+        "toggle",
+        (ev) => {
+            const details =
+                ev.target;
+
+            if (
+                !(details instanceof HTMLDetailsElement) ||
+                details.dataset.sessionSection !== "games"
+            ) {
+                return;
+            }
+
+            sessionGamesAccordionOpen =
+                details.open;
+        },
+        true
+    );
 
     // fallback
     window.addEventListener("focus", () => {
