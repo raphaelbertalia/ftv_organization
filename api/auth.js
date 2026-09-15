@@ -1149,6 +1149,296 @@ export default async function handler(req, res) {
         members: result.rows || []
       });
 
+    } else if (action === "my-stats") {
+      const user = await requireAuth(
+        req,
+        res
+      );
+
+      if (!user) {
+        return;
+      }
+
+      /*
+       * =====================================================
+       * MINHAS ESTATÍSTICAS
+       *
+       * Busca todos os players vinculados à conta,
+       * inclusive em grupos inativos.
+       *
+       * Não depende de user_groups nem do grupo atual.
+       * =====================================================
+       */
+      const result = await pool.query(
+        `
+          SELECT DISTINCT
+            p.id AS player_id,
+            p.group_id,
+
+            g.name AS group_name,
+            g.active AS group_active,
+
+            s.id AS session_id,
+            m.id AS match_id,
+
+            CASE
+              WHEN m.pair_a = pr.id
+                THEN m.score_a
+              ELSE m.score_b
+            END AS score_for,
+
+            CASE
+              WHEN m.pair_a = pr.id
+                THEN m.score_b
+              ELSE m.score_a
+            END AS score_against
+
+          FROM players p
+
+          INNER JOIN groups g
+            ON g.id = p.group_id
+
+          INNER JOIN sessions s
+            ON s.group_id = p.group_id
+
+          INNER JOIN pairs pr
+            ON pr.session_id = s.id
+           AND (
+                pr.p1 = p.id
+                OR pr.p2 = p.id
+           )
+
+          INNER JOIN matches m
+            ON m.session_id = s.id
+           AND (
+                m.pair_a = pr.id
+                OR m.pair_b = pr.id
+           )
+
+          WHERE p.user_id = $1
+
+          ORDER BY
+            g.name ASC,
+            s.id ASC,
+            m.created_at ASC
+        `,
+        [user.id]
+      );
+
+
+      const groupsMap =
+        new Map();
+
+      const totalSessions =
+        new Set();
+
+      const totals = {
+        games: 0,
+        wins: 0,
+        losses: 0,
+        efficiency: 0,
+
+        points: 0,
+
+        points_for: 0,
+        points_against: 0,
+        diff: 0,
+
+        sessions: 0,
+        groups: 0
+      };
+
+
+      for (const row of result.rows) {
+        const groupId =
+          String(row.group_id);
+
+        const scoreFor =
+          Number(row.score_for);
+
+        const scoreAgainst =
+          Number(row.score_against);
+
+        if (
+          !Number.isFinite(scoreFor) ||
+          !Number.isFinite(scoreAgainst)
+        ) {
+          continue;
+        }
+
+
+        if (!groupsMap.has(groupId)) {
+          groupsMap.set(
+            groupId,
+            {
+              group_id:
+                row.group_id,
+
+              group_name:
+                row.group_name,
+
+              group_active:
+                !!row.group_active,
+
+              games: 0,
+              wins: 0,
+              losses: 0,
+              efficiency: 0,
+
+              points: 0,
+
+              points_for: 0,
+              points_against: 0,
+              diff: 0,
+
+              sessions: new Set()
+            }
+          );
+        }
+
+
+        const group =
+          groupsMap.get(groupId);
+
+        const won =
+          scoreFor > scoreAgainst;
+
+        const matchPoints =
+          won
+            ? (
+              scoreFor === 18 &&
+                scoreAgainst === 0
+                ? 4
+                : 3
+            )
+            : 0;
+
+
+        /*
+         * Estatística do grupo
+         */
+        group.games++;
+
+        if (won) {
+          group.wins++;
+        }
+
+        group.points +=
+          matchPoints;
+
+        group.points_for +=
+          scoreFor;
+
+        group.points_against +=
+          scoreAgainst;
+
+        group.diff +=
+          scoreFor - scoreAgainst;
+
+        group.sessions.add(
+          String(row.session_id)
+        );
+
+
+        /*
+         * Estatística geral
+         */
+        totals.games++;
+
+        if (won) {
+          totals.wins++;
+        }
+
+        totals.points +=
+          matchPoints;
+
+        totals.points_for +=
+          scoreFor;
+
+        totals.points_against +=
+          scoreAgainst;
+
+        totals.diff +=
+          scoreFor - scoreAgainst;
+
+        totalSessions.add(
+          String(row.session_id)
+        );
+      }
+
+
+      const groups =
+        [...groupsMap.values()]
+          .map(group => {
+            const losses =
+              Math.max(
+                0,
+                group.games -
+                group.wins
+              );
+
+            const efficiency =
+              group.games
+                ? Math.round(
+                  (
+                    group.wins /
+                    group.games
+                  ) * 100
+                )
+                : 0;
+
+            return {
+              ...group,
+
+              losses,
+              efficiency,
+
+              sessions:
+                group.sessions.size
+            };
+          })
+          .sort(
+            (a, b) =>
+              (b.games - a.games) ||
+              (b.wins - a.wins) ||
+              String(a.group_name)
+                .localeCompare(
+                  String(b.group_name)
+                )
+          );
+
+
+      totals.losses =
+        Math.max(
+          0,
+          totals.games -
+          totals.wins
+        );
+
+      totals.efficiency =
+        totals.games
+          ? Math.round(
+            (
+              totals.wins /
+              totals.games
+            ) * 100
+          )
+          : 0;
+
+      totals.sessions =
+        totalSessions.size;
+
+      totals.groups =
+        groups.length;
+
+
+      return res.status(200).json({
+        ok: true,
+
+        totals,
+        groups
+      });
+
     } else if (action === "search-player-users") {
       const {
         group_id,
