@@ -9562,7 +9562,7 @@
 
         await persistSessionRotation(session);
 
-        return true;
+        return session;
     }
 
     function findExistingSessionPair(session, player1Id, player2Id) {
@@ -11506,10 +11506,12 @@
             Loading.show("Ativando rodízio...");
 
             try {
-                const changed =
-                    await activateRotationWithAbsentPlayer(absentPlayerId);
+                const rotationSession =
+                    await activateRotationWithAbsentPlayer(
+                        absentPlayerId
+                    );
 
-                if (!changed) {
+                if (!rotationSession) {
                     Loading.hide();
                     return;
                 }
@@ -11524,7 +11526,7 @@
 
                 const prepared =
                     await prepareAutomaticRotationMatch(
-                        getCurrentSession()
+                        rotationSession
                     );
 
                 if (!prepared) {
