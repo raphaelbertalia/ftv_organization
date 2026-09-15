@@ -13794,74 +13794,115 @@
 
     // ---------- Init ----------
     (async function init() {
-        renderPlayers();
-        renderPairsEditor();
 
-        await hydrateStateFromDb();
+        Loading.show(
+            "Carregando Quarta CH..."
+        );
 
-        updateAuthUI();
-        updateAllSessionUI();
-        updateRankingPeriodUI();
+        try {
 
-        const initialUser =
-            getCurrentUser();
+            renderPlayers();
+            renderPairsEditor();
 
-        if (
-            initialUser &&
-            initialUser.role !== "guest"
-        ) {
-            try {
-                await refreshProfileCompletion();
-            } catch (err) {
-                console.warn(
-                    "Não foi possível validar o perfil:",
-                    err
+            await hydrateStateFromDb();
+
+            updateAuthUI();
+            updateAllSessionUI();
+            updateRankingPeriodUI();
+
+            const initialUser =
+                getCurrentUser();
+
+            if (
+                initialUser &&
+                initialUser.role !== "guest"
+            ) {
+                try {
+                    await refreshProfileCompletion();
+
+                } catch (err) {
+                    console.warn(
+                        "Não foi possível validar o perfil:",
+                        err
+                    );
+                }
+            }
+
+            /*
+             * Sessão restaurada com perfil incompleto.
+             * Não permite renderizar/navegar pelo app.
+             */
+            if (
+                initialUser &&
+                initialUser.role !== "guest" &&
+                profileCompletionRequired
+            ) {
+                await openUserProfile(
+                    "data"
+                );
+
+                return;
+            }
+
+            if (
+                initialUser &&
+                initialUser.role !== "guest" &&
+                initialUser.role !== "organizer"
+            ) {
+                await renderMyGroupInvites();
+            }
+
+            const bootUser =
+                getCurrentUser();
+
+            if (
+                !bootUser ||
+                bootUser.role === "guest"
+            ) {
+                showTab(
+                    "ranking"
+                );
+
+            } else if (
+                isOrganizer()
+            ) {
+                showTab(
+                    "sorteios"
+                );
+
+            } else if (
+                getCurrentGroupId()
+            ) {
+                const lastTab =
+                    localStorage.getItem(
+                        "quartaChLastTab"
+                    );
+
+                showTab(
+                    lastTab ||
+                    "jogos"
                 );
             }
-        }
 
-        /*
-        * Sessão restaurada com perfil incompleto.
-        * Não permite renderizar/navegar pelo app.
-        */
-        if (
-            initialUser &&
-            initialUser.role !== "guest" &&
-            profileCompletionRequired
-        ) {
-            await openUserProfile("data");
-            return;
-        }
+        } catch (err) {
 
-        if (
-            initialUser &&
-            initialUser.role !== "guest" &&
-            initialUser.role !== "organizer"
-        ) {
-            await renderMyGroupInvites();
-        }
-
-        const bootUser = getCurrentUser();
-
-        if (
-            !bootUser ||
-            bootUser.role === "guest"
-        ) {
-            showTab("ranking");
-
-        } else if (isOrganizer()) {
-            showTab("sorteios");
-
-        } else if (getCurrentGroupId()) {
-            const lastTab =
-                localStorage.getItem(
-                    "quartaChLastTab"
-                );
-
-            showTab(
-                lastTab || "jogos"
+            console.error(
+                "Erro na inicialização:",
+                err
             );
+
+            Toast.show(
+                err?.message ||
+                "Não foi possível carregar o sistema.",
+                "error"
+            );
+
+        } finally {
+
+            Loading.hide();
+
         }
+
     })();
 
     document.addEventListener("click", async (ev) => {
