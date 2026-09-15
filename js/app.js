@@ -251,6 +251,9 @@
         const closeButton =
             $("btnCloseProfile");
 
+        const statsTab =
+            $("btnProfileTabStats");
+
         const passwordTab =
             $("btnProfileTabPassword");
 
@@ -279,6 +282,11 @@
                 profileCompletionRequired
                     ? "none"
                     : "";
+        }
+
+        if (statsTab) {
+            statsTab.disabled =
+                profileCompletionRequired;
         }
 
 
@@ -2077,6 +2085,319 @@
         }
     }
 
+    async function renderMyStats() {
+        const container =
+            $("profileStatsContent");
+
+        if (!container) {
+            return;
+        }
+
+        Loading.show(
+            "Carregando suas estatísticas..."
+        );
+
+        try {
+            const data =
+                await apiJson(
+                    "/api/auth?action=my-stats",
+                    {
+                        method: "POST",
+                        body:
+                            JSON.stringify({})
+                    }
+                );
+
+            const totals =
+                data?.totals || {};
+
+            const groups =
+                Array.isArray(data?.groups)
+                    ? data.groups
+                    : [];
+
+            const formatDiff =
+                value => {
+                    const number =
+                        Number(value) || 0;
+
+                    return number > 0
+                        ? `+${number}`
+                        : String(number);
+                };
+
+            const statCard =
+                (
+                    value,
+                    label,
+                    highlight = false
+                ) => `
+                <div class="
+                    profile-stat-card
+                    ${highlight
+                        ? "is-highlight"
+                        : ""}
+                ">
+                    <strong>
+                        ${escapeSummaryHtml(
+                            value
+                        )}
+                    </strong>
+
+                    <span>
+                        ${escapeSummaryHtml(
+                            label
+                        )}
+                    </span>
+                </div>
+            `;
+
+
+            const groupHtml =
+                groups.length
+                    ? groups
+                        .map(group => {
+                            const active =
+                                group.group_active !==
+                                false;
+
+                            return `
+                            <div class="profile-stat-group">
+
+                                <div class="profile-stat-group-header">
+
+                                    <div>
+                                        <strong>
+                                            ${escapeSummaryHtml(
+                                group.group_name ||
+                                "Grupo"
+                            )}
+                                        </strong>
+
+                                        <div class="muted">
+                                            ${Number(
+                                group.sessions
+                            ) || 0}
+                                            ${Number(
+                                group.sessions
+                            ) === 1
+                                    ? "sessão"
+                                    : "sessões"
+                                }
+                                        </div>
+                                    </div>
+
+                                    <span class="
+                                        profile-stat-group-status
+                                        ${active
+                                    ? "is-active"
+                                    : "is-inactive"}
+                                    ">
+                                        ${active
+                                    ? "Ativo"
+                                    : "Inativo"}
+                                    </span>
+
+                                </div>
+
+                                <div class="profile-stat-group-grid">
+
+                                    <div>
+                                        <strong>
+                                            ${Number(
+                                        group.games
+                                    ) || 0}
+                                        </strong>
+                                        <span>Jogos</span>
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            ${Number(
+                                        group.wins
+                                    ) || 0}
+                                        </strong>
+                                        <span>Vitórias</span>
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            ${Number(
+                                        group.efficiency
+                                    ) || 0}%
+                                        </strong>
+                                        <span>Aproveitamento</span>
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            ${Number(
+                                        group.points
+                                    ) || 0}
+                                        </strong>
+                                        <span>Pontos</span>
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            ${formatDiff(
+                                        group.diff
+                                    )}
+                                        </strong>
+                                        <span>Saldo</span>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        `;
+                        })
+                        .join("")
+                    : `
+                    <div class="profile-empty-state">
+                        <strong>
+                            Ainda não há partidas vinculadas à sua conta.
+                        </strong>
+
+                        <span class="muted">
+                            Quando seu jogador tiver histórico,
+                            ele aparecerá aqui.
+                        </span>
+                    </div>
+                `;
+
+
+            container.innerHTML = `
+            <div class="profile-stats-hero">
+
+                <div class="profile-stats-hero-label">
+                    MINHA CARREIRA
+                </div>
+
+                <div class="profile-stats-main-number">
+                    ${Number(
+                totals.games
+            ) || 0}
+                </div>
+
+                <div class="profile-stats-main-label">
+                    JOGOS DISPUTADOS
+                </div>
+
+            </div>
+
+
+            <div class="profile-stats-grid">
+
+                ${statCard(
+                Number(totals.wins) || 0,
+                "Vitórias",
+                true
+            )}
+
+                ${statCard(
+                Number(totals.losses) || 0,
+                "Derrotas"
+            )}
+
+                ${statCard(
+                `${Number(
+                    totals.efficiency
+                ) || 0}%`,
+                "Aproveitamento",
+                true
+            )}
+
+                ${statCard(
+                Number(totals.points) || 0,
+                "Pontos"
+            )}
+
+                ${statCard(
+                formatDiff(
+                    totals.diff
+                ),
+                "Saldo"
+            )}
+
+                ${statCard(
+                Number(
+                    totals.sessions
+                ) || 0,
+                "Sessões"
+            )}
+
+            </div>
+
+
+            <div class="profile-stats-secondary">
+
+                <div>
+                    <span>Pontos feitos</span>
+                    <strong>
+                        ${Number(
+                totals.points_for
+            ) || 0}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Pontos sofridos</span>
+                    <strong>
+                        ${Number(
+                totals.points_against
+            ) || 0}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Grupos</span>
+                    <strong>
+                        ${Number(
+                totals.groups
+            ) || 0}
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <div class="profile-stats-groups-title">
+                Desempenho por grupo
+            </div>
+
+            <div class="profile-stats-groups">
+                ${groupHtml}
+            </div>
+        `;
+
+        } catch (err) {
+            container.innerHTML = `
+            <div class="profile-empty-state">
+                <strong>
+                    Não foi possível carregar suas estatísticas.
+                </strong>
+
+                <span class="muted">
+                    ${escapeSummaryHtml(
+                err?.message ||
+                "Tente novamente."
+            )}
+                </span>
+            </div>
+        `;
+
+            Toast.show(
+                err?.message ||
+                "Não foi possível carregar suas estatísticas.",
+                "error"
+            );
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
     function setProfileTab(tab) {
 
         if (
@@ -2088,12 +2409,14 @@
 
         const panels = {
             data: $("profilePanelData"),
+            stats: $("profilePanelStats"),
             password: $("profilePanelPassword"),
             groups: $("profilePanelGroups")
         };
 
         const buttons = {
             data: $("btnProfileTabData"),
+            stats: $("btnProfileTabStats"),
             password: $("btnProfileTabPassword"),
             groups: $("btnProfileTabGroups")
         };
@@ -8033,6 +8356,20 @@
             .addEventListener(
                 "click",
                 () => setProfileTab("data")
+            );
+    }
+
+    if ($("btnProfileTabStats")) {
+        $("btnProfileTabStats")
+            .addEventListener(
+                "click",
+                async () => {
+                    setProfileTab(
+                        "stats"
+                    );
+
+                    await renderMyStats();
+                }
             );
     }
 

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quarta CH</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/style.css?v=24">
+  <link rel="stylesheet" href="css/style.css?v=25">
 </head>
 
 <body>
@@ -461,6 +461,10 @@
             Perfil
           </button>
 
+          <button id="btnProfileTabStats" class="user-profile-tab" type="button">
+            Estatísticas
+          </button>
+
           <button id="btnProfileTabPassword" class="user-profile-tab" type="button">
             Senha
           </button>
@@ -572,6 +576,28 @@
                 Salvar alterações
               </button>
 
+            </div>
+
+          </section>
+
+          <!-- ESTATÍSTICAS -->
+
+          <section id="profilePanelStats" class="user-profile-panel" style="display:none;">
+
+            <div class="profile-stats-heading">
+              <div>
+                <strong>Minha carreira</strong>
+
+                <div class="muted">
+                  Seu desempenho consolidado em todos os grupos.
+                </div>
+              </div>
+            </div>
+
+            <div id="profileStatsContent" class="profile-stats-content">
+              <div class="profile-empty-state">
+                Carregando estatísticas...
+              </div>
             </div>
 
           </section>
@@ -1442,7 +1468,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=34"></script>
+  <script src="js/app.js?v=35"></script>
 </body>
 
 </html>
