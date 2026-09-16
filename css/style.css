@@ -6051,3 +6051,50 @@ button.match-flow-tooltip-button {
     max-width: none;
   }
 }
+
+/* =========================================================
+   MENU DO PERFIL - MOBILE / PWA
+   ========================================================= */
+
+@media (max-width: 720px) {
+
+  .header-user-menu {
+    width: 100%;
+  }
+
+  .header-user-dropdown {
+    position: static;
+
+    width: 100%;
+    margin-top: 8px;
+
+    padding: 8px;
+
+    border-radius: 16px;
+
+    background:
+      linear-gradient(
+        180deg,
+        rgba(16, 24, 39, .98),
+        rgba(10, 16, 28, .98)
+      );
+
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, .35);
+
+    backdrop-filter: none;
+  }
+
+  .header-user-dropdown-profile {
+    display: none;
+  }
+
+  button.header-menu-item {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .header-menu-separator {
+    margin: 5px 4px;
+  }
+}
