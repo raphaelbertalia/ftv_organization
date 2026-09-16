@@ -22,7 +22,7 @@
 
   <meta name="apple-mobile-web-app-title" content="FTV Hub">
 
-  <link rel="stylesheet" href="css/style.css?v=28">
+  <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 
 <body>
@@ -1555,6 +1555,32 @@
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
   <script src="js/app.js?v=44"></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener(
+        "load",
+        () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then(registration => {
+              console.log(
+                "FTV Hub Service Worker registrado:",
+                registration.scope
+              );
+            })
+            .catch(error => {
+              console.error(
+                "Erro ao registrar Service Worker:",
+                error
+              );
+            });
+        }
+      );
+    }
+  </script>
+
+</body>
 </body>
 
 </html>

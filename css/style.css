@@ -6005,8 +6005,8 @@ button.match-flow-tooltip-button {
 
 .header-brand-logo {
   display: block;
-  width: 150px;
-  max-width: 150px;
+  width: 170px;
+  max-width: 170px;
   height: auto;
   object-fit: contain;
   flex-shrink: 0;

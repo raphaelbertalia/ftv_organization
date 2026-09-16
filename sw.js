@@ -1,20 +1,155 @@
-const CACHE = 'fv-league-cache-v1';
-const ASSETS = ['./', './index.html'];
+const CACHE_NAME =
+  "ftv-hub-static-v1";
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
-  self.skipWaiting();
-});
+const STATIC_ASSETS = [
+  "./",
+  "./index.html",
+  "./manifest.json",
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : null)))
-  );
-  self.clients.claim();
-});
+  "./css/style.css",
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((res) => res || fetch(event.request).catch(() => caches.match('./index.html')))
-  );
-});
+  "./img/ftv-hub-logo.png",
+  "./img/ftv-hub-favicon.png",
+  "./img/ftv-hub-apple-touch-icon.png",
+  "./img/ftv-hub-icon-192.png",
+  "./img/ftv-hub-icon-512.png",
+  "./img/mikasa-loader.png"
+];
+
+/*
+ * Instala apenas arquivos estáticos.
+ */
+self.addEventListener(
+  "install",
+  event => {
+    event.waitUntil(
+      caches
+        .open(CACHE_NAME)
+        .then(cache =>
+          cache.addAll(
+            STATIC_ASSETS
+          )
+        )
+    );
+
+    self.skipWaiting();
+  }
+);
+
+/*
+ * Remove versões antigas do cache.
+ */
+self.addEventListener(
+  "activate",
+  event => {
+    event.waitUntil(
+      caches
+        .keys()
+        .then(keys =>
+          Promise.all(
+            keys
+              .filter(
+                key =>
+                  key !== CACHE_NAME
+              )
+              .map(
+                key =>
+                  caches.delete(key)
+              )
+          )
+        )
+    );
+
+    self.clients.claim();
+  }
+);
+
+/*
+ * Estratégia:
+ *
+ * /api/*
+ * → SEMPRE rede.
+ *
+ * Navegação / HTML
+ * → rede primeiro.
+ *
+ * Arquivos estáticos
+ * → cache primeiro.
+ */
+self.addEventListener(
+  "fetch",
+  event => {
+    const request =
+      event.request;
+
+    const url =
+      new URL(request.url);
+
+    if (
+      request.method !== "GET"
+    ) {
+      return;
+    }
+
+    /*
+     * Nunca cacheia API.
+     */
+    if (
+      url.pathname.startsWith(
+        "/api/"
+      )
+    ) {
+      return;
+    }
+
+    /*
+     * HTML / navegação:
+     * rede primeiro.
+     */
+    if (
+      request.mode === "navigate"
+    ) {
+      event.respondWith(
+        fetch(request)
+          .then(response => {
+            const copy =
+              response.clone();
+
+            caches
+              .open(CACHE_NAME)
+              .then(cache =>
+                cache.put(
+                  "./index.html",
+                  copy
+                )
+              );
+
+            return response;
+          })
+          .catch(() =>
+            caches.match(
+              "./index.html"
+            )
+          )
+      );
+
+      return;
+    }
+
+    /*
+     * CSS, JS e imagens:
+     * cache primeiro, rede como fallback.
+     */
+    event.respondWith(
+      caches
+        .match(request)
+        .then(cached => {
+          if (cached) {
+            return cached;
+          }
+
+          return fetch(request);
+        })
+    );
+  }
+);
