@@ -5991,3 +5991,63 @@ button.match-flow-tooltip-button {
     width: min(260px, calc(100vw - 60px));
   }
 }
+
+/* =========================================================
+   FTV HUB - IDENTIDADE / HEADER
+   ========================================================= */
+
+.header-brand-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.header-brand-logo {
+  display: block;
+  width: 150px;
+  max-width: 150px;
+  height: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.header-group-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.header-group-area #headerGroupName {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.header-group-selector {
+  max-width: 240px;
+}
+
+/* mobile */
+@media (max-width: 720px) {
+
+  .header-brand-area {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .header-brand-logo {
+    width: 110px;
+    max-width: 110px;
+  }
+
+  .header-group-area {
+    flex: 1;
+  }
+
+  .header-group-selector {
+    width: 100%;
+    max-width: none;
+  }
+}
