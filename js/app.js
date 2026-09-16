@@ -1181,28 +1181,44 @@
     }
 
     async function hydrateStateFromDb() {
-        const previousViewSessionId = state.viewSessionId ?? null;
-        const previousViewCycleId = state.viewCycleId ?? null;
+        const previousViewSessionId =
+            state.viewSessionId ?? null;
 
-        state.players = [];
-        state.sessions = [];
-        state.matches = [];
-        state.cycles = [];
-        state.currentSessionId = null;
-        state.currentCycleId = null;
-        state.viewSessionId = null;
-        state.viewCycleId = null;
+        const previousViewCycleId =
+            state.viewCycleId ?? null;
 
         try {
-            const groupId = getCurrentGroupId();
+            const groupId =
+                getCurrentGroupId();
 
             if (!groupId) {
                 return;
             }
 
+            /*
+             * Primeiro buscamos tudo no banco.
+             *
+             * Só depois de uma resposta válida
+             * substituímos o estado atual.
+             *
+             * Isso evita perder sessão/ciclo quando
+             * o celular volta do background e a rede
+             * ainda está retomando.
+             */
             const data = await apiJson(
                 `/api/bootstrap?group_id=${encodeURIComponent(groupId)}`
             );
+
+            state.players = [];
+            state.sessions = [];
+            state.matches = [];
+            state.cycles = [];
+
+            state.currentSessionId = null;
+            state.currentCycleId = null;
+
+            state.viewSessionId = null;
+            state.viewCycleId = null;
 
             state.players = Array.isArray(data.players) ? data.players : [];
 
@@ -4926,7 +4942,24 @@
         if (name === "admin-grupo") {
             renderGroupAdmin();
         }
-        if (name === "ciclo") renderCycleTab();
+        if (name === "ciclo") {
+            renderCycleTab();
+
+            /*
+             * Atualiza o ciclo com o estado mais recente
+             * sem obrigar o usuário a dar F5.
+             */
+            safeRehydrate()
+                .then(() => {
+                    renderCycleTab();
+                })
+                .catch(err => {
+                    console.error(
+                        "Erro atualizando ciclo:",
+                        err
+                    );
+                });
+        }
         if (name === "sorteios") {
             renderChampionshipDrawsTab();
         }
