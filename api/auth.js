@@ -1846,14 +1846,28 @@ export default async function handler(req, res) {
 
           html:
             buildNotificationEmail({
+              eyebrow:
+                "Convite para grupo",
+
               title:
                 "Você recebeu um convite",
 
               message:
-                `Você foi convidado para participar do grupo ${group.name} como ${roleLabel}. Acesse o FTV Hub para aceitar ou recusar o convite.`,
+                `Você foi convidado para participar do grupo ${group.name}. Acesse o FTV Hub para aceitar ou recusar o convite.`,
 
               buttonLabel:
-                "Ver convite"
+                "Ver convite",
+
+              details: [
+                {
+                  label: "Grupo: ",
+                  value: group.name
+                },
+                {
+                  label: "Perfil: ",
+                  value: roleLabel
+                }
+              ]
             })
         });
       }
