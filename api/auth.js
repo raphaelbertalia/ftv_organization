@@ -907,10 +907,27 @@ export default async function handler(req, res) {
             [group_id]
           );
 
+        const requesterResult =
+          await pool.query(
+            `
+              SELECT
+                name,
+                nickname,
+                username
+              FROM users
+              WHERE id = $1
+              LIMIT 1
+            `,
+            [user.id]
+          );
+
+        const requester =
+          requesterResult.rows[0];
+
         const requesterName =
-          user.name ||
-          user.nickname ||
-          user.username ||
+          requester?.name ||
+          requester?.nickname ||
+          requester?.username ||
           "Um usuário";
 
         for (const admin of adminsResult.rows) {
