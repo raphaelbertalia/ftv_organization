@@ -1029,16 +1029,30 @@ export default async function handler(req, res) {
 
       const requestResult = await pool.query(
         `
-      SELECT
-        id,
-        user_id,
-        group_id,
-        requested_role,
-        status
-      FROM group_access_requests
-      WHERE id = $1
-      LIMIT 1
-    `,
+          SELECT
+            gar.id,
+            gar.user_id,
+            gar.group_id,
+            gar.requested_role,
+            gar.status,
+
+            u.name AS user_name,
+            u.username AS user_username,
+            u.email AS user_email,
+
+            g.name AS group_name
+
+          FROM group_access_requests gar
+
+          INNER JOIN users u
+            ON u.id = gar.user_id
+
+          INNER JOIN groups g
+            ON g.id = gar.group_id
+
+          WHERE gar.id = $1
+          LIMIT 1
+        `,
         [request_id]
       );
 
@@ -1110,6 +1124,59 @@ export default async function handler(req, res) {
 
         await client.query("COMMIT");
 
+        /*
+ * =====================================================
+ * E-MAIL — ACESSO APROVADO
+ * =====================================================
+ */
+        if (accessRequest.user_email) {
+          const roleLabels = {
+            viewer: "Espectador",
+            user: "Usuário",
+            admin: "Administrador"
+          };
+
+          const roleLabel =
+            roleLabels[accessRequest.requested_role] ||
+            "Espectador";
+
+          await sendEmailSafe({
+            to: accessRequest.user_email,
+
+            subject:
+              `FTV Hub — Acesso aprovado para ${accessRequest.group_name}`,
+
+            text:
+              `Sua solicitação de acesso ao grupo ${accessRequest.group_name} foi aprovada.`,
+
+            html:
+              buildNotificationEmail({
+                eyebrow:
+                  "Acesso aprovado",
+
+                title:
+                  "Seu acesso foi liberado",
+
+                message:
+                  `Sua solicitação para participar do grupo ${accessRequest.group_name} foi aprovada. Você já pode acessar o grupo pelo FTV Hub.`,
+
+                buttonLabel:
+                  "Acessar FTV Hub",
+
+                details: [
+                  {
+                    label: "Grupo: ",
+                    value: accessRequest.group_name
+                  },
+                  {
+                    label: "Perfil: ",
+                    value: roleLabel
+                  }
+                ]
+              })
+          });
+        }
+
         return res.status(200).json({
           ok: true,
           message: "Solicitação aprovada com sucesso"
@@ -1133,14 +1200,30 @@ export default async function handler(req, res) {
 
       const requestResult = await pool.query(
         `
-      SELECT
-        id,
-        group_id,
-        status
-      FROM group_access_requests
-      WHERE id = $1
-      LIMIT 1
-    `,
+          SELECT
+            gar.id,
+            gar.user_id,
+            gar.group_id,
+            gar.requested_role,
+            gar.status,
+
+            u.name AS user_name,
+            u.username AS user_username,
+            u.email AS user_email,
+
+            g.name AS group_name
+
+          FROM group_access_requests gar
+
+          INNER JOIN users u
+            ON u.id = gar.user_id
+
+          INNER JOIN groups g
+            ON g.id = gar.group_id
+
+          WHERE gar.id = $1
+          LIMIT 1
+        `,
         [request_id]
       );
 
@@ -1170,18 +1253,61 @@ export default async function handler(req, res) {
 
       await pool.query(
         `
-      UPDATE group_access_requests
-      SET
-        status = 'rejected',
-        reviewed_at = NOW(),
-        reviewed_by = $2
-      WHERE id = $1
-    `,
+          UPDATE group_access_requests
+          SET
+            status = 'rejected',
+            reviewed_at = NOW(),
+            reviewed_by = $2
+          WHERE id = $1
+        `,
         [
           request_id,
           auth.user.id
         ]
       );
+
+      /*
+ * =====================================================
+ * E-MAIL — SOLICITAÇÃO NÃO APROVADA
+ * =====================================================
+ */
+      if (accessRequest.user_email) {
+        await sendEmailSafe({
+          to: accessRequest.user_email,
+
+          subject:
+            `FTV Hub — Solicitação analisada para ${accessRequest.group_name}`,
+
+          text:
+            `Sua solicitação de acesso ao grupo ${accessRequest.group_name} não foi aprovada neste momento.`,
+
+          html:
+            buildNotificationEmail({
+              eyebrow:
+                "Solicitação analisada",
+
+              title:
+                "Sua solicitação foi analisada",
+
+              message:
+                `Sua solicitação para participar do grupo ${accessRequest.group_name} não foi aprovada neste momento.`,
+
+              buttonLabel:
+                "Abrir FTV Hub",
+
+              details: [
+                {
+                  label: "Grupo: ",
+                  value: accessRequest.group_name
+                },
+                {
+                  label: "Status: ",
+                  value: "Não aprovado"
+                }
+              ]
+            })
+        });
+      }
 
       return res.status(200).json({
         ok: true,
