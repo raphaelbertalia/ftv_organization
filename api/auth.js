@@ -879,6 +879,89 @@ export default async function handler(req, res) {
         [user.id, group_id]
       );
 
+      /*
+ * =====================================================
+ * E-MAIL PARA ADMINS — SOLICITAÇÃO DE ACESSO
+ * =====================================================
+ */
+      try {
+        const adminsResult =
+          await pool.query(
+            `
+        SELECT DISTINCT
+          u.name,
+          u.email
+
+        FROM user_groups ug
+
+        INNER JOIN users u
+          ON u.id = ug.user_id
+
+        WHERE ug.group_id = $1
+          AND ug.role = 'admin'
+          AND ug.active = true
+          AND u.active = true
+          AND u.email IS NOT NULL
+          AND TRIM(u.email) <> ''
+      `,
+            [group_id]
+          );
+
+        const requesterName =
+          user.name ||
+          user.nickname ||
+          user.username ||
+          "Um usuário";
+
+        for (const admin of adminsResult.rows) {
+          await sendEmailSafe({
+            to: admin.email,
+
+            subject:
+              `FTV Hub — Nova solicitação para ${group.name}`,
+
+            text:
+              `${requesterName} solicitou acesso ao grupo ${group.name}.`,
+
+            html:
+              buildNotificationEmail({
+                eyebrow:
+                  "Solicitação de acesso",
+
+                title:
+                  "Novo pedido para entrar no grupo",
+
+                message:
+                  `${requesterName} solicitou acesso ao grupo ${group.name}. Acesse o FTV Hub para analisar a solicitação.`,
+
+                buttonLabel:
+                  "Analisar solicitação",
+
+                details: [
+                  {
+                    label: "Usuário: ",
+                    value: requesterName
+                  },
+                  {
+                    label: "Grupo: ",
+                    value: group.name
+                  },
+                  {
+                    label: "Perfil solicitado: ",
+                    value: "Espectador"
+                  }
+                ]
+              })
+          });
+        }
+
+      } catch (emailErr) {
+        console.error(
+          "[FTV Hub] Falha ao preparar notificação de solicitação:",
+          emailErr?.message || emailErr
+        );
+      }
+
       return res.status(201).json({
         ok: true,
         message: `Solicitação enviada para o grupo ${group.name}.`,
