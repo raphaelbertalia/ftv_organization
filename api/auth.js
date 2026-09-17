@@ -9,6 +9,10 @@ import {
   requireGroupAdmin,
   requireGlobalAdmin
 } from "../lib/auth.js";
+import {
+  sendEmailSafe,
+  buildNotificationEmail
+} from "../lib/email.js";
 
 function normalizeGroupSlug(value) {
   return String(value || "")
@@ -1698,6 +1702,7 @@ export default async function handler(req, res) {
             id,
             name,
             username,
+            email,
             active
           FROM users
           WHERE id = $1
@@ -1813,6 +1818,46 @@ export default async function handler(req, res) {
           auth.user.id
         ]
       );
+
+      /*
+       * =====================================================
+       * E-MAIL DE CONVITE PARA O GRUPO
+       * =====================================================
+       */
+      if (targetUser.email) {
+        const roleLabels = {
+          viewer: "Espectador",
+          user: "Usuário",
+          admin: "Administrador"
+        };
+
+        const roleLabel =
+          roleLabels[cleanRole] ||
+          "Espectador";
+
+        await sendEmailSafe({
+          to: targetUser.email,
+
+          subject:
+            `FTV Hub — Convite para ${group.name}`,
+
+          text:
+            `Você recebeu um convite para participar do grupo ${group.name} como ${roleLabel}.`,
+
+          html:
+            buildNotificationEmail({
+              title:
+                "Você recebeu um convite",
+
+              message:
+                `Você foi convidado para participar do grupo ${group.name} como ${roleLabel}. Acesse o FTV Hub para aceitar ou recusar o convite.`,
+
+              buttonLabel:
+                "Ver convite"
+            })
+        });
+      }
+
 
       return res.status(201).json({
         ok: true,
