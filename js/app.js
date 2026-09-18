@@ -246,6 +246,7 @@
     let noGroupChampionshipOpen = false;
     let adminViewMode = "group";
     let groupCreationRequestToReject = null;
+    let showAllGroupCreationRequests = false;
 
     let profileCompletionRequired = false;
     let profileMissingFields = [];
@@ -8350,6 +8351,46 @@
         clearGroupCreationFeedback();
     }
 
+    function updateMyGroupCreationRequestsVisibility() {
+        const container =
+            $("myGroupCreationRequests");
+
+        const button =
+            $("btnToggleAllGroupCreationRequests");
+
+        if (!container || !button) {
+            return;
+        }
+
+        const items =
+            container.querySelectorAll(
+                ".group-access-request-item"
+            );
+
+        const extraItems =
+            container.querySelectorAll(
+                ".group-creation-request-extra"
+            );
+
+        extraItems.forEach(item => {
+            item.style.display =
+                showAllGroupCreationRequests
+                    ? ""
+                    : "none";
+        });
+
+        if (items.length <= 1) {
+            button.style.display = "none";
+            return;
+        }
+
+        button.style.display = "inline-block";
+
+        button.textContent =
+            showAllGroupCreationRequests
+                ? "Mostrar somente a mais recente"
+                : `Ver todas (${items.length})`;
+    }
 
     async function renderMyGroupCreationRequests() {
         const container =
@@ -8364,6 +8405,13 @@
             Carregando solicitações...
         </div>
     `;
+
+        showAllGroupCreationRequests = false;
+
+        if ($("btnToggleAllGroupCreationRequests")) {
+            $("btnToggleAllGroupCreationRequests")
+                .style.display = "none";
+        }
 
         try {
             const data = await apiJson(
@@ -8397,12 +8445,20 @@
 
             container.innerHTML = "";
 
-            requests.forEach(request => {
+            requests.forEach((request, index) => {
                 const item =
                     document.createElement("div");
 
                 item.className =
                     "group-access-request-item";
+
+                if (index > 0) {
+                    item.classList.add(
+                        "group-creation-request-extra"
+                    );
+
+                    item.style.display = "none";
+                }
 
                 const info =
                     document.createElement("div");
@@ -8454,7 +8510,7 @@
                     `
                         : ""
                     }
-            `;
+                    `;
 
                 const status =
                     document.createElement("span");
@@ -8477,6 +8533,8 @@
 
                 container.appendChild(item);
             });
+
+            updateMyGroupCreationRequestsVisibility();
 
         } catch (err) {
             container.innerHTML = `
@@ -8934,6 +8992,19 @@
             .addEventListener(
                 "input",
                 clearGroupCreationFeedback
+            );
+    }
+
+    if ($("btnToggleAllGroupCreationRequests")) {
+        $("btnToggleAllGroupCreationRequests")
+            .addEventListener(
+                "click",
+                () => {
+                    showAllGroupCreationRequests =
+                        !showAllGroupCreationRequests;
+
+                    updateMyGroupCreationRequestsVisibility();
+                }
             );
     }
 
