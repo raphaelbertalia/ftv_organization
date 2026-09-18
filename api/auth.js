@@ -2605,6 +2605,608 @@ export default async function handler(req, res) {
         message: "Acesso do membro reativado"
       });
 
+    } else if (action === "request-group-creation") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        name,
+        description
+      } = req.body || {};
+
+      const cleanName = String(name || "")
+        .trim()
+        .slice(0, 120);
+
+      const cleanDescription = String(description || "")
+        .trim()
+        .slice(0, 500);
+
+      const cleanSlug = normalizeGroupSlug(cleanName);
+
+      if (!cleanName) {
+        return res.status(400).json({
+          error: "Nome do grupo é obrigatório"
+        });
+      }
+
+      if (cleanName.length < 3) {
+        return res.status(400).json({
+          error: "O nome do grupo deve ter pelo menos 3 caracteres"
+        });
+      }
+
+      if (!cleanSlug) {
+        return res.status(400).json({
+          error: "Não foi possível gerar um identificador para o grupo"
+        });
+      }
+
+      const existingGroup = await pool.query(
+        `
+          SELECT id, name
+          FROM groups
+          WHERE LOWER(slug) = LOWER($1)
+          LIMIT 1
+        `,
+        [cleanSlug]
+      );
+
+      if (existingGroup.rows.length) {
+        return res.status(409).json({
+          error: "Já existe um grupo com este nome ou identificador"
+        });
+      }
+
+      const pendingRequest = await pool.query(
+        `
+          SELECT id
+          FROM group_creation_requests
+          WHERE LOWER(slug) = LOWER($1)
+            AND status = 'pending'
+          LIMIT 1
+        `,
+        [cleanSlug]
+      );
+
+      if (pendingRequest.rows.length) {
+        return res.status(409).json({
+          error: "Já existe uma solicitação pendente para um grupo com este nome"
+        });
+      }
+
+      const requestId = crypto.randomUUID();
+
+      const result = await pool.query(
+        `
+          INSERT INTO group_creation_requests (
+            id,
+            requested_by,
+            name,
+            slug,
+            description,
+            status
+          )
+          VALUES ($1, $2, $3, $4, $5, 'pending')
+
+          RETURNING
+            id,
+            requested_by,
+            name,
+            slug,
+            description,
+            status,
+            created_at
+        `,
+        [
+          requestId,
+          user.id,
+          cleanName,
+          cleanSlug,
+          cleanDescription || null
+        ]
+      );
+
+      try {
+        const requesterResult = await pool.query(
+          `
+            SELECT
+              name,
+              nickname,
+              username
+            FROM users
+            WHERE id = $1
+            LIMIT 1
+          `,
+          [user.id]
+        );
+
+        const requester = requesterResult.rows[0];
+
+        const requesterName =
+          requester?.name ||
+          requester?.nickname ||
+          requester?.username ||
+          "Um usuário";
+
+        const globalAdminsResult = await pool.query(
+          `
+            SELECT DISTINCT
+              id,
+              name,
+              email
+            FROM users
+            WHERE role = 'admin'
+              AND active = true
+              AND email IS NOT NULL
+              AND TRIM(email) <> ''
+              AND id <> $1
+          `,
+          [user.id]
+        );
+
+        for (const globalAdmin of globalAdminsResult.rows) {
+          await sendEmailSafe({
+            to: globalAdmin.email,
+
+            subject:
+              `FTV Hub — Nova solicitação de grupo: ${cleanName}`,
+
+            text:
+              `${requesterName} solicitou a criação do grupo ${cleanName}.`,
+
+            html:
+              buildNotificationEmail({
+                eyebrow: "Solicitação de grupo",
+                title: "Novo pedido de criação de grupo",
+                message:
+                  `${requesterName} solicitou a criação do grupo ${cleanName}. Acesse o FTV Hub para analisar a solicitação.`,
+                buttonLabel: "Analisar solicitação",
+                details: [
+                  {
+                    label: "Solicitante: ",
+                    value: requesterName
+                  },
+                  {
+                    label: "Grupo: ",
+                    value: cleanName
+                  },
+                  ...(cleanDescription
+                    ? [
+                        {
+                          label: "Descrição: ",
+                          value: cleanDescription
+                        }
+                      ]
+                    : [])
+                ]
+              })
+          });
+        }
+      } catch (emailErr) {
+        console.error(
+          "[FTV Hub] Falha ao notificar admins sobre solicitação de grupo:",
+          emailErr?.message || emailErr
+        );
+      }
+
+      return res.status(201).json({
+        ok: true,
+        message: "Solicitação de criação de grupo enviada para análise.",
+        request: result.rows[0]
+      });
+
+    } else if (action === "my-group-creation-requests") {
+      const user = await requireAuth(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            gcr.id,
+            gcr.name,
+            gcr.slug,
+            gcr.description,
+            gcr.status,
+            gcr.rejection_reason,
+            gcr.created_group_id,
+            gcr.created_at,
+            gcr.reviewed_at,
+            g.name AS created_group_name
+
+          FROM group_creation_requests gcr
+
+          LEFT JOIN groups g
+            ON g.id = gcr.created_group_id
+
+          WHERE gcr.requested_by = $1
+
+          ORDER BY gcr.created_at DESC
+
+          LIMIT 50
+        `,
+        [user.id]
+      );
+
+      return res.status(200).json({
+        ok: true,
+        requests: result.rows || []
+      });
+
+    } else if (action === "pending-group-creation-requests") {
+      const user = await requireGlobalAdmin(req, res);
+
+      if (!user) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            gcr.id,
+            gcr.requested_by,
+            gcr.name,
+            gcr.slug,
+            gcr.description,
+            gcr.status,
+            gcr.created_at,
+
+            u.name AS requester_name,
+            u.nickname AS requester_nickname,
+            u.username AS requester_username,
+            u.email AS requester_email,
+            u.whatsapp AS requester_whatsapp
+
+          FROM group_creation_requests gcr
+
+          INNER JOIN users u
+            ON u.id = gcr.requested_by
+
+          WHERE gcr.status = 'pending'
+
+          ORDER BY gcr.created_at ASC
+        `
+      );
+
+      return res.status(200).json({
+        ok: true,
+        requests: result.rows || []
+      });
+
+    } else if (action === "approve-group-creation-request") {
+      const admin = await requireGlobalAdmin(req, res);
+
+      if (!admin) {
+        return;
+      }
+
+      const { request_id } = req.body || {};
+
+      if (!request_id) {
+        return res.status(400).json({
+          error: "Solicitação não informada"
+        });
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const requestResult = await client.query(
+          `
+            SELECT
+              gcr.id,
+              gcr.requested_by,
+              gcr.name,
+              gcr.slug,
+              gcr.description,
+              gcr.status,
+
+              u.name AS requester_name,
+              u.nickname AS requester_nickname,
+              u.username AS requester_username,
+              u.email AS requester_email
+
+            FROM group_creation_requests gcr
+
+            INNER JOIN users u
+              ON u.id = gcr.requested_by
+
+            WHERE gcr.id = $1
+
+            LIMIT 1
+
+            FOR UPDATE OF gcr
+          `,
+          [request_id]
+        );
+
+        const creationRequest = requestResult.rows[0];
+
+        if (!creationRequest) {
+          await client.query("ROLLBACK");
+
+          return res.status(404).json({
+            error: "Solicitação não encontrada"
+          });
+        }
+
+        if (creationRequest.status !== "pending") {
+          await client.query("ROLLBACK");
+
+          return res.status(409).json({
+            error: "Esta solicitação já foi analisada"
+          });
+        }
+
+        const existingGroup = await client.query(
+          `
+            SELECT id, name
+            FROM groups
+            WHERE LOWER(slug) = LOWER($1)
+            LIMIT 1
+          `,
+          [creationRequest.slug]
+        );
+
+        if (existingGroup.rows.length) {
+          await client.query("ROLLBACK");
+
+          return res.status(409).json({
+            error: "Já existe um grupo com este identificador. Revise ou rejeite esta solicitação."
+          });
+        }
+
+        const groupId = crypto.randomUUID();
+
+        const groupResult = await client.query(
+          `
+            INSERT INTO groups (
+              id,
+              name,
+              slug,
+              active
+            )
+            VALUES ($1, $2, $3, true)
+
+            RETURNING
+              id,
+              name,
+              slug,
+              active
+          `,
+          [
+            groupId,
+            creationRequest.name,
+            creationRequest.slug
+          ]
+        );
+
+        await client.query(
+          `
+            INSERT INTO user_groups (
+              user_id,
+              group_id,
+              role,
+              active
+            )
+            VALUES ($1, $2, 'admin', true)
+
+            ON CONFLICT (user_id, group_id)
+            DO UPDATE SET
+              role = 'admin',
+              active = true
+          `,
+          [
+            creationRequest.requested_by,
+            groupId
+          ]
+        );
+
+        await client.query(
+          `
+            UPDATE group_creation_requests
+            SET
+              status = 'approved',
+              reviewed_by = $2,
+              reviewed_at = NOW(),
+              created_group_id = $3,
+              rejection_reason = NULL
+            WHERE id = $1
+          `,
+          [
+            request_id,
+            admin.id,
+            groupId
+          ]
+        );
+
+        await client.query("COMMIT");
+
+        if (creationRequest.requester_email) {
+          try {
+            await sendEmailSafe({
+              to: creationRequest.requester_email,
+
+              subject:
+                `FTV Hub — Grupo ${creationRequest.name} aprovado`,
+
+              text:
+                `Sua solicitação para criar o grupo ${creationRequest.name} foi aprovada.`,
+
+              html:
+                buildNotificationEmail({
+                  eyebrow: "Grupo aprovado",
+                  title: "Seu grupo foi criado",
+                  message:
+                    `A solicitação para criar o grupo ${creationRequest.name} foi aprovada. Você já foi definido como administrador do grupo e pode começar a configurá-lo no FTV Hub.`,
+                  buttonLabel: "Acessar FTV Hub",
+                  details: [
+                    {
+                      label: "Grupo: ",
+                      value: creationRequest.name
+                    },
+                    {
+                      label: "Seu perfil: ",
+                      value: "Administrador"
+                    }
+                  ]
+                })
+            });
+          } catch (emailErr) {
+            console.error(
+              "[FTV Hub] Falha ao enviar aprovação de criação de grupo:",
+              emailErr?.message || emailErr
+            );
+          }
+        }
+
+        return res.status(200).json({
+          ok: true,
+          message: "Solicitação aprovada e grupo criado com sucesso",
+          group: groupResult.rows[0]
+        });
+
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+
+      } finally {
+        client.release();
+      }
+
+    } else if (action === "reject-group-creation-request") {
+      const admin = await requireGlobalAdmin(req, res);
+
+      if (!admin) {
+        return;
+      }
+
+      const {
+        request_id,
+        reason
+      } = req.body || {};
+
+      if (!request_id) {
+        return res.status(400).json({
+          error: "Solicitação não informada"
+        });
+      }
+
+      const cleanReason = String(reason || "")
+        .trim()
+        .slice(0, 500);
+
+      const result = await pool.query(
+        `
+          UPDATE group_creation_requests gcr
+          SET
+            status = 'rejected',
+            reviewed_by = $2,
+            reviewed_at = NOW(),
+            rejection_reason = $3
+
+          FROM users u
+
+          WHERE gcr.id = $1
+            AND gcr.status = 'pending'
+            AND u.id = gcr.requested_by
+
+          RETURNING
+            gcr.id,
+            gcr.name,
+            gcr.requested_by,
+            u.email AS requester_email
+        `,
+        [
+          request_id,
+          admin.id,
+          cleanReason || null
+        ]
+      );
+
+      const rejectedRequest = result.rows[0];
+
+      if (!rejectedRequest) {
+        const existingRequest = await pool.query(
+          `
+            SELECT id, status
+            FROM group_creation_requests
+            WHERE id = $1
+            LIMIT 1
+          `,
+          [request_id]
+        );
+
+        if (!existingRequest.rows.length) {
+          return res.status(404).json({
+            error: "Solicitação não encontrada"
+          });
+        }
+
+        return res.status(409).json({
+          error: "Esta solicitação já foi analisada"
+        });
+      }
+
+      if (rejectedRequest.requester_email) {
+        try {
+          await sendEmailSafe({
+            to: rejectedRequest.requester_email,
+
+            subject:
+              `FTV Hub — Solicitação de grupo analisada`,
+
+            text:
+              cleanReason
+                ? `Sua solicitação para criar o grupo ${rejectedRequest.name} não foi aprovada. Motivo: ${cleanReason}`
+                : `Sua solicitação para criar o grupo ${rejectedRequest.name} não foi aprovada neste momento.`,
+
+            html:
+              buildNotificationEmail({
+                eyebrow: "Solicitação analisada",
+                title: "Solicitação de grupo não aprovada",
+                message:
+                  cleanReason
+                    ? `Sua solicitação para criar o grupo ${rejectedRequest.name} não foi aprovada. Confira abaixo o motivo informado.`
+                    : `Sua solicitação para criar o grupo ${rejectedRequest.name} não foi aprovada neste momento.`,
+                buttonLabel: "Abrir FTV Hub",
+                details: [
+                  {
+                    label: "Grupo: ",
+                    value: rejectedRequest.name
+                  },
+                  ...(cleanReason
+                    ? [
+                        {
+                          label: "Motivo: ",
+                          value: cleanReason
+                        }
+                      ]
+                    : [])
+                ]
+              })
+          });
+        } catch (emailErr) {
+          console.error(
+            "[FTV Hub] Falha ao enviar rejeição de criação de grupo:",
+            emailErr?.message || emailErr
+          );
+        }
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: "Solicitação rejeitada"
+      });
+
     } else if (action === "list-groups-admin") {
       const user = await requireGlobalAdmin(req, res);
 

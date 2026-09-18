@@ -137,6 +137,11 @@
               <span>Solicitar acesso a grupo</span>
             </button>
 
+            <button id="btnMenuRequestGroupCreation" class="header-menu-item" type="button">
+              <span>🏖️</span>
+              <span>Solicitar novo grupo</span>
+            </button>
+
             <button id="btnMenuInvites" class="header-menu-item" type="button">
               <span>✉️</span>
 
@@ -346,6 +351,10 @@
             <button id="btnUseGroupInvite" class="secondary" type="button">
               Usar convite
             </button>
+
+            <button id="btnRequestGroupCreation" class="secondary" type="button">
+              Solicitar novo grupo
+            </button>
           </div>
 
         </div>
@@ -423,6 +432,90 @@
           </button>
 
           <button id="btnCancelGroupAccess" class="secondary" type="button">
+            Cancelar
+          </button>
+
+        </div>
+
+      </div>
+    </section>
+
+    <section id="groupCreationModal" class="group-access-modal" aria-hidden="true">
+      <div class="group-access-dialog" role="dialog" aria-modal="true" aria-labelledby="groupCreationTitle">
+
+        <div class="group-access-header">
+
+          <div>
+            <h2 id="groupCreationTitle">
+              Solicitar novo grupo
+            </h2>
+
+            <div class="muted">
+              Informe os dados do grupo. A solicitação será analisada pela administração do FTV Hub.
+            </div>
+          </div>
+
+          <button id="btnCloseGroupCreation" class="secondary group-access-close" type="button" aria-label="Fechar">
+            ✕
+          </button>
+
+        </div>
+
+        <div class="group-access-content">
+
+          <div id="groupCreationNameField" class="group-access-field">
+            <div class="muted">
+              Nome do grupo
+            </div>
+
+            <input id="groupCreationName" type="text" maxlength="120" placeholder="Ex.: Futevôlei da Vila" autocomplete="off" />
+
+            <div id="groupCreationNameError" class="group-access-field-error"></div>
+          </div>
+
+          <div class="group-access-field">
+            <div class="muted">
+              Descrição <span class="muted">(opcional)</span>
+            </div>
+
+            <textarea id="groupCreationDescription" maxlength="500" rows="4"
+              placeholder="Conte um pouco sobre o grupo, dias dos jogos ou região."
+              style="width:100%; resize:vertical;"></textarea>
+
+            <div class="muted" style="margin-top:4px;">
+              Até 500 caracteres.
+            </div>
+          </div>
+
+          <div id="groupCreationStatus" class="group-access-status"></div>
+
+          <div style="margin-top:8px;">
+            <div class="group-admin-section-header">
+              <div>
+                <b>Minhas solicitações</b>
+
+                <div class="muted" style="margin-top:4px;">
+                  Acompanhe aqui o resultado das solicitações enviadas.
+                </div>
+              </div>
+            </div>
+
+            <div id="myGroupCreationRequests" class="group-access-request-list">
+              <div class="muted">
+                Nenhuma solicitação carregada.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="group-access-actions">
+
+          <button id="btnConfirmGroupCreation" type="button">
+            Enviar solicitação
+          </button>
+
+          <button id="btnCancelGroupCreation" class="secondary" type="button">
             Cancelar
           </button>
 
@@ -687,9 +780,15 @@
                 </div>
               </div>
 
-              <button id="btnProfileRequestGroupAccess" class="secondary" type="button">
-                Solicitar acesso
-              </button>
+              <div class="row" style="gap:8px; flex-wrap:wrap;">
+                <button id="btnProfileRequestGroupAccess" class="secondary" type="button">
+                  Solicitar acesso
+                </button>
+
+                <button id="btnProfileRequestGroupCreation" class="secondary" type="button">
+                  Solicitar novo grupo
+                </button>
+              </div>
 
             </div>
 
@@ -1448,6 +1547,28 @@
           <div class="card">
             <div class="group-admin-section-header">
               <div>
+                <b>Solicitações de novos grupos</b>
+
+                <div class="muted" style="margin-top:4px;">
+                  Analise os pedidos e defina quem poderá administrar um novo grupo.
+                </div>
+              </div>
+
+              <span id="pendingGroupCreationRequestsCount" class="pill">
+                0 pendentes
+              </span>
+            </div>
+
+            <div id="pendingGroupCreationRequests" class="group-access-request-list">
+              <div class="muted">
+                Nenhuma solicitação carregada.
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="group-admin-section-header">
+              <div>
                 <b>Grupos</b>
 
                 <div class="muted" style="margin-top:4px;">
@@ -1554,7 +1675,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=44"></script>
+  <script src="js/app.js?v=45"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
