@@ -587,6 +587,180 @@
       </div>
     </section>
 
+    <section id="groupSettingsModal" class="group-access-modal" aria-hidden="true">
+
+      <div class="group-access-dialog" role="dialog" aria-modal="true" aria-labelledby="groupSettingsTitle">
+
+        <div class="group-access-header">
+
+          <div>
+            <h2 id="groupSettingsTitle">
+              Configurações do grupo
+            </h2>
+
+            <div class="muted">
+              Defina as informações e a rotina habitual do grupo.
+            </div>
+          </div>
+
+          <button id="btnCloseGroupSettings" class="secondary group-access-close" type="button" aria-label="Fechar">
+            ✕
+          </button>
+
+        </div>
+
+        <div class="group-access-content">
+
+          <div class="group-access-field">
+            <div class="muted">
+              Descrição
+            </div>
+
+            <textarea id="groupSettingsDescription" maxlength="1000" rows="4"
+              placeholder="Conte um pouco sobre o grupo." style="width:100%; resize:vertical;"></textarea>
+
+            <div class="muted" style="margin-top:4px;">
+              Até 1000 caracteres.
+            </div>
+          </div>
+
+          <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap;">
+
+            <div class="group-access-field" style="flex:1 1 220px;">
+              <div class="muted">
+                Cidade
+              </div>
+
+              <input id="groupSettingsCity" type="text" maxlength="100" placeholder="Ex.: Praia Grande"
+                autocomplete="off" />
+            </div>
+
+            <div class="group-access-field" style="flex:0 1 100px;">
+              <div class="muted">
+                UF
+              </div>
+
+              <input id="groupSettingsState" type="text" maxlength="2" placeholder="SP" autocomplete="off"
+                style="text-transform:uppercase;" />
+            </div>
+
+          </div>
+
+          <div class="group-access-field">
+            <div class="muted">
+              Dias habituais
+            </div>
+
+            <div class="row" style="gap:12px; flex-wrap:wrap; margin-top:8px;">
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="monday" />
+                Segunda
+              </label>
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="tuesday" />
+                Terça
+              </label>
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="wednesday" />
+                Quarta
+              </label>
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="thursday" />
+                Quinta
+              </label>
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="friday" />
+                Sexta
+              </label>
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="saturday" />
+                Sábado
+              </label>
+
+              <label>
+                <input class="group-settings-day" type="checkbox" value="sunday" />
+                Domingo
+              </label>
+
+            </div>
+          </div>
+
+          <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap;">
+
+            <div class="group-access-field" style="flex:1 1 160px;">
+              <div class="muted">
+                Horário inicial
+              </div>
+
+              <input id="groupSettingsStartTime" type="time" />
+            </div>
+
+            <div class="group-access-field" style="flex:1 1 160px;">
+              <div class="muted">
+                Horário final
+              </div>
+
+              <input id="groupSettingsEndTime" type="time" />
+            </div>
+
+          </div>
+
+          <div class="group-access-field">
+            <div class="muted">
+              Visibilidade
+            </div>
+
+            <select id="groupSettingsVisibility">
+              <option value="private">
+                Privado
+              </option>
+
+              <option value="public">
+                Público
+              </option>
+            </select>
+
+            <div class="muted" style="margin-top:4px;">
+              Grupos públicos poderão ser encontrados por outros jogadores futuramente.
+            </div>
+          </div>
+
+          <div class="group-access-field">
+            <div class="muted">
+              Regras e observações
+            </div>
+
+            <textarea id="groupSettingsRules" maxlength="3000" rows="5"
+              placeholder="Informe regras, critérios de participação e outras orientações."
+              style="width:100%; resize:vertical;"></textarea>
+          </div>
+
+          <div id="groupSettingsStatus" class="group-access-status">
+          </div>
+
+        </div>
+
+        <div class="group-access-actions">
+
+          <button id="btnSaveGroupSettings" type="button">
+            Salvar configurações
+          </button>
+
+          <button id="btnCancelGroupSettings" class="secondary" type="button">
+            Cancelar
+          </button>
+
+        </div>
+
+      </div>
+    </section>
+
     <section id="groupInvitesPanel" class="card group-invites-panel" style="display:none;">
 
       <div class="group-admin-section-header">
@@ -1515,10 +1689,18 @@
         <div id="adminCurrentGroupPanel">
 
           <div class="card">
-            <b>Administração do grupo</b>
+            <div class="group-admin-section-header">
+              <div>
+                <b>Administração do grupo</b>
 
-            <div class="muted" style="margin-top:6px;">
-              Gerencie solicitações de acesso e membros do grupo atual.
+                <div class="muted" style="margin-top:6px;">
+                  Gerencie as configurações, solicitações e membros do grupo atual.
+                </div>
+              </div>
+
+              <button id="btnOpenGroupSettings" type="button">
+                Configurações
+              </button>
             </div>
           </div>
 

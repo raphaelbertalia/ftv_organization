@@ -1712,6 +1712,7 @@
         adminViewMode = "group";
 
         closeGroupAccessModal();
+        closeGroupSettingsModal();
         closeGroupCreationModal();
         closeGroupCreationRejectModal();
 
@@ -3833,6 +3834,284 @@
         }
     }
 
+    function clearGroupSettingsStatus() {
+        const status =
+            $("groupSettingsStatus");
+
+        if (!status) {
+            return;
+        }
+
+        status.textContent = "";
+
+        status.classList.remove(
+            "is-error",
+            "is-warning",
+            "is-success"
+        );
+    }
+
+
+    function closeGroupSettingsModal() {
+        const modal =
+            $("groupSettingsModal");
+
+        modal?.classList.remove(
+            "is-visible"
+        );
+
+        modal?.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        clearGroupSettingsStatus();
+    }
+
+
+    function fillGroupSettingsForm(group) {
+        if ($("groupSettingsDescription")) {
+            $("groupSettingsDescription").value =
+                group?.description || "";
+        }
+
+        if ($("groupSettingsCity")) {
+            $("groupSettingsCity").value =
+                group?.city || "";
+        }
+
+        if ($("groupSettingsState")) {
+            $("groupSettingsState").value =
+                group?.state || "";
+        }
+
+        if ($("groupSettingsStartTime")) {
+            $("groupSettingsStartTime").value =
+                group?.usual_start_time || "";
+        }
+
+        if ($("groupSettingsEndTime")) {
+            $("groupSettingsEndTime").value =
+                group?.usual_end_time || "";
+        }
+
+        if ($("groupSettingsVisibility")) {
+            $("groupSettingsVisibility").value =
+                group?.visibility || "private";
+        }
+
+        if ($("groupSettingsRules")) {
+            $("groupSettingsRules").value =
+                group?.rules || "";
+        }
+
+        const selectedDays =
+            new Set(
+                Array.isArray(group?.usual_days)
+                    ? group.usual_days
+                    : []
+            );
+
+        document
+            .querySelectorAll(
+                ".group-settings-day"
+            )
+            .forEach(input => {
+                input.checked =
+                    selectedDays.has(
+                        input.value
+                    );
+            });
+    }
+
+
+    async function openGroupSettingsModal() {
+        const groupId =
+            getCurrentGroupId();
+
+        if (!groupId) {
+            Toast.show(
+                "Selecione um grupo para acessar as configurações.",
+                "warning"
+            );
+
+            return;
+        }
+
+        const modal =
+            $("groupSettingsModal");
+
+        if (!modal) {
+            return;
+        }
+
+        clearGroupSettingsStatus();
+
+        Loading.show(
+            "Carregando configurações..."
+        );
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=group-settings",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId
+                    })
+                }
+            );
+
+            fillGroupSettingsForm(
+                data.group || {}
+            );
+
+            modal.classList.add(
+                "is-visible"
+            );
+
+            modal.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+            $("groupSettingsDescription")
+                ?.focus();
+
+        } catch (err) {
+            Toast.show(
+                err?.message ||
+                "Não foi possível carregar as configurações.",
+                "error"
+            );
+
+        } finally {
+            Loading.hide();
+        }
+    }
+
+
+    async function saveGroupSettings() {
+        const groupId =
+            getCurrentGroupId();
+
+        if (!groupId) {
+            return;
+        }
+
+        const stateValue =
+            ($("groupSettingsState")?.value || "")
+                .trim()
+                .toUpperCase();
+
+        const status =
+            $("groupSettingsStatus");
+
+        const button =
+            $("btnSaveGroupSettings");
+
+        clearGroupSettingsStatus();
+
+        if (
+            stateValue &&
+            !/^[A-Z]{2}$/.test(stateValue)
+        ) {
+            if (status) {
+                status.textContent =
+                    "Informe uma UF válida com duas letras.";
+
+                status.classList.add(
+                    "is-error"
+                );
+            }
+
+            $("groupSettingsState")?.focus();
+            return;
+        }
+
+        const usualDays = Array.from(
+            document.querySelectorAll(
+                ".group-settings-day:checked"
+            )
+        ).map(input => input.value);
+
+        if (button) {
+            button.disabled = true;
+        }
+
+        Loading.show(
+            "Salvando configurações..."
+        );
+
+        try {
+            const data = await apiJson(
+                "/api/auth?action=update-group-settings",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        group_id: groupId,
+
+                        description:
+                            $("groupSettingsDescription")
+                                ?.value || "",
+
+                        city:
+                            $("groupSettingsCity")
+                                ?.value || "",
+
+                        state:
+                            stateValue,
+
+                        usual_days:
+                            usualDays,
+
+                        usual_start_time:
+                            $("groupSettingsStartTime")
+                                ?.value || "",
+
+                        usual_end_time:
+                            $("groupSettingsEndTime")
+                                ?.value || "",
+
+                        visibility:
+                            $("groupSettingsVisibility")
+                                ?.value || "private",
+
+                        rules:
+                            $("groupSettingsRules")
+                                ?.value || ""
+                    })
+                }
+            );
+
+            closeGroupSettingsModal();
+
+            Toast.show(
+                data.message ||
+                "Configurações atualizadas com sucesso.",
+                "success"
+            );
+
+        } catch (err) {
+            if (status) {
+                status.textContent =
+                    err?.message ||
+                    "Não foi possível salvar as configurações.";
+
+                status.classList.add(
+                    "is-error"
+                );
+            }
+
+        } finally {
+            Loading.hide();
+
+            if (button) {
+                button.disabled = false;
+            }
+        }
+    }
+
     async function renderGroupAdmin() {
         updateAdminModeUI();
 
@@ -5566,6 +5845,57 @@
                 }
             }
         );
+    }
+
+    if ($("btnOpenGroupSettings")) {
+        $("btnOpenGroupSettings")
+            .addEventListener(
+                "click",
+                openGroupSettingsModal
+            );
+    }
+
+    if ($("btnCloseGroupSettings")) {
+        $("btnCloseGroupSettings")
+            .addEventListener(
+                "click",
+                closeGroupSettingsModal
+            );
+    }
+
+    if ($("btnCancelGroupSettings")) {
+        $("btnCancelGroupSettings")
+            .addEventListener(
+                "click",
+                closeGroupSettingsModal
+            );
+    }
+
+    if ($("btnSaveGroupSettings")) {
+        $("btnSaveGroupSettings")
+            .addEventListener(
+                "click",
+                saveGroupSettings
+            );
+    }
+
+    if ($("groupSettingsState")) {
+        $("groupSettingsState")
+            .addEventListener(
+                "input",
+                event => {
+                    event.target.value =
+                        event.target.value
+                            .replace(
+                                /[^a-z]/gi,
+                                ""
+                            )
+                            .slice(0, 2)
+                            .toUpperCase();
+
+                    clearGroupSettingsStatus();
+                }
+            );
     }
 
     if ($("btnCloseGroupCreationReject")) {
@@ -9692,6 +10022,12 @@
                 "groupCreationRejectModal"
             ) {
                 closeGroupCreationRejectModal();
+            }
+            if (
+                event.target.id ===
+                "groupSettingsModal"
+            ) {
+                closeGroupSettingsModal();
             }
         }
     );

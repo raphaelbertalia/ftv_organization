@@ -2776,11 +2776,11 @@ export default async function handler(req, res) {
                   },
                   ...(cleanDescription
                     ? [
-                        {
-                          label: "Descrição: ",
-                          value: cleanDescription
-                        }
-                      ]
+                      {
+                        label: "Descrição: ",
+                        value: cleanDescription
+                      }
+                    ]
                     : [])
                 ]
               })
@@ -2972,9 +2972,10 @@ export default async function handler(req, res) {
               id,
               name,
               slug,
+              description,
               active
             )
-            VALUES ($1, $2, $3, true)
+            VALUES ($1, $2, $3, $4, true)
 
             RETURNING
               id,
@@ -2985,7 +2986,8 @@ export default async function handler(req, res) {
           [
             groupId,
             creationRequest.name,
-            creationRequest.slug
+            creationRequest.slug,
+            creationRequest.description || ""
           ]
         );
 
@@ -3185,11 +3187,11 @@ export default async function handler(req, res) {
                   },
                   ...(cleanReason
                     ? [
-                        {
-                          label: "Motivo: ",
-                          value: cleanReason
-                        }
-                      ]
+                      {
+                        label: "Motivo: ",
+                        value: cleanReason
+                      }
+                    ]
                     : [])
                 ]
               })
@@ -3205,6 +3207,256 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         message: "Solicitação rejeitada"
+      });
+
+    } else if (action === "group-settings") {
+      const { group_id } = req.body || {};
+
+      if (!group_id) {
+        return res.status(400).json({
+          error: "Grupo não informado"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const result = await pool.query(
+        `
+          SELECT
+            id,
+            name,
+            slug,
+            description,
+            city,
+            state,
+            usual_days,
+            TO_CHAR(
+              usual_start_time,
+              'HH24:MI'
+            ) AS usual_start_time,
+            TO_CHAR(
+              usual_end_time,
+              'HH24:MI'
+            ) AS usual_end_time,
+            visibility,
+            rules,
+            updated_at
+          FROM groups
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [group_id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Grupo não encontrado"
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        group: result.rows[0]
+      });
+
+    } else if (action === "update-group-settings") {
+      const {
+        group_id,
+        description,
+        city,
+        state,
+        usual_days,
+        usual_start_time,
+        usual_end_time,
+        visibility,
+        rules
+      } = req.body || {};
+
+      if (!group_id) {
+        return res.status(400).json({
+          error: "Grupo não informado"
+        });
+      }
+
+      const auth = await requireGroupAdmin(
+        req,
+        res,
+        group_id
+      );
+
+      if (!auth) {
+        return;
+      }
+
+      const cleanDescription = String(
+        description || ""
+      )
+        .trim()
+        .slice(0, 1000);
+
+      const cleanCity = String(city || "")
+        .trim()
+        .slice(0, 100);
+
+      const cleanState = String(state || "")
+        .trim()
+        .toUpperCase();
+
+      const cleanRules = String(rules || "")
+        .trim()
+        .slice(0, 3000);
+
+      const cleanVisibility =
+        String(visibility || "private")
+          .trim()
+          .toLowerCase();
+
+      const cleanStartTime =
+        String(usual_start_time || "").trim();
+
+      const cleanEndTime =
+        String(usual_end_time || "").trim();
+
+      const allowedDays = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ];
+
+      const receivedDays =
+        Array.isArray(usual_days)
+          ? usual_days.map(day =>
+            String(day || "")
+              .trim()
+              .toLowerCase()
+          )
+          : [];
+
+      const hasInvalidDay =
+        receivedDays.some(
+          day => !allowedDays.includes(day)
+        );
+
+      if (hasInvalidDay) {
+        return res.status(400).json({
+          error: "Existe um dia da semana inválido"
+        });
+      }
+
+      const cleanDays = [
+        ...new Set(receivedDays)
+      ];
+
+      if (
+        cleanState &&
+        !/^[A-Z]{2}$/.test(cleanState)
+      ) {
+        return res.status(400).json({
+          error: "Informe uma UF válida com duas letras"
+        });
+      }
+
+      if (
+        !["private", "public"]
+          .includes(cleanVisibility)
+      ) {
+        return res.status(400).json({
+          error: "Visibilidade inválida"
+        });
+      }
+
+      const timePattern =
+        /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+      if (
+        cleanStartTime &&
+        !timePattern.test(cleanStartTime)
+      ) {
+        return res.status(400).json({
+          error: "Horário inicial inválido"
+        });
+      }
+
+      if (
+        cleanEndTime &&
+        !timePattern.test(cleanEndTime)
+      ) {
+        return res.status(400).json({
+          error: "Horário final inválido"
+        });
+      }
+
+      const result = await pool.query(
+        `
+          UPDATE groups
+          SET
+            description = $2,
+            city = $3,
+            state = $4,
+            usual_days = $5,
+            usual_start_time = $6,
+            usual_end_time = $7,
+            visibility = $8,
+            rules = $9,
+            updated_at = NOW()
+          WHERE id = $1
+
+          RETURNING
+            id,
+            name,
+            slug,
+            description,
+            city,
+            state,
+            usual_days,
+            TO_CHAR(
+              usual_start_time,
+              'HH24:MI'
+            ) AS usual_start_time,
+            TO_CHAR(
+              usual_end_time,
+              'HH24:MI'
+            ) AS usual_end_time,
+            visibility,
+            rules,
+            updated_at
+        `,
+        [
+          group_id,
+          cleanDescription,
+          cleanCity || null,
+          cleanState || null,
+          cleanDays,
+          cleanStartTime || null,
+          cleanEndTime || null,
+          cleanVisibility,
+          cleanRules
+        ]
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          error: "Grupo não encontrado"
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message:
+          "Configurações do grupo atualizadas com sucesso",
+        group: result.rows[0]
       });
 
     } else if (action === "list-groups-admin") {
