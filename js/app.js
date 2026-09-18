@@ -245,6 +245,7 @@
     let pendingSummaryShare = null;
     let noGroupChampionshipOpen = false;
     let adminViewMode = "group";
+    let groupCreationRequestToReject = null;
 
     let profileCompletionRequired = false;
     let profileMissingFields = [];
@@ -407,6 +408,9 @@
 
         const globalAdmin = isGlobalAdmin();
 
+        const hasGroup =
+            !!getCurrentGroupId();
+
         if (globalButton) {
             globalButton.style.display =
                 globalAdmin
@@ -416,9 +420,21 @@
 
         if (!globalAdmin) {
             adminViewMode = "group";
+
+        } else if (!hasGroup) {
+            /*
+             * Sem grupo selecionado, o Global Admin
+             * entra diretamente na gestão global.
+             */
+            adminViewMode = "global";
         }
 
         if (groupButton) {
+            groupButton.style.display =
+                hasGroup
+                    ? "block"
+                    : "none";
+
             groupButton.classList.toggle(
                 "active",
                 adminViewMode === "group"
@@ -527,6 +543,7 @@
 
             try {
                 state.auth.currentGroupId = groupId;
+                adminViewMode = "group";
                 saveState();
 
                 clearGroupInviteSearch();
@@ -1691,8 +1708,11 @@
         state.auth.groups = [];
         state.auth.currentGroupId = null;
         noGroupChampionshipOpen = false;
+        adminViewMode = "group";
 
         closeGroupAccessModal();
+        closeGroupCreationModal();
+        closeGroupCreationRejectModal();
 
         if ($("groupAccessStatus")) {
             $("groupAccessStatus").textContent = "";
@@ -1757,7 +1777,12 @@
     function enterGuestMode() {
         state.auth = state.auth || {};
         state.auth.user = { username: "visitante", role: "guest" };
+
         noGroupChampionshipOpen = false;
+        adminViewMode = "group";
+
+        closeGroupCreationModal();
+        closeGroupCreationRejectModal();
         saveState();
         updateAuthUI();
     }
@@ -4065,28 +4090,28 @@
                     Solicitado por
                     ${escapeSummaryHtml(requester)}
                     ${request.requester_username
-                    ? `(@${escapeSummaryHtml(
-                        request.requester_username
-                    )})`
-                    : ""
-                }
+                        ? `(@${escapeSummaryHtml(
+                            request.requester_username
+                        )})`
+                        : ""
+                    }
                 </span>
 
                 <span>
                     ${escapeSummaryHtml(
-                    request.requester_email || "—"
-                )}
+                        request.requester_email || "—"
+                    )}
                     ${whatsapp
-                    ? ` • ${escapeSummaryHtml(whatsapp)}`
-                    : ""
-                }
+                        ? ` • ${escapeSummaryHtml(whatsapp)}`
+                        : ""
+                    }
                 </span>
 
                 <span>
                     ${escapeSummaryHtml(
-                    request.description ||
-                    "Sem descrição informada"
-                )}
+                        request.description ||
+                        "Sem descrição informada"
+                    )}
                 </span>
 
                 <span>
@@ -4126,10 +4151,9 @@
 
                 rejectButton.addEventListener(
                     "click",
-                    async () => {
-                        await reviewGroupCreationRequest(
-                            request,
-                            "reject"
+                    () => {
+                        openGroupCreationRejectModal(
+                            request
                         );
                     }
                 );
@@ -4168,14 +4192,180 @@
     }
 
 
+    function clearGroupCreationRejectFeedback() {
+        const field =
+            $("groupCreationRejectReasonField");
+
+        const error =
+            $("groupCreationRejectReasonError");
+
+        const status =
+            $("groupCreationRejectStatus");
+
+        field?.classList.remove(
+            "has-error"
+        );
+
+        if (error) {
+            error.textContent = "";
+        }
+
+        if (status) {
+            status.textContent = "";
+
+            status.classList.remove(
+                "is-error",
+                "is-warning",
+                "is-success"
+            );
+        }
+    }
+
+
+    function openGroupCreationRejectModal(
+        request
+    ) {
+        if (!request?.id) {
+            return;
+        }
+
+        groupCreationRequestToReject =
+            request;
+
+        clearGroupCreationRejectFeedback();
+
+        const modal =
+            $("groupCreationRejectModal");
+
+        const subtitle =
+            $("groupCreationRejectSubtitle");
+
+        const reason =
+            $("groupCreationRejectReason");
+
+        if (subtitle) {
+            subtitle.textContent =
+                `Informe por que o grupo "${request.name}" não será aprovado.`;
+        }
+
+        if (reason) {
+            reason.value = "";
+        }
+
+        modal?.classList.add(
+            "is-visible"
+        );
+
+        modal?.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        reason?.focus();
+    }
+
+
+    function closeGroupCreationRejectModal() {
+        const modal =
+            $("groupCreationRejectModal");
+
+        modal?.classList.remove(
+            "is-visible"
+        );
+
+        modal?.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        groupCreationRequestToReject =
+            null;
+
+        if ($("groupCreationRejectReason")) {
+            $("groupCreationRejectReason")
+                .value = "";
+        }
+
+        clearGroupCreationRejectFeedback();
+    }
+
+
+    async function confirmGroupCreationReject() {
+        const request =
+            groupCreationRequestToReject;
+
+        const reason =
+            ($("groupCreationRejectReason")
+                ?.value || "")
+                .trim();
+
+        const field =
+            $("groupCreationRejectReasonField");
+
+        const error =
+            $("groupCreationRejectReasonError");
+
+        const button =
+            $("btnConfirmGroupCreationReject");
+
+        clearGroupCreationRejectFeedback();
+
+        if (!request?.id) {
+            closeGroupCreationRejectModal();
+            return;
+        }
+
+        if (!reason) {
+            field?.classList.add(
+                "has-error"
+            );
+
+            if (error) {
+                error.textContent =
+                    "Informe o motivo da rejeição.";
+            }
+
+            $("groupCreationRejectReason")
+                ?.focus();
+
+            return;
+        }
+
+        if (button) {
+            button.disabled = true;
+        }
+
+        try {
+            const rejected =
+                await reviewGroupCreationRequest(
+                    request,
+                    "reject",
+                    reason
+                );
+
+            if (rejected) {
+                closeGroupCreationRejectModal();
+            }
+
+        } finally {
+            if (button) {
+                button.disabled = false;
+            }
+        }
+    }
+
+
     async function reviewGroupCreationRequest(
         request,
-        decision
+        decision,
+        rejectionReason = ""
     ) {
         const approving =
             decision === "approve";
 
-        let reason = "";
+        const reason =
+            String(rejectionReason || "")
+                .trim();
 
         if (approving) {
             if (
@@ -4184,28 +4374,11 @@
                     "O solicitante será definido como administrador."
                 )
             ) {
-                return;
+                return false;
             }
 
-        } else {
-            const informedReason = prompt(
-                `Motivo da rejeição de ${request.name} (opcional):`,
-                ""
-            );
-
-            if (informedReason === null) {
-                return;
-            }
-
-            reason = informedReason.trim();
-
-            if (
-                !confirm(
-                    `Confirmar a rejeição da solicitação de ${request.name}?`
-                )
-            ) {
-                return;
-            }
+        } else if (!reason) {
+            return false;
         }
 
         const action = approving
@@ -4223,8 +4396,10 @@
                 `/api/auth?action=${action}`,
                 {
                     method: "POST",
+
                     body: JSON.stringify({
                         request_id: request.id,
+
                         ...(approving
                             ? {}
                             : { reason }
@@ -4248,12 +4423,16 @@
                 "success"
             );
 
+            return true;
+
         } catch (err) {
             Toast.show(
                 err?.message ||
                 "Não foi possível analisar a solicitação.",
                 "error"
             );
+
+            return false;
 
         } finally {
             Loading.hide();
@@ -5173,6 +5352,10 @@
 
         const hasGroup = !!getCurrentGroupId();
 
+        const openingGlobalAdminPanel =
+            name === "admin-grupo" &&
+            isGlobalAdmin();
+
         if (
             user &&
             !guest &&
@@ -5182,6 +5365,16 @@
             if (name === "sorteios") {
                 noGroupChampionshipOpen = true;
                 updateHomeLayout();
+
+            } else if (openingGlobalAdminPanel) {
+                /*
+                 * Gestão global não depende
+                 * de um grupo selecionado.
+                 */
+                adminViewMode = "global";
+                noGroupChampionshipOpen = false;
+                updateHomeLayout();
+
             } else {
                 noGroupChampionshipOpen = false;
                 updateHomeLayout();
@@ -5374,6 +5567,38 @@
         );
     }
 
+    if ($("btnCloseGroupCreationReject")) {
+        $("btnCloseGroupCreationReject")
+            .addEventListener(
+                "click",
+                closeGroupCreationRejectModal
+            );
+    }
+
+    if ($("btnCancelGroupCreationReject")) {
+        $("btnCancelGroupCreationReject")
+            .addEventListener(
+                "click",
+                closeGroupCreationRejectModal
+            );
+    }
+
+    if ($("btnConfirmGroupCreationReject")) {
+        $("btnConfirmGroupCreationReject")
+            .addEventListener(
+                "click",
+                confirmGroupCreationReject
+            );
+    }
+
+    if ($("groupCreationRejectReason")) {
+        $("groupCreationRejectReason")
+            .addEventListener(
+                "input",
+                clearGroupCreationRejectFeedback
+            );
+    }
+
     if ($("btnBackNoGroupHome")) {
         $("btnBackNoGroupHome").addEventListener("click", () => {
             noGroupChampionshipOpen = false;
@@ -5435,12 +5660,20 @@
             }
         }
 
+        const managingGloballyWithoutGroup =
+            logged &&
+            isGlobalAdmin() &&
+            !hasGroup &&
+            adminViewMode === "global";
+
         const choosingGroup =
             logged &&
             !guest &&
             !organizer &&
             groups.length > 1 &&
-            !hasGroup;
+            !hasGroup &&
+            !noGroupChampionshipOpen &&
+            !managingGloballyWithoutGroup;
 
         const waitingForGroup =
             logged &&
@@ -8212,15 +8445,15 @@
                 </span>
 
                 ${rejectionReason
-                    ? `
+                        ? `
                         <span>
                             Motivo: ${escapeSummaryHtml(
-                                rejectionReason
-                            )}
+                            rejectionReason
+                        )}
                         </span>
                     `
-                    : ""
-                }
+                        : ""
+                    }
             `;
 
                 const status =
@@ -8301,7 +8534,16 @@
             $("groupCreationDescription").value = "";
         }
 
-        await renderMyGroupCreationRequests();
+        Loading.show(
+            "Carregando suas solicitações..."
+        );
+
+        try {
+            await renderMyGroupCreationRequests();
+
+        } finally {
+            Loading.hide();
+        }
 
         $("groupCreationName")?.focus();
     }
@@ -9373,6 +9615,12 @@
                 "groupCreationModal"
             ) {
                 closeGroupCreationModal();
+            }
+            if (
+                event.target.id ===
+                "groupCreationRejectModal"
+            ) {
+                closeGroupCreationRejectModal();
             }
         }
     );

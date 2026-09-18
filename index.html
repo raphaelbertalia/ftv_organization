@@ -468,7 +468,8 @@
               Nome do grupo
             </div>
 
-            <input id="groupCreationName" type="text" maxlength="120" placeholder="Ex.: Futevôlei da Vila" autocomplete="off" />
+            <input id="groupCreationName" type="text" maxlength="120" placeholder="Ex.: Futevôlei da Vila"
+              autocomplete="off" />
 
             <div id="groupCreationNameError" class="group-access-field-error"></div>
           </div>
@@ -516,6 +517,64 @@
           </button>
 
           <button id="btnCancelGroupCreation" class="secondary" type="button">
+            Cancelar
+          </button>
+
+        </div>
+
+      </div>
+    </section>
+
+    <section id="groupCreationRejectModal" class="group-access-modal" aria-hidden="true">
+      <div class="group-access-dialog" role="dialog" aria-modal="true" aria-labelledby="groupCreationRejectTitle">
+
+        <div class="group-access-header">
+
+          <div>
+            <h2 id="groupCreationRejectTitle">
+              Rejeitar solicitação
+            </h2>
+
+            <div id="groupCreationRejectSubtitle" class="muted">
+              Informe ao solicitante por que o grupo não foi aprovado.
+            </div>
+          </div>
+
+          <button id="btnCloseGroupCreationReject" class="secondary group-access-close" type="button"
+            aria-label="Fechar">
+            ✕
+          </button>
+
+        </div>
+
+        <div class="group-access-content">
+
+          <div id="groupCreationRejectReasonField" class="group-access-field">
+            <div class="muted">
+              Motivo da rejeição
+            </div>
+
+            <textarea id="groupCreationRejectReason" maxlength="500" rows="4"
+              placeholder="Explique o motivo para o solicitante." style="width:100%; resize:vertical;"></textarea>
+
+            <div id="groupCreationRejectReasonError" class="group-access-field-error"></div>
+
+            <div class="muted" style="margin-top:4px;">
+              O motivo será enviado ao solicitante.
+            </div>
+          </div>
+
+          <div id="groupCreationRejectStatus" class="group-access-status"></div>
+
+        </div>
+
+        <div class="group-access-actions">
+
+          <button id="btnConfirmGroupCreationReject" class="reject" type="button">
+            Confirmar rejeição
+          </button>
+
+          <button id="btnCancelGroupCreationReject" class="secondary" type="button">
             Cancelar
           </button>
 
@@ -1675,7 +1734,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=45"></script>
+  <script src="js/app.js?v=46"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
