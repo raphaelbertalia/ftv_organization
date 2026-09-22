@@ -88,8 +88,8 @@ function isSameFixture(p1a, p1b, p2a, p2b) {
   return x === y;
 }
 
-function syncMatchToDb(match) {
-  return fetch("/api/matches", {
+async function syncMatchToDb(match) {
+  const response = await fetch("/api/matches", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -102,7 +102,24 @@ function syncMatchToDb(match) {
       schedule_index: match.scheduleIndex,
       created_at: match.createdAt
     })
-  }).catch(err => console.error("Erro ao salvar jogo no banco:", err));
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch (_) {
+    // A API pode eventualmente não devolver JSON.
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ||
+      `Não foi possível salvar o jogo. HTTP ${response.status}`
+    );
+  }
+
+  return data;
 }
 
 async function deleteMatchFromDb(matchId) {
@@ -130,7 +147,7 @@ async function deleteMatchFromDb(matchId) {
   return data;
 }
 
-function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
+async function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
   const session = getCurrentSession();
   if (!session) return alert("Inicie uma sessão antes.");
 
@@ -204,10 +221,12 @@ function addMatch(pairAId, pairBId, scoreA, scoreB, scheduleIndexArg) {
     scoreB: Number(scoreB)
   };
 
+  await syncMatchToDb(match);
+
   state.matches.push(match);
   saveState();
 
-  return syncMatchToDb(match).then(() => match);
+  return match;
 }
 
 async function undoLastMatchOfCurrentSession() {

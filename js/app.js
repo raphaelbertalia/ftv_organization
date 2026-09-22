@@ -12467,10 +12467,14 @@
         });
     }
 
+    let isSavingMatch = false;
+
     // ---------- Registrar jogo (delegado, funciona mesmo se o botão existir depois) ----------
     document.addEventListener("click", async (ev) => {
         const btn = ev.target.closest?.("#btnAddMatch");
         if (!btn) return;
+
+        if (isSavingMatch) return;
 
         if (!requireOperator()) return;
 
@@ -12521,6 +12525,12 @@
         }
 
         recomputeNextIndex(sess);
+
+        const originalButtonText = btn.textContent;
+
+        isSavingMatch = true;
+        btn.disabled = true;
+        btn.textContent = "Salvando...";
 
         Loading.show("Salvando jogo...");
 
@@ -12658,6 +12668,15 @@
             );
         } finally {
             Loading.forceHide();
+
+            isSavingMatch = false;
+
+            const currentButton = $("btnAddMatch");
+
+            if (currentButton) {
+                currentButton.disabled = !canOperate();
+                currentButton.textContent = originalButtonText;
+            }
         }
     });
 

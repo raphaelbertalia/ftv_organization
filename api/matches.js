@@ -83,6 +83,19 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Método não permitido" });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    if (
+      err?.code === "23505" &&
+      err?.constraint === "matches_session_schedule_index_unique"
+    ) {
+      return res.status(409).json({
+        error: "Este jogo da sequência já foi registrado."
+      });
+    }
+
+    console.error("Erro na API de jogos:", err);
+
+    return res.status(500).json({
+      error: "Não foi possível processar o jogo."
+    });
   }
 }
