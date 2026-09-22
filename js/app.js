@@ -10223,7 +10223,94 @@
         });
     }
 
+    function getSelectedSessionPlayMode() {
+        const currentSession = getCurrentSession();
+
+        if (
+            currentSession?.playMode === "fixed" ||
+            currentSession?.playMode === "rotation"
+        ) {
+            return currentSession.playMode;
+        }
+
+        const activeCount =
+            (state.players || [])
+                .filter(player => player.active)
+                .length;
+
+        /*
+         * Quantidade ímpar obrigatoriamente utiliza rodízio.
+         */
+        if (
+            activeCount >= 4 &&
+            activeCount % 2 !== 0
+        ) {
+            return "rotation";
+        }
+
+        return $("sessionPlayMode")?.value === "rotation"
+            ? "rotation"
+            : "fixed";
+    }
+
+    function updateSessionPlayModeSelector() {
+        const wrapper = $("sessionPlayModeSelector");
+        const select = $("sessionPlayMode");
+        const hint = $("sessionPlayModeHint");
+
+        if (!wrapper || !select) {
+            return;
+        }
+
+        const activeCount =
+            (state.players || [])
+                .filter(player => player.active)
+                .length;
+
+        const currentSession = getCurrentSession();
+
+        if (currentSession || activeCount < 4) {
+            wrapper.style.display = "none";
+            return;
+        }
+
+        wrapper.style.display = "block";
+
+        const oddPlayerCount =
+            activeCount % 2 !== 0;
+
+        const fixedOption =
+            select.querySelector(
+                'option[value="fixed"]'
+            );
+
+        if (fixedOption) {
+            fixedOption.disabled =
+                oddPlayerCount;
+        }
+
+        if (oddPlayerCount) {
+            select.value = "rotation";
+            select.disabled = true;
+
+            if (hint) {
+                hint.textContent =
+                    `${activeCount} jogadores ativos: quantidade ímpar utiliza rodízio.`;
+            }
+
+            return;
+        }
+
+        select.disabled = false;
+
+        if (hint) {
+            hint.textContent =
+                `${activeCount} jogadores ativos: escolha duplas fixas ou rodízio inteligente.`;
+        }
+    }
+
     function updateMatchFlowSelector() {
+        updateSessionPlayModeSelector();
         const selector =
             $("matchFlowSelector");
 
@@ -10261,7 +10348,8 @@
          */
         const shouldShow =
             activeCount >= 4 &&
-            activeCount % 2 === 0;
+            activeCount % 2 === 0 &&
+            getSelectedSessionPlayMode() === "fixed";
 
         selector.style.display =
             shouldShow
@@ -10343,6 +10431,15 @@
         );
     }
 
+    if ($("sessionPlayMode")) {
+        $("sessionPlayMode").addEventListener(
+            "change",
+            () => {
+                renderPairsEditor();
+            }
+        );
+    }
+
     [
         "matchFlowSmart",
         "matchFlowClassic"
@@ -10384,6 +10481,21 @@
 
         wrap.innerHTML = "";
 
+        const selectedPlayMode =
+            getSelectedSessionPlayMode();
+
+        const drawButton =
+            $("btnDrawPairs");
+
+        if (drawButton) {
+            drawButton.style.display =
+                !getCurrentSession() &&
+                    players.length >= 4 &&
+                    selectedPlayMode === "fixed"
+                    ? "inline-block"
+                    : "none";
+        }
+
         /*
          * Menos de quatro ainda não forma uma sessão.
          */
@@ -10402,10 +10514,10 @@
          * Quantidade ímpar trabalha em rodízio.
          * Não existem duplas fixas antes da sessão.
          */
-        if (players.length % 2 !== 0) {
+        if (selectedPlayMode === "rotation") {
             wrap.innerHTML = `
             <div class="card" style="margin:8px 0;">
-                <b>Rodízio automático</b>
+                <b>Rodízio inteligente</b>
 
                 <div class="muted" style="margin-top:6px;">
                     ${players.length} jogadores ativos.
@@ -11113,7 +11225,12 @@
                 {
                     playerId: String(playerId),
                     played: 0,
-                    lastPlayedIndex: -1
+                    lastPlayedIndex: -1,
+                    wins: 0,
+                    losses: 0,
+                    pointsFor: 0,
+                    pointsAgainst: 0,
+                    performancePoints: 0
                 }
             ])
         );
@@ -11153,6 +11270,63 @@
                 playerStat.played += 1;
                 playerStat.lastPlayedIndex = scheduleIndex;
             });
+
+            const scoreA = Number(match.scoreA);
+            const scoreB = Number(match.scoreB);
+
+            if (
+                Number.isFinite(scoreA) &&
+                Number.isFinite(scoreB) &&
+                scoreA !== scoreB
+            ) {
+                const applyPerformance = (
+                    playerIds,
+                    pointsFor,
+                    pointsAgainst,
+                    won
+                ) => {
+                    const rankingPoints =
+                        won
+                            ? (
+                                pointsFor === 18 &&
+                                    pointsAgainst === 0
+                                    ? 4
+                                    : 3
+                            )
+                            : 0;
+
+                    playerIds.forEach(playerId => {
+                        const playerStat =
+                            stats.get(String(playerId));
+
+                        if (!playerStat) return;
+
+                        playerStat.pointsFor += pointsFor;
+                        playerStat.pointsAgainst += pointsAgainst;
+                        playerStat.performancePoints += rankingPoints;
+
+                        if (won) {
+                            playerStat.wins += 1;
+                        } else {
+                            playerStat.losses += 1;
+                        }
+                    });
+                };
+
+                applyPerformance(
+                    matchPlayers.pairA,
+                    scoreA,
+                    scoreB,
+                    scoreA > scoreB
+                );
+
+                applyPerformance(
+                    matchPlayers.pairB,
+                    scoreB,
+                    scoreA,
+                    scoreB > scoreA
+                );
+            }
 
             addMapCount(
                 partnerCounts,
@@ -11275,6 +11449,68 @@
         ];
     }
 
+    function getRotationPerformanceRating(playerStat) {
+        if (!playerStat?.played) {
+            return 0;
+        }
+
+        const averageRankingPoints =
+            playerStat.performancePoints /
+            playerStat.played;
+
+        const averagePointBalance =
+            (
+                playerStat.pointsFor -
+                playerStat.pointsAgainst
+            ) /
+            playerStat.played;
+
+        return (
+            averageRankingPoints +
+            averagePointBalance / 18
+        );
+    }
+
+    function getRotationPairFormPenalty(
+        player1Id,
+        player2Id,
+        stats
+    ) {
+        const player1 =
+            stats.get(String(player1Id));
+
+        const player2 =
+            stats.get(String(player2Id));
+
+        if (
+            !player1?.played ||
+            !player2?.played
+        ) {
+            return 0;
+        }
+
+        const balance1 =
+            player1.wins - player1.losses;
+
+        const balance2 =
+            player2.wins - player2.losses;
+
+        if (
+            balance1 === 0 ||
+            balance2 === 0
+        ) {
+            return 0;
+        }
+
+        /*
+         * Penaliza dupla formada por dois atletas
+         * que estão ganhando ou dois que estão perdendo.
+         */
+        return Math.sign(balance1) === Math.sign(balance2)
+            ? 80
+            : 0;
+    }
+
     function calculateRotationCandidateScore(
         candidate,
         rotationStats
@@ -11317,6 +11553,47 @@
         selectedPlayers.forEach(playerId => {
             score += (stats.get(playerId)?.played || 0) * 80;
         });
+
+        /*
+ * Equilibra o desempenho das duas duplas.
+ * A tendência é colocar quem está melhor
+ * com quem está tendo resultados piores.
+ */
+        const pairARating =
+            candidate.pairA.reduce(
+                (total, playerId) =>
+                    total +
+                    getRotationPerformanceRating(
+                        stats.get(String(playerId))
+                    ),
+                0
+            );
+
+        const pairBRating =
+            candidate.pairB.reduce(
+                (total, playerId) =>
+                    total +
+                    getRotationPerformanceRating(
+                        stats.get(String(playerId))
+                    ),
+                0
+            );
+
+        score +=
+            Math.abs(pairARating - pairBRating) *
+            60;
+
+        score += getRotationPairFormPenalty(
+            candidate.pairA[0],
+            candidate.pairA[1],
+            stats
+        );
+
+        score += getRotationPairFormPenalty(
+            candidate.pairB[0],
+            candidate.pairB[1],
+            stats
+        );
 
         // Evita repetir parceiros.
         score += (
@@ -11405,12 +11682,9 @@
         const participantCount =
             rotationStats.participantIds.length;
 
-        if (
-            participantCount < 5 ||
-            participantCount % 2 === 0
-        ) {
+        if (participantCount < 4) {
             throw new Error(
-                `O rodízio automático exige uma quantidade ímpar de pelo menos 5 jogadores. A sessão possui ${participantCount}.`
+                `O rodízio inteligente exige pelo menos 4 jogadores. A sessão possui ${participantCount}.`
             );
         }
 
@@ -11845,12 +12119,12 @@
          * pelo motor de rodízio.
          */
         if (
-            activePlayers.length % 2 !== 0
+            getSelectedSessionPlayMode() === "rotation"
         ) {
             renderPairsEditor();
 
             Toast.show(
-                `${activePlayers.length} jogadores ativos: sessão em modo rodízio.`,
+                `${activePlayers.length} jogadores ativos: sessão configurada para rodízio inteligente.`,
                 "info"
             );
 
@@ -12030,9 +12304,7 @@
                 }
 
                 const playMode =
-                    participantIds.length % 2 === 0
-                        ? "fixed"
-                        : "rotation";
+                    getSelectedSessionPlayMode();
 
                 const selectedMatchFlowMode =
                     playMode === "fixed"

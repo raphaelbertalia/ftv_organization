@@ -1047,6 +1047,21 @@
             <div>
               <div class="muted">Sessão</div>
               <input id="sessionName" placeholder="Nome da sessão (ex: Quarta CH)" />
+              <div id="sessionPlayModeSelector" style="margin-top:12px; display:none;">
+                <div class="muted">Formato da sessão</div>
+
+                <select id="sessionPlayMode" style="margin-top:6px;">
+                  <option value="fixed">
+                    Duplas fixas
+                  </option>
+
+                  <option value="rotation">
+                    Rodízio inteligente
+                  </option>
+                </select>
+
+                <div id="sessionPlayModeHint" class="muted" style="margin-top:6px;"></div>
+              </div>
               <div id="matchFlowSelector" class="match-flow-selector" style="display:none;">
 
                 <div class="match-flow-heading">
@@ -1339,8 +1354,9 @@
           <b>Formação da sessão</b>
 
           <div class="muted" style="margin-top:6px;">
-            A quantidade de jogadores ativos define automaticamente
-            se a sessão utilizará duplas fixas ou rodízio.
+            Com número par de jogadores, escolha entre duplas fixas
+            ou rodízio inteligente. Com número ímpar, o rodízio
+            será utilizado automaticamente.
           </div>
           <button id="btnDrawPairs" class="secondary" type="button">
             Sortear duplas
