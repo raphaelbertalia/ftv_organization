@@ -171,15 +171,6 @@ async function createSession(
     );
   }
 
-  if (
-    playMode === "rotation" &&
-    participantIds.length % 2 === 0
-  ) {
-    throw new Error(
-      "O rodízio deve ser utilizado com quantidade ímpar de jogadores."
-    );
-  }
-
   const session = {
     id,
     name,
@@ -200,8 +191,8 @@ async function createSession(
     ],
 
     /*
-     * Par   = duplas fixas
-     * Ímpar = rodízio
+     * fixed    = duplas definidas no início
+     * rotation = duplas montadas dinamicamente
      */
     playMode,
 

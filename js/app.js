@@ -13869,6 +13869,7 @@
     }
 
     function updateAllSessionUI() {
+        renderPairsEditor();
         renderPairSelects();
         updateNextGameUI();
         updateTopStats();
