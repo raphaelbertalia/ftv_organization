@@ -383,6 +383,29 @@ pre {
 .reset-fields label { display: block; }
 .reset-status { min-height: 20px; margin-top: 12px; }
 .reset-status.is-error { color: #f87171; }
+.password-visibility {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.password-visibility input[type="checkbox"] {
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 18px;
+}
+body.password-reset-link-view > :not(main):not(#globalLoading):not(#appToast),
+body.password-reset-link-view main > :not(#loginScreen),
+body.password-reset-link-view #loginScreen > :not(#authBox),
+body.password-reset-link-view #authBox .row > div:first-child,
+body.password-reset-link-view #logoutBox,
+body.password-reset-link-view #guestLoginBox { display: none !important; }
+body.password-reset-link-view #loginScreen { display: block !important; }
 #resetCode { letter-spacing: .2em; font-variant-numeric: tabular-nums; }
 #passwordResetForm [hidden] { display: none !important; }
 

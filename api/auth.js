@@ -16,7 +16,7 @@ import {
 } from "../lib/email.js";
 
 const RESET_TYPE = "PASSWORD_RESET";
-const RESET_MESSAGE = "Se este e-mail estiver vinculado a uma conta ativa, você receberá um código. Confira também o spam.";
+const RESET_MESSAGE = "Enviamos um e-mail com o código e o link para redefinir sua senha. Confira também o spam.";
 const INVALID_CODE = "Código inválido, expirado ou sem tentativas disponíveis. Solicite outro código.";
 
 function resetEmail(value) {
@@ -54,7 +54,6 @@ function resetClientIp(req) {
 }
 
 async function requestPasswordReset(req, res) {
-  const startedAt = Date.now();
   const email = resetEmail(req.body?.email);
   if (!validResetEmail(email)) {
     return res.status(400).json({ error: "Informe um e-mail válido" });
@@ -67,15 +66,11 @@ async function requestPasswordReset(req, res) {
     return res.status(429).json({ error: "Muitas solicitações. Tente novamente mais tarde." });
   }
 
-  // Mesma resposta para e-mail inexistente, inativo e limite por e-mail atingido.
-  // Piso de tempo reduz diferenças comuns; envio externo pode variar em duração.
-  const respond = async () => {
-    const remaining = 1500 - (Date.now() - startedAt);
-    if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
-    return res.status(200).json({ ok: true, message: RESET_MESSAGE, resend_after: 60 });
-  };
+  // Por decisão de produto, informa ausência de cadastro. O cadastro já
+  // informa e-mail em uso. Os limites continuam protegendo contra abuso.
   if (!await allowAuthCodeRequest(`reset-request-email:${email}`, 5, 3600, 60)) {
-    return respond();
+    res.setHeader("Retry-After", "60");
+    return res.status(429).json({ error: "Aguarde 60 segundos entre os pedidos. O limite é de cinco pedidos por e-mail em uma hora." });
   }
 
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
@@ -110,14 +105,17 @@ async function requestPasswordReset(req, res) {
   if (target) {
     const sent = await sendEmailSafe({
       to: email,
-      ...buildPasswordResetEmail({ code, username: target.username })
+      ...buildPasswordResetEmail({ code, username: target.username, email })
     });
     if (!sent.ok) {
       // Só invalida este envio; não remove um código mais recente.
       await pool.query("DELETE FROM auth_codes WHERE id = $1", [codeId]);
+      return res.status(502).json({ error: "Não foi possível enviar o e-mail de recuperação. Tente novamente em alguns instantes." });
     }
+  } else {
+    return res.status(404).json({ error: "Este e-mail não possui cadastro ativo no FTV Hub. Confira o e-mail informado." });
   }
-  return respond();
+  return res.status(200).json({ ok: true, message: RESET_MESSAGE, resend_after: 60 });
 }
 
 async function confirmPasswordReset(req, res) {

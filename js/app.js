@@ -5,6 +5,7 @@
 
 (function () {
     const $ = (id) => document.getElementById(id);
+    const pendingPasswordResetLink = readPasswordResetLink();
 
     const Loading = (() => {
         let activeOperations = 0;
@@ -1433,9 +1434,72 @@
     let requestedResetEmail = "";
     let resetResendAt = 0;
     let resetResendTimer = null;
+    let resetLinkView = false;
+    let resetInertElements = [];
+
+    function readPasswordResetLink() {
+        const prefix = "#reset-password?";
+        if (!window.location.hash.startsWith(prefix)) return null;
+        const params = new URLSearchParams(window.location.hash.slice(prefix.length));
+        // Remove e-mail/código da barra e do histórico atual antes de usar.
+        window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+        const email = (params.get("email") || "").trim().toLowerCase();
+        const code = params.get("code") || "";
+        if (params.getAll("email").length !== 1 || params.getAll("code").length !== 1 ||
+            email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(code)) {
+            return { invalid: true };
+        }
+        return { email, code };
+    }
+
+    function openPasswordResetLink(link) {
+        if (!link || resetBusy) return;
+        resetLinkView = true;
+        document.body.classList.add("password-reset-link-view");
+        openPasswordReset();
+        if (link.invalid) {
+            setResetStatus("Link incompleto ou inválido. Informe seu e-mail para receber outro.", true);
+            return;
+        }
+        $("resetEmail").value = link.email;
+        setResetStep(link.email);
+        $("resetCode").value = link.code;
+        setResetStatus("Escolha sua nova senha. O link será validado ao salvar.");
+        updateResetButtons();
+        $("resetNewPassword")?.focus();
+    }
+
+    function setPasswordResetBusy(busy, message = "Processando...") {
+        resetBusy = busy;
+        $("passwordResetForm")?.setAttribute("aria-busy", String(busy));
+        if (busy) {
+            Loading.show(message);
+            // Overlay bloqueia mouse/toque; inert bloqueia também teclado.
+            resetInertElements = Array.from(document.body.children)
+                .filter(element => !["globalLoading", "appToast"].includes(element.id) &&
+                    !["SCRIPT", "STYLE", "LINK"].includes(element.tagName))
+                .map(element => [element, element.inert]);
+            resetInertElements.forEach(([element]) => { element.inert = true; });
+        } else {
+            resetInertElements.forEach(([element, original]) => { element.inert = original; });
+            resetInertElements = [];
+            Loading.hide();
+        }
+        updateResetButtons();
+    }
+
+    function bindPasswordVisibility() {
+        document.querySelectorAll("[data-password-targets]").forEach(toggle => {
+            toggle.addEventListener("change", () => {
+                toggle.dataset.passwordTargets.split(" ").forEach(id => {
+                    if ($(id)) $(id).type = toggle.checked ? "text" : "password";
+                });
+            });
+        });
+    }
 
     function renderAuthForms() {
-        const logged = !!state.auth?.user;
+        const logged = !!state.auth?.user && !resetLinkView;
         if (logged) authMode = "login";
         const displays = { loginForm: ["login", "flex"], registerForm: ["register", "block"], passwordResetForm: ["reset", "block"] };
         Object.entries(displays).forEach(([id, [mode, display]]) => {
@@ -1452,8 +1516,13 @@
                 $(id).disabled = !email;
                 $(id).required = !!email;
                 $(id).value = "";
+                if (id !== "resetCode") $(id).type = "password";
             }
         });
+        if ($("resetShowPasswords")) {
+            $("resetShowPasswords").checked = false;
+            $("resetShowPasswords").disabled = !email;
+        }
         if ($("btnSubmitReset")) $("btnSubmitReset").textContent = email ? "Salvar nova senha" : "Receber código por e-mail";
         if ($("btnResendReset")) $("btnResendReset").hidden = !email;
         if ($("btnChangeResetEmail")) $("btnChangeResetEmail").hidden = !email;
@@ -1511,8 +1580,8 @@
         const email = ($("resetEmail")?.value || "").trim().toLowerCase();
         if (!$("resetEmail")?.reportValidity()) return;
         if (resetBusy) return;
-        resetBusy = true;
-        updateResetButtons();
+        setPasswordResetBusy(true, "Enviando e-mail de recuperação...");
+        let sent = false;
         setResetStatus("Enviando solicitação...");
         try {
             const data = await apiJson("/api/auth?action=request-password-reset", {
@@ -1524,12 +1593,12 @@
             if (resetResendTimer) clearInterval(resetResendTimer);
             resetResendTimer = setInterval(updateResetButtons, 1000);
             setResetStatus(data.message);
-            $("resetCode")?.focus();
+            sent = true;
         } catch (err) {
             setResetStatus(err.message || "Não foi possível solicitar o código.", true);
         } finally {
-            resetBusy = false;
-            updateResetButtons();
+            setPasswordResetBusy(false);
+            if (sent) $("resetCode")?.focus();
         }
     }
 
@@ -1546,23 +1615,29 @@
             setResetStatus("A senha deve ter no máximo 72 bytes. Use uma senha mais curta.", true);
             return;
         }
-        resetBusy = true;
-        updateResetButtons();
+        setPasswordResetBusy(true, "Salvando sua nova senha...");
+        let saved = false;
         setResetStatus("Salvando nova senha...");
         try {
             const data = await apiJson("/api/auth?action=confirm-password-reset", {
                 method: "POST", body: JSON.stringify({ email: requestedResetEmail, code, new_password: newPassword })
             });
+            if (resetLinkView) {
+                // Abertura do link preserva a sessão; só encerra após salvar.
+                await doLogout();
+                resetLinkView = false;
+                document.body.classList.remove("password-reset-link-view");
+            }
             setRegisterMode(false);
             if ($("loginUsername")) $("loginUsername").value = data.username || "";
             if ($("loginPassword")) $("loginPassword").value = "";
-            $("loginPassword")?.focus();
             Toast.show(data.message, "success", 6000);
+            saved = true;
         } catch (err) {
             setResetStatus(err.message || "Não foi possível alterar a senha.", true);
         } finally {
-            resetBusy = false;
-            updateResetButtons();
+            setPasswordResetBusy(false);
+            if (saved) $("loginPassword")?.focus();
         }
     }
 
@@ -9748,7 +9823,13 @@
     $("btnForgotPassword")?.addEventListener("click", openPasswordReset);
     $("btnRegisterRecover")?.addEventListener("click", openPasswordReset);
     $("btnCancelReset")?.addEventListener("click", () => {
-        if (!resetBusy) setRegisterMode(false);
+        if (resetBusy) return;
+        if (resetLinkView) {
+            // Recarrega sem o fragmento, retomando o acesso anterior.
+            window.location.reload();
+            return;
+        }
+        setRegisterMode(false);
     });
     $("btnChangeResetEmail")?.addEventListener("click", () => {
         if (resetBusy) return;
@@ -15905,6 +15986,12 @@
     }
 
     // ---------- Init ----------
+    bindPasswordVisibility();
+    window.addEventListener("hashchange", () => {
+        const link = readPasswordResetLink();
+        if (link) openPasswordResetLink(link);
+    });
+
     (async function init() {
 
         Loading.show(
@@ -15912,6 +15999,11 @@
         );
 
         try {
+
+            if (pendingPasswordResetLink) {
+                openPasswordResetLink(pendingPasswordResetLink);
+                return;
+            }
 
             renderPlayers();
             renderPairsEditor();
@@ -16136,6 +16228,7 @@
     let rehydrating = false;
 
     async function safeRehydrate() {
+        if (resetLinkView || resetBusy) return;
         if (rehydrating) return;
         rehydrating = true;
 

@@ -22,7 +22,7 @@
 
   <meta name="apple-mobile-web-app-title" content="FTV Hub">
 
-  <link rel="stylesheet" href="css/style.css?v=31">
+  <link rel="stylesheet" href="css/style.css?v=32">
 </head>
 
 <body>
@@ -199,6 +199,7 @@
             <div>
               <div class="muted">Senha</div>
               <input id="loginPassword" type="password" placeholder="Sua senha" />
+              <label class="password-visibility"><input type="checkbox" data-password-targets="loginPassword" /> Mostrar senha</label>
             </div>
 
             <div class="auth-actions">
@@ -276,6 +277,7 @@
 
             </div>
 
+            <label class="password-visibility"><input type="checkbox" data-password-targets="registerPassword registerPasswordConfirm" /> Mostrar senhas</label>
             <div id="registerStatus" class="muted"></div>
 
             <div class="register-actions">
@@ -323,7 +325,8 @@
                       minlength="8" placeholder="Repita sua nova senha" disabled />
                   </div>
                 </div>
-                <p class="muted">O código vale por 10 minutos e pode ser usado uma vez. Ao reenviar, use o código mais recente.</p>
+                <label class="password-visibility"><input id="resetShowPasswords" type="checkbox" data-password-targets="resetNewPassword resetConfirmPassword" disabled /> Mostrar senhas</label>
+                <p class="muted">O link e o código valem por 10 minutos. Ao reenviar, use o e-mail mais recente.</p>
               </div>
             </div>
             <div id="resetStatus" class="reset-status muted" role="status" aria-live="polite"></div>
@@ -1039,6 +1042,7 @@
 
             </div>
 
+            <label class="password-visibility"><input type="checkbox" data-password-targets="profileCurrentPassword profileNewPassword profileConfirmPassword" /> Mostrar senhas</label>
             <div id="passwordStatus" class="muted profile-status"></div>
 
             <div class="profile-actions">
@@ -1986,7 +1990,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=50"></script>
+  <script src="js/app.js?v=51"></script>
 
   <script>
     if ("serviceWorker" in navigator) {
