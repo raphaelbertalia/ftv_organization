@@ -22,7 +22,7 @@
 
   <meta name="apple-mobile-web-app-title" content="FTV Hub">
 
-  <link rel="stylesheet" href="css/style.css?v=30">
+  <link rel="stylesheet" href="css/style.css?v=31">
 </head>
 
 <body>
@@ -204,6 +204,10 @@
             <div class="auth-actions">
               <button id="btnLogin" type="button">Entrar</button>
 
+              <button id="btnForgotPassword" class="secondary" type="button">
+                Esqueci minha senha
+              </button>
+
               <button id="btnShowRegister" class="secondary" type="button">
                 Criar conta
               </button>
@@ -221,7 +225,7 @@
               <b>Criar conta</b>
 
               <div class="muted">
-                Cadastre-se para participar dos grupos do FTV Hub.
+                Cadastre-se para participar dos grupos do FTV Hub. Use um e-mail real para recuperar seu acesso.
               </div>
             </div>
 
@@ -282,9 +286,55 @@
               <button id="btnCancelRegister" class="secondary" type="button">
                 Já tenho uma conta
               </button>
+
+              <button id="btnRegisterRecover" class="secondary" type="button">
+                Já tenho conta e esqueci a senha
+              </button>
             </div>
 
           </div>
+
+          <form id="passwordResetForm" class="password-reset-form" style="display:none;">
+            <div class="register-heading">
+              <b>Recuperar minha conta</b>
+              <div class="muted">Use o e-mail do seu cadastro. Você não precisa criar outra conta.</div>
+            </div>
+            <div class="reset-fields">
+              <div>
+                <label for="resetEmail">E-mail cadastrado</label>
+                <input id="resetEmail" type="email" autocomplete="email" maxlength="254"
+                  placeholder="seu@email.com" required />
+              </div>
+              <div id="resetCodeFields" hidden>
+                <div class="reset-fields">
+                  <div>
+                    <label for="resetCode">Código recebido por e-mail</label>
+                    <input id="resetCode" type="text" inputmode="numeric" autocomplete="one-time-code"
+                      minlength="6" maxlength="6" pattern="[0-9]{6}" placeholder="000000" disabled />
+                  </div>
+                  <div>
+                    <label for="resetNewPassword">Nova senha</label>
+                    <input id="resetNewPassword" type="password" autocomplete="new-password"
+                      minlength="8" placeholder="Mínimo 8 caracteres" disabled />
+                  </div>
+                  <div>
+                    <label for="resetConfirmPassword">Confirmar nova senha</label>
+                    <input id="resetConfirmPassword" type="password" autocomplete="new-password"
+                      minlength="8" placeholder="Repita sua nova senha" disabled />
+                  </div>
+                </div>
+                <p class="muted">O código vale por 10 minutos e pode ser usado uma vez. Ao reenviar, use o código mais recente.</p>
+              </div>
+            </div>
+            <div id="resetStatus" class="reset-status muted" role="status" aria-live="polite"></div>
+            <div class="register-actions">
+              <button id="btnSubmitReset" type="submit">Receber código por e-mail</button>
+              <button id="btnResendReset" class="secondary" type="button" hidden>Reenviar código</button>
+              <button id="btnChangeResetEmail" class="secondary" type="button" hidden>Usar outro e-mail</button>
+              <button id="btnCancelReset" class="secondary" type="button">Voltar para entrar</button>
+            </div>
+            <p class="muted">Sem acesso ao e-mail cadastrado? Fale com o administrador do seu grupo para conferir sua conta.</p>
+          </form>
 
           <div id="guestLoginBox" style="display:none;">
             <button id="btnShowLogin" class="secondary" type="button">Fazer login</button>
@@ -1936,7 +1986,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=49"></script>
+  <script src="js/app.js?v=50"></script>
 
   <script>
     if ("serviceWorker" in navigator) {

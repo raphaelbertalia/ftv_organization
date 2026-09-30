@@ -1428,19 +1428,41 @@
         }
     }
 
+    let authMode = "login";
+    let resetBusy = false;
+    let requestedResetEmail = "";
+    let resetResendAt = 0;
+    let resetResendTimer = null;
+
+    function renderAuthForms() {
+        const logged = !!state.auth?.user;
+        if (logged) authMode = "login";
+        const displays = { loginForm: ["login", "flex"], registerForm: ["register", "block"], passwordResetForm: ["reset", "block"] };
+        Object.entries(displays).forEach(([id, [mode, display]]) => {
+            if ($(id)) $(id).style.display = !logged && authMode === mode ? display : "none";
+        });
+    }
+
+    function setResetStep(email = "") {
+        requestedResetEmail = email;
+        if ($("resetEmail")) $("resetEmail").readOnly = !!email;
+        if ($("resetCodeFields")) $("resetCodeFields").hidden = !email;
+        ["resetCode", "resetNewPassword", "resetConfirmPassword"].forEach(id => {
+            if ($(id)) {
+                $(id).disabled = !email;
+                $(id).required = !!email;
+                $(id).value = "";
+            }
+        });
+        if ($("btnSubmitReset")) $("btnSubmitReset").textContent = email ? "Salvar nova senha" : "Receber código por e-mail";
+        if ($("btnResendReset")) $("btnResendReset").hidden = !email;
+        if ($("btnChangeResetEmail")) $("btnChangeResetEmail").hidden = !email;
+    }
+
     function setRegisterMode(enabled) {
-        const loginForm = $("loginForm");
-        const registerForm = $("registerForm");
-
-        if (loginForm) {
-            loginForm.style.display =
-                enabled ? "none" : "flex";
-        }
-
-        if (registerForm) {
-            registerForm.style.display =
-                enabled ? "block" : "none";
-        }
+        authMode = enabled ? "register" : "login";
+        setResetStep();
+        renderAuthForms();
 
         if ($("registerStatus")) {
             $("registerStatus").textContent = "";
@@ -1450,6 +1472,97 @@
             $("registerName")?.focus();
         } else {
             $("loginUsername")?.focus();
+        }
+    }
+
+    function openPasswordReset() {
+        if (resetBusy) return;
+        authMode = "reset";
+        setResetStep();
+        if ($("resetEmail") && $("registerEmail")?.value) $("resetEmail").value = $("registerEmail").value;
+        setResetStatus("");
+        renderAuthForms();
+        $("resetEmail")?.focus();
+    }
+
+    function setResetStatus(message, error = false) {
+        if ($("resetStatus")) {
+            $("resetStatus").textContent = message;
+            $("resetStatus").classList.toggle("is-error", error);
+        }
+    }
+
+    function updateResetButtons() {
+        ["btnSubmitReset", "btnCancelReset", "btnChangeResetEmail"].forEach(id => {
+            if ($(id)) $(id).disabled = resetBusy;
+        });
+        const seconds = Math.max(0, Math.ceil((resetResendAt - Date.now()) / 1000));
+        if ($("btnResendReset")) {
+            $("btnResendReset").disabled = resetBusy || seconds > 0;
+            $("btnResendReset").textContent = seconds ? `Reenviar em ${seconds}s` : "Reenviar código";
+        }
+        if (!seconds && resetResendTimer) {
+            clearInterval(resetResendTimer);
+            resetResendTimer = null;
+        }
+    }
+
+    async function requestResetCode() {
+        const email = ($("resetEmail")?.value || "").trim().toLowerCase();
+        if (!$("resetEmail")?.reportValidity()) return;
+        if (resetBusy) return;
+        resetBusy = true;
+        updateResetButtons();
+        setResetStatus("Enviando solicitação...");
+        try {
+            const data = await apiJson("/api/auth?action=request-password-reset", {
+                method: "POST", body: JSON.stringify({ email })
+            });
+            $("resetEmail").value = email;
+            setResetStep(email);
+            resetResendAt = Date.now() + (data.resend_after || 60) * 1000;
+            if (resetResendTimer) clearInterval(resetResendTimer);
+            resetResendTimer = setInterval(updateResetButtons, 1000);
+            setResetStatus(data.message);
+            $("resetCode")?.focus();
+        } catch (err) {
+            setResetStatus(err.message || "Não foi possível solicitar o código.", true);
+        } finally {
+            resetBusy = false;
+            updateResetButtons();
+        }
+    }
+
+    async function confirmResetCode() {
+        if (resetBusy) return;
+        const code = ($("resetCode")?.value || "").trim();
+        const newPassword = $("resetNewPassword")?.value || "";
+        if (newPassword !== $("resetConfirmPassword")?.value) {
+            setResetStatus("As senhas não coincidem.", true);
+            $("resetConfirmPassword")?.focus();
+            return;
+        }
+        if (new TextEncoder().encode(newPassword).length > 72) {
+            setResetStatus("A senha deve ter no máximo 72 bytes. Use uma senha mais curta.", true);
+            return;
+        }
+        resetBusy = true;
+        updateResetButtons();
+        setResetStatus("Salvando nova senha...");
+        try {
+            const data = await apiJson("/api/auth?action=confirm-password-reset", {
+                method: "POST", body: JSON.stringify({ email: requestedResetEmail, code, new_password: newPassword })
+            });
+            setRegisterMode(false);
+            if ($("loginUsername")) $("loginUsername").value = data.username || "";
+            if ($("loginPassword")) $("loginPassword").value = "";
+            $("loginPassword")?.focus();
+            Toast.show(data.message, "success", 6000);
+        } catch (err) {
+            setResetStatus(err.message || "Não foi possível alterar a senha.", true);
+        } finally {
+            resetBusy = false;
+            updateResetButtons();
         }
     }
 
@@ -1814,9 +1927,7 @@
                 : "Não logado";
         }
 
-        if ($("loginForm")) {
-            $("loginForm").style.display = !logged ? "flex" : "none";
-        }
+        renderAuthForms();
 
         if ($("logoutBox")) {
             $("logoutBox").style.display = logged && !guest ? "block" : "none";
@@ -9634,6 +9745,25 @@
         });
     }
 
+    $("btnForgotPassword")?.addEventListener("click", openPasswordReset);
+    $("btnRegisterRecover")?.addEventListener("click", openPasswordReset);
+    $("btnCancelReset")?.addEventListener("click", () => {
+        if (!resetBusy) setRegisterMode(false);
+    });
+    $("btnChangeResetEmail")?.addEventListener("click", () => {
+        if (resetBusy) return;
+        setResetStep();
+        setResetStatus("");
+        $("resetEmail")?.focus();
+    });
+    $("btnResendReset")?.addEventListener("click", requestResetCode);
+    $("passwordResetForm")?.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!$("passwordResetForm").reportValidity()) return;
+        if (requestedResetEmail) await confirmResetCode();
+        else await requestResetCode();
+    });
+
     if ($("btnShowRegister")) {
         $("btnShowRegister").addEventListener(
             "click",
@@ -9676,7 +9806,7 @@
     if ($("btnLogin")) {
         $("btnLogin").addEventListener("click", async () => {
             const username = ($("loginUsername")?.value || "").trim();
-            const password = ($("loginPassword")?.value || "").trim();
+            const password = $("loginPassword")?.value || "";
 
             if (!username || !password) {
                 return alert("Preencha usuário e senha.");

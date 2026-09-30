@@ -11,8 +11,180 @@ import {
 } from "../lib/auth.js";
 import {
   sendEmailSafe,
-  buildNotificationEmail
+  buildNotificationEmail,
+  buildPasswordResetEmail
 } from "../lib/email.js";
+
+const RESET_TYPE = "PASSWORD_RESET";
+const RESET_MESSAGE = "Se este e-mail estiver vinculado a uma conta ativa, você receberá um código. Confira também o spam.";
+const INVALID_CODE = "Código inválido, expirado ou sem tentativas disponíveis. Solicite outro código.";
+
+function resetEmail(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function validResetEmail(email) {
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function allowAuthCodeRequest(key, maxHits, windowSeconds, cooldownSeconds = 0) {
+  const hashedKey = crypto.createHash("sha256").update(key).digest("hex");
+  const result = await pool.query(`
+    INSERT INTO auth_code_rate_limits (key, next_allowed_at)
+    VALUES ($1, NOW() + $4 * INTERVAL '1 second')
+    ON CONFLICT (key) DO UPDATE SET
+      hits = CASE WHEN auth_code_rate_limits.window_started_at <= NOW() - $3 * INTERVAL '1 second'
+        THEN 1 ELSE auth_code_rate_limits.hits + 1 END,
+      window_started_at = CASE WHEN auth_code_rate_limits.window_started_at <= NOW() - $3 * INTERVAL '1 second'
+        THEN NOW() ELSE auth_code_rate_limits.window_started_at END,
+      next_allowed_at = NOW() + $4 * INTERVAL '1 second'
+    WHERE auth_code_rate_limits.next_allowed_at <= NOW()
+      AND (auth_code_rate_limits.window_started_at <= NOW() - $3 * INTERVAL '1 second'
+        OR auth_code_rate_limits.hits < $2)
+    RETURNING key
+  `, [hashedKey, maxHits, windowSeconds, cooldownSeconds]);
+  return result.rows.length > 0;
+}
+
+function resetClientIp(req) {
+  // Vercel substitui este header pelo IP observado na plataforma.
+  // Fora da Vercel, use o endereço do socket (não confie em header do cliente).
+  const forwarded = process.env.VERCEL === "1" ? req.headers?.["x-forwarded-for"] : null;
+  return String(forwarded || req.socket?.remoteAddress || "unknown").split(",")[0].trim();
+}
+
+async function requestPasswordReset(req, res) {
+  const startedAt = Date.now();
+  const email = resetEmail(req.body?.email);
+  if (!validResetEmail(email)) {
+    return res.status(400).json({ error: "Informe um e-mail válido" });
+  }
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    return res.status(503).json({ error: "Recuperação de senha indisponível no momento. Tente mais tarde." });
+  }
+  if (!await allowAuthCodeRequest(`reset-request-ip:${resetClientIp(req)}`, 30, 3600)) {
+    res.setHeader("Retry-After", "3600");
+    return res.status(429).json({ error: "Muitas solicitações. Tente novamente mais tarde." });
+  }
+
+  // Mesma resposta para e-mail inexistente, inativo e limite por e-mail atingido.
+  // Piso de tempo reduz diferenças comuns; envio externo pode variar em duração.
+  const respond = async () => {
+    const remaining = 1500 - (Date.now() - startedAt);
+    if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
+    return res.status(200).json({ ok: true, message: RESET_MESSAGE, resend_after: 60 });
+  };
+  if (!await allowAuthCodeRequest(`reset-request-email:${email}`, 5, 3600, 60)) {
+    return respond();
+  }
+
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+  const codeHash = await bcrypt.hash(code, 12);
+  const codeId = crypto.randomUUID();
+  const client = await pool.connect();
+  let target = null;
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(`
+      SELECT id, username, email FROM users
+      WHERE LOWER(BTRIM(email)) = $1 AND active = true
+      LIMIT 1 FOR UPDATE
+    `, [email]);
+    target = result.rows[0];
+    if (target) {
+      await client.query(`
+        INSERT INTO auth_codes (id, user_id, type, email, code_hash, expires_at)
+        VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '10 minutes')
+        ON CONFLICT (user_id, type) DO UPDATE SET
+          id = EXCLUDED.id, email = EXCLUDED.email, code_hash = EXCLUDED.code_hash,
+          expires_at = EXCLUDED.expires_at, used_at = NULL, attempts = 0, created_at = NOW()
+      `, [codeId, String(target.id), RESET_TYPE, email, codeHash]);
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+  if (target) {
+    const sent = await sendEmailSafe({
+      to: email,
+      ...buildPasswordResetEmail({ code, username: target.username })
+    });
+    if (!sent.ok) {
+      // Só invalida este envio; não remove um código mais recente.
+      await pool.query("DELETE FROM auth_codes WHERE id = $1", [codeId]);
+    }
+  }
+  return respond();
+}
+
+async function confirmPasswordReset(req, res) {
+  const email = resetEmail(req.body?.email);
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  const newPassword = req.body?.new_password;
+  if (!validResetEmail(email) || !/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: "Informe o e-mail e o código de 6 dígitos" });
+  }
+  if (typeof newPassword !== "string" || newPassword.length < 8 || Buffer.byteLength(newPassword, "utf8") > 72) {
+    return res.status(400).json({ error: "A senha deve ter pelo menos 8 caracteres e no máximo 72 bytes" });
+  }
+  if (!await allowAuthCodeRequest(`reset-confirm-ip:${resetClientIp(req)}`, 60, 900)) {
+    res.setHeader("Retry-After", "900");
+    return res.status(429).json({ error: "Muitas tentativas. Tente novamente mais tarde." });
+  }
+  const client = await pool.connect();
+  let target;
+  try {
+    await client.query("BEGIN");
+    // Mesma ordem de bloqueio do pedido: usuário, depois código.
+    const users = await client.query(`
+      SELECT id, username, email FROM users
+      WHERE LOWER(BTRIM(email)) = $1 AND active = true
+      LIMIT 1 FOR UPDATE
+    `, [email]);
+    target = users.rows[0];
+    const codes = target ? await client.query(`
+      SELECT id, code_hash FROM auth_codes
+      WHERE user_id = $1 AND type = $2 AND email = $3
+        AND used_at IS NULL AND expires_at > NOW() AND attempts < 5
+      FOR UPDATE
+    `, [String(target.id), RESET_TYPE, email]) : { rows: [] };
+    const entry = codes.rows[0];
+    if (!entry) {
+      await client.query("COMMIT");
+      return res.status(400).json({ error: INVALID_CODE });
+    }
+    if (!await bcrypt.compare(code, entry.code_hash)) {
+      await client.query("UPDATE auth_codes SET attempts = attempts + 1 WHERE id = $1", [entry.id]);
+      // Confirmar a transação é essencial para persistir a tentativa inválida.
+      await client.query("COMMIT");
+      return res.status(400).json({ error: INVALID_CODE });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await client.query("UPDATE users SET password = $1 WHERE id = $2", [passwordHash, target.id]);
+    await client.query("UPDATE auth_codes SET used_at = NOW() WHERE id = $1", [entry.id]);
+    await client.query("DELETE FROM user_sessions WHERE user_id = $1", [target.id]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+  await sendEmailSafe({
+    to: email,
+    subject: "Sua senha do FTV Hub foi alterada",
+    html: buildNotificationEmail({
+      title: "Senha alterada",
+      message: "Sua senha foi redefinida e as sessões anteriores foram encerradas. Se você não fez essa alteração, procure o administrador do seu grupo.",
+      details: [{ label: "Usuário:", value: target.username }]
+    }),
+    text: "Sua senha do FTV Hub foi redefinida. As sessões anteriores foram encerradas. Se não foi você, procure o administrador do seu grupo."
+  });
+  return res.status(200).json({ ok: true, message: "Senha alterada! Entre com seu usuário e a nova senha.", username: target.username });
+}
 
 function normalizeGroupSlug(value) {
   return String(value || "")
@@ -590,9 +762,12 @@ export default async function handler(req, res) {
         ok: true
       });
 
+    } else if (action === "request-password-reset") {
+      return await requestPasswordReset(req, res);
+    } else if (action === "confirm-password-reset") {
+      return await confirmPasswordReset(req, res);
     } else if (action === "login") {
-      // mantém exatamente o fluxo atual de login
-      // todo o código do cadastro que você já colocou
+      return await login(req, res);
     } else if (action === "register") {
       const {
         name,
@@ -3725,11 +3900,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Ação inválida" });
     }
 
-    // daqui para baixo segue o fluxo de login
+  } catch (err) {
+    if (["request-password-reset", "confirm-password-reset"].includes(req.query?.action)) {
+      console.error("[FTV Hub] Erro na recuperação de senha:", err?.code || "internal_error");
+      return res.status(500).json({ error: "Não foi possível recuperar sua senha agora. Tente novamente mais tarde." });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+}
 
+
+async function login(req, res) {
     const { username, password } = req.body || {};
 
-    if (!username || !password) {
+    if (typeof username !== "string" || typeof password !== "string" || !username.trim() || !password) {
       return res.status(400).json({ error: "username e password são obrigatórios" });
     }
 
@@ -3740,7 +3924,7 @@ export default async function handler(req, res) {
       WHERE LOWER(username) = LOWER($1)
       LIMIT 1
       `,
-      [username]
+      [String(username).trim()]
     );
 
     const user = result.rows[0];
@@ -3770,9 +3954,9 @@ export default async function handler(req, res) {
           `
             UPDATE users
             SET password = $1
-            WHERE id = $2
+            WHERE id = $2 AND password = $3
             `,
-          [hashedPassword, user.id]
+          [hashedPassword, user.id, storedPassword]
         );
       }
     }
@@ -3810,7 +3994,4 @@ export default async function handler(req, res) {
       },
       groups: groupsResult.rows || []
     });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
 }

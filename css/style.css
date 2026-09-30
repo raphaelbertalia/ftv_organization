@@ -365,6 +365,27 @@ pre {
 
 /* ===== cadastro ===== */
 
+.password-reset-form {
+  width: 100%;
+  max-width: 640px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.reset-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.reset-fields > div { min-width: 0; }
+.reset-fields input { width: 100%; min-width: 0 !important; margin-top: 4px; }
+.reset-fields label { display: block; }
+.reset-status { min-height: 20px; margin-top: 12px; }
+.reset-status.is-error { color: #f87171; }
+#resetCode { letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+#passwordResetForm [hidden] { display: none !important; }
+
 .register-form {
   width: 100%;
   margin-top: 18px;
