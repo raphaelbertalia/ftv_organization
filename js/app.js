@@ -10780,6 +10780,12 @@
                 );
             });
 
+            // Sempre que uma dupla for alterada manualmente,
+            // atualiza as opções do primeiro jogo.
+            select.addEventListener("change", () => {
+                renderCycleGame1Selects();
+            });
+
             return select;
         };
 
@@ -15995,7 +16001,7 @@
     (async function init() {
 
         Loading.show(
-            "Carregando Quarta CH..."
+            "Carregando FTV Hub..."
         );
 
         try {
