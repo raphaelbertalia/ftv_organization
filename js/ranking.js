@@ -18,7 +18,7 @@
   }
 
   function getPeriodValue() {
-    return document.getElementById("period")?.value || "session";
+    return document.getElementById("period")?.value || "month";
   }
 
   function getSortValue() {
@@ -59,12 +59,6 @@
     return String(value || "").slice(0, 10);
   }
 
-  function getCurrentCycle() {
-    return (state.cycles || []).find(
-      cycle => cycle.status === "em_andamento"
-    ) || null;
-  }
-
   function isSessionInPeriod(session, period) {
     const dateISO = normalizeDateISO(session?.dateISO);
 
@@ -76,19 +70,6 @@
 
     if (period === "today" || period === "hoje") {
       return dateISO === todayISO();
-    }
-
-    if (period === "cycle") {
-      const cycle = getCurrentCycle();
-
-      if (!cycle) {
-        return false;
-      }
-
-      const start = normalizeDateISO(cycle.start_date);
-      const end = normalizeDateISO(cycle.end_date);
-
-      return dateISO >= start && dateISO <= end;
     }
 
     if (period === "month" || period === "mes" || period === "mês") {
@@ -393,26 +374,16 @@
 
     renderTopTwo(data);
 
-    const contextEl = document.getElementById("rankingContext");
-    const period = getPeriodValue();
+    const contextEl =
+      document.getElementById("rankingContext");
+
+    const period =
+      String(getPeriodValue() || "").toLowerCase();
 
     if (contextEl) {
-      if (period === "cycle") {
-        const cycle = getCurrentCycle();
-
-        if (cycle) {
-          const start = normalizeDateISO(cycle.start_date);
-          const end = normalizeDateISO(cycle.end_date);
-
-          contextEl.textContent =
-            `${cycle.name} • ${start.split("-").reverse().join("/")} até ${end.split("-").reverse().join("/")}`;
-        } else {
-          contextEl.textContent = "Nenhum ciclo em andamento.";
-        }
-      } else {
-        contextEl.textContent = "";
-      }
+      contextEl.textContent = "";
     }
+
     if (!el) return;
 
     if (!sessions.length) {
@@ -421,16 +392,6 @@
 
       if (topTwoEl) {
         topTwoEl.innerHTML = "";
-      }
-      const period = getPeriodValue();
-
-      if (period === "cycle" && !getCurrentCycle()) {
-        el.innerHTML = `
-          <div class="muted">
-            Não existe um ciclo em andamento.
-          </div>
-        `;
-        return;
       }
 
       if (period === "session") {

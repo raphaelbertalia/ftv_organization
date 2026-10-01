@@ -13639,7 +13639,7 @@
 
     // ---------- Ranking controls ----------
     function updateRankingPeriodUI() {
-        const period = $("period")?.value || "session";
+        const period = $("period")?.value || "month";
         const isCustom = period === "custom";
 
         if ($("fromDateWrap")) $("fromDateWrap").style.display = isCustom ? "block" : "none";
