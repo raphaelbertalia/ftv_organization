@@ -495,6 +495,13 @@
         ) || null;
     }
 
+    function getCurrentGroupName() {
+        return (
+            getCurrentGroup()?.name ||
+            "FTV Hub"
+        );
+    }
+
     function updateGroupHeader() {
         const selector = $("groupSelector");
         const label = $("headerGroupName");
@@ -619,7 +626,10 @@
         return ["🥇", "🥈", "🥉"][index] || `${index + 1}º`;
     }
 
-    async function shareSummary(message, title = "Quarta CH") {
+    async function shareSummary(
+        message,
+        title = "FTV Hub"
+    ) {
         if (!message) return;
 
         if (navigator.share) {
@@ -646,32 +656,57 @@
     }
 
     function buildSessionShareMessage(session) {
-        const matches = getSessionMatches(session);
-        const table = computePairTableForSession(session)
-            .filter(row => Number(row.played) > 0);
-        const trends = getHistoricalPlayerTrends(session.dateISO);
 
-        const rankingLines = table.map((row, index) => {
-            const pairName = getPairDisplayName(
-                session,
-                row.pairId
+        const groupName =
+            getCurrentGroupName();
+
+        const matches =
+            getSessionMatches(session);
+
+        const table =
+            computePairTableForSession(session)
+                .filter(
+                    row =>
+                        Number(row.played) > 0
+                );
+
+        const trends =
+            getHistoricalPlayerTrends(
+                session.dateISO
             );
 
-            const balance = Number(row.diff) > 0
-                ? `+${row.diff}`
-                : row.diff;
+        const rankingLines =
+            table.map(
+                (row, index) => {
 
-            return `${getRankingPositionEmoji(index)} ${pairName} — ` +
-                `${row.points} pts | ${row.wins}V | saldo ${balance}`;
-        });
+                    const pairName =
+                        getPairDisplayName(
+                            session,
+                            row.pairId
+                        );
+
+                    const balance =
+                        Number(row.diff) > 0
+                            ? `+${row.diff}`
+                            : row.diff;
+
+                    return (
+                        `${getRankingPositionEmoji(index)} ` +
+                        `${pairName} — ` +
+                        `${row.points} pts | ` +
+                        `${row.wins}V | ` +
+                        `saldo ${balance}`
+                    );
+                }
+            );
 
         return [
-            "🏐 *QUARTA CH — RESUMO DA SESSÃO*",
+            `🏐 *${groupName.toUpperCase()} — RESUMO DA SESSÃO*`,
             "",
-            `📅 ${session.name || formatDateBR(session.dateISO)}`,
+            `📅 ${formatDateBR(session.dateISO)}`,
             `🎮 ${matches.length} jogos realizados`,
             "",
-            "*Classificação da noite*",
+            "*Classificação da sessão*",
             ...rankingLines,
             "",
             trends.rising
@@ -681,7 +716,9 @@
                 ? `🧱 Quebrou o fechadinho: ${trends.falling.name}`
                 : "🧱 Fechadinho intacto",
             "",
-            "🔥 Resenha encerrada. Até a próxima quarta!"
+            "🔥 Resenha encerrada. Até a próxima!",
+            "",
+            "_Gerado pelo FTV Hub_"
         ].join("\n");
     }
 
@@ -725,6 +762,66 @@
             ranking[0]
                 ? `👑 Campeão do ciclo: *${ranking[0].name}*`
                 : "Classificação encerrada sem jogos registrados."
+        ].join("\n");
+    }
+
+    function buildPeriodShareMessage(period) {
+
+        const groupName =
+            getCurrentGroupName();
+
+        const sessions =
+            getCycleSessions(period);
+
+        const ranking =
+            computeIndividualCycleRanking(
+                sessions
+            );
+
+        const totalMatches =
+            sessions.reduce(
+                (total, session) =>
+                    total +
+                    getSessionMatches(
+                        session
+                    ).length,
+                0
+            );
+
+        const rankingLines =
+            ranking.map(
+                (row, index) => {
+
+                    const balance =
+                        Number(row.diff) > 0
+                            ? `+${row.diff}`
+                            : row.diff;
+
+                    return (
+                        `${getRankingPositionEmoji(index)} ` +
+                        `${row.name} — ` +
+                        `${row.points} pts | ` +
+                        `${row.wins}V | ` +
+                        `${row.played}J | ` +
+                        `saldo ${balance}`
+                    );
+                }
+            );
+
+        return [
+            `📊 *${groupName.toUpperCase()} — RESUMO DO PERÍODO*`,
+            "",
+            `📅 ${formatDateBR(period.startDate)} → ${formatDateBR(period.endDate)}`,
+            `🏐 ${sessions.length} sessões | 🎮 ${totalMatches} jogos | 👥 ${ranking.length} jogadores`,
+            "",
+            "*Classificação do período*",
+            ...rankingLines,
+            "",
+            ranking[0]
+                ? `👑 Líder do período: *${ranking[0].name}*`
+                : "Período sem jogos registrados.",
+            "",
+            "_Gerado pelo FTV Hub_"
         ].join("\n");
     }
 
@@ -851,6 +948,7 @@
     }
 
     async function createSummaryImage({
+        brand = "FTV HUB",
         eyebrow,
         title,
         period,
@@ -864,7 +962,8 @@
         loserStats,
         loserPhrase,
         trends,
-        ranking
+        ranking,
+        footer = "FTV HUB"
     }) {
         if (typeof html2canvas !== "function") {
             throw new Error("Gerador de imagem não carregado.");
@@ -877,7 +976,9 @@
             <div class="summary-capture-glow"></div>
 
             <div class="summary-capture-content">
-                <div class="summary-capture-brand">QUARTA CH</div>
+                <div class="summary-capture-brand">
+                    ${escapeSummaryHtml(brand)}
+                </div>
                 <div class="summary-capture-eyebrow">${escapeSummaryHtml(eyebrow)}</div>
                 <div class="summary-capture-title">${escapeSummaryHtml(title)}</div>
                 <div class="summary-capture-period">${escapeSummaryHtml(period)}</div>
@@ -911,29 +1012,66 @@
                     </section>
                 </div>
 
-                <div class="summary-capture-trends">
-                    <section class="summary-capture-trend is-rising">
-                        <span>📈 EM ALTA</span>
-                        <strong>${escapeSummaryHtml(
-            trends?.rising?.name || "Histórico em formação"
-        )}</strong>
-                        <small>${trends?.rising
-                ? `Aumento de ${trends.rising.efficiencyDelta}% no aproveitamento`
-                : "São necessárias 4 participações"
-            }</small>
-                    </section>
+                ${trends
+                ? `
+                        <div class="summary-capture-trends">
 
-                    <section class="summary-capture-trend is-falling">
-                        <span>🧱 QUEBROU O FECHADINHO</span>
-                        <strong>${escapeSummaryHtml(
-                trends?.falling?.name || "Fechadinho intacto"
-            )}</strong>
-                        <small>${trends?.falling
-                ? `Queda de ${Math.abs(trends.falling.efficiencyDelta)}% no aproveitamento`
-                : "Ninguém caiu de rendimento"
-            }</small>
-                    </section>
-                </div>
+                            <section
+                                class="
+                                    summary-capture-trend
+                                    is-rising
+                                "
+                            >
+                                <span>
+                                    📈 EM ALTA
+                                </span>
+
+                                <strong>
+                                    ${escapeSummaryHtml(
+                    trends?.rising?.name ||
+                    "Histórico em formação"
+                )}
+                                </strong>
+
+                                <small>
+                                    ${trends?.rising
+                    ? `Aumento de ${trends.rising.efficiencyDelta}% no aproveitamento`
+                    : "São necessárias 4 participações"
+                }
+                                </small>
+                            </section>
+
+                            <section
+                                class="
+                                    summary-capture-trend
+                                    is-falling
+                                "
+                            >
+                                <span>
+                                    🧱 QUEBROU O FECHADINHO
+                                </span>
+
+                                <strong>
+                                    ${escapeSummaryHtml(
+                    trends?.falling?.name ||
+                    "Fechadinho intacto"
+                )}
+                                </strong>
+
+                                <small>
+                                    ${trends?.falling
+                    ? `Queda de ${Math.abs(
+                        trends.falling.efficiencyDelta
+                    )}% no aproveitamento`
+                    : "Ninguém caiu de rendimento"
+                }
+                                </small>
+                            </section>
+
+                        </div>
+                    `
+                : ""
+            }
 
                 <div class="summary-capture-ranking">
                     <div class="summary-capture-ranking-title">CLASSIFICAÇÃO</div>
@@ -947,7 +1085,7 @@
                 </div>
 
                 <div class="summary-capture-footer">
-                    FUTVÔLEI • RESENHA • QUARTA CH
+                    ${escapeSummaryHtml(footer)}
                 </div>
             </div>
         `;
@@ -1055,63 +1193,167 @@
         await shareSummary(message, title);
     }
 
-    async function prepareSessionSummaryImage(session) {
-        const table = computePairTableForSession(session)
-            .filter(row => Number(row.played) > 0);
+    async function prepareSessionSummaryImage(
+        session
+    ) {
+        const groupName =
+            getCurrentGroupName();
+
+        const table =
+            computePairTableForSession(session)
+                .filter(
+                    row =>
+                        Number(row.played) > 0
+                );
 
         if (!table.length) {
-            return alert("Essa sessão ainda não possui resultados.");
+            return alert(
+                "Essa sessão ainda não possui resultados."
+            );
         }
 
-        Loading.show("Criando arte da sessão...");
+        Loading.show(
+            "Criando arte da sessão..."
+        );
 
         try {
-            const [winnerPhrase, loserPhrase] = await Promise.all([
+
+            const [
+                winnerPhrase,
+                loserPhrase
+            ] = await Promise.all([
                 getResenhaPhrase("best"),
                 getResenhaPhrase("worst")
             ]);
 
-            const best = table[0];
-            const worst = table[table.length - 1];
-            const matches = getSessionMatches(session);
-            const canvas = await createSummaryImage({
-                eyebrow: "RESUMO DA SESSÃO",
-                title: session.name || "Quarta CH",
-                period: formatDateBR(session.dateISO),
-                stats: [
-                    { value: matches.length, label: "JOGOS" },
-                    { value: table.length, label: "DUPLAS" },
-                    { value: session.roster?.length || 0, label: "JOGADORES" }
-                ],
-                winnerLabel: "MELHOR DUPLA",
-                winnerName: getPairDisplayName(session, best.pairId),
-                winnerStats: `${best.points} pts • ${best.wins} vitórias • saldo ${best.diff}`,
-                winnerPhrase,
-                loserLabel: "LENHA DA NOITE",
-                loserName: getPairDisplayName(session, worst.pairId),
-                loserStats: `${worst.points} pts • ${worst.wins} vitórias • saldo ${worst.diff}`,
-                loserPhrase,
-                trends: getHistoricalPlayerTrends(session.dateISO),
-                ranking: table.map(row => ({
-                    name: getPairDisplayName(session, row.pairId),
-                    points: row.points
-                }))
-            });
+            const best =
+                table[0];
 
-            const file = await canvasToSummaryFile(
-                canvas,
-                `resumo-sessao-${session.dateISO || "quarta-ch"}.png`
-            );
+            const worst =
+                table[
+                table.length - 1
+                ];
+
+            const matches =
+                getSessionMatches(session);
+
+            const canvas =
+                await createSummaryImage({
+
+                    brand:
+                        "FTV HUB",
+
+                    eyebrow:
+                        "RESUMO DA SESSÃO",
+
+                    title:
+                        groupName,
+
+                    period:
+                        formatDateBR(
+                            session.dateISO
+                        ),
+
+                    stats: [
+                        {
+                            value:
+                                matches.length,
+                            label:
+                                "JOGOS"
+                        },
+                        {
+                            value:
+                                table.length,
+                            label:
+                                "DUPLAS"
+                        },
+                        {
+                            value:
+                                session.roster
+                                    ?.length || 0,
+                            label:
+                                "JOGADORES"
+                        }
+                    ],
+
+                    winnerLabel:
+                        "MELHOR DUPLA",
+
+                    winnerName:
+                        getPairDisplayName(
+                            session,
+                            best.pairId
+                        ),
+
+                    winnerStats:
+                        `${best.points} pts • ` +
+                        `${best.wins} vitórias • ` +
+                        `saldo ${best.diff}`,
+
+                    winnerPhrase,
+
+                    loserLabel:
+                        "LENHA DA SESSÃO",
+
+                    loserName:
+                        getPairDisplayName(
+                            session,
+                            worst.pairId
+                        ),
+
+                    loserStats:
+                        `${worst.points} pts • ` +
+                        `${worst.wins} vitórias • ` +
+                        `saldo ${worst.diff}`,
+
+                    loserPhrase,
+
+                    trends:
+                        getHistoricalPlayerTrends(
+                            session.dateISO
+                        ),
+
+                    ranking:
+                        table.map(
+                            row => ({
+                                name:
+                                    getPairDisplayName(
+                                        session,
+                                        row.pairId
+                                    ),
+                                points:
+                                    row.points
+                            })
+                        ),
+
+                    footer:
+                        "GERADO PELO FTV HUB"
+                });
+
+            const file =
+                await canvasToSummaryFile(
+                    canvas,
+                    `resumo-sessao-${session.dateISO || "ftv-hub"}.png`
+                );
 
             Loading.forceHide();
+
             showSummarySharePreview(
                 file,
-                buildSessionShareMessage(session),
-                `Resumo da sessão — ${session.name || "Quarta CH"}`
+                buildSessionShareMessage(
+                    session
+                ),
+                `Resumo da sessão — ${groupName}`
             );
+
         } catch (err) {
+
             Loading.forceHide();
-            alert(err?.message || "Não foi possível criar a arte da sessão.");
+
+            alert(
+                err?.message ||
+                "Não foi possível criar a arte da sessão."
+            );
         }
     }
 
@@ -1176,6 +1418,174 @@
         } catch (err) {
             Loading.forceHide();
             alert(err?.message || "Não foi possível criar a arte do ciclo.");
+        }
+    }
+
+    async function preparePeriodSummaryImage(
+        period
+
+    ) {
+        const groupName =
+            getCurrentGroupName();
+
+        const sessions =
+            getCycleSessions(period);
+
+        const ranking =
+            computeIndividualCycleRanking(
+                sessions
+            );
+
+        if (!ranking.length) {
+            return alert(
+                "Este período ainda não possui resultados."
+            );
+        }
+
+        Loading.show(
+            "Criando arte do período..."
+        );
+
+        try {
+            const [
+                winnerPhrase,
+                loserPhrase
+            ] = await Promise.all([
+                getResenhaPhrase("best"),
+                getResenhaPhrase("worst")
+            ]);
+
+            const best =
+                ranking[0];
+
+            const worst =
+                ranking[
+                ranking.length - 1
+                ];
+
+            const totalMatches =
+                sessions.reduce(
+                    (total, session) =>
+                        total +
+                        getSessionMatches(
+                            session
+                        ).length,
+                    0
+                );
+
+            const canvas =
+                await createSummaryImage({
+
+                    brand:
+                        "FTV HUB",
+
+                    eyebrow:
+                        "RESUMO DO PERÍODO",
+
+                    title:
+                        groupName,
+
+                    period:
+                        `${formatDateBR(
+                            period.startDate
+                        )} → ${formatDateBR(
+                            period.endDate
+                        )}`,
+
+                    stats: [
+                        {
+                            value:
+                                sessions.length,
+                            label:
+                                "SESSÕES"
+                        },
+                        {
+                            value:
+                                totalMatches,
+                            label:
+                                "JOGOS"
+                        },
+                        {
+                            value:
+                                ranking.length,
+                            label:
+                                "JOGADORES"
+                        }
+                    ],
+
+                    winnerLabel:
+                        "LÍDER DO PERÍODO",
+
+                    winnerName:
+                        best.name,
+
+                    winnerStats:
+                        `${best.points} pts • ` +
+                        `${best.wins} vitórias • ` +
+                        `saldo ${best.diff}`,
+
+                    winnerPhrase,
+
+                    loserLabel:
+                        "LANTERNA DO PERÍODO",
+
+                    loserName:
+                        worst.name,
+
+                    loserStats:
+                        `${worst.points} pts • ` +
+                        `${worst.wins} vitórias • ` +
+                        `saldo ${worst.diff}`,
+
+                    loserPhrase,
+
+                    /*
+                     * Não usamos tendência
+                     * histórica em consultas
+                     * arbitrárias.
+                     */
+                    trends: null,
+
+                    ranking:
+                        ranking
+                            .slice(0, 5)
+                            .map(row => ({
+                                name:
+                                    row.name,
+                                points:
+                                    row.points
+                            })),
+                    footer:
+                        "GERADO PELO FTV HUB"
+                });
+
+            const file =
+                await canvasToSummaryFile(
+                    canvas,
+                    (
+                        `resumo-periodo-` +
+                        `${period.startDate}-` +
+                        `${period.endDate}.png`
+                    )
+                );
+
+            Loading.forceHide();
+
+            showSummarySharePreview(
+                file,
+                buildPeriodShareMessage(
+                    period
+                ),
+                `Resumo do período — ${groupName}`
+            );
+
+        } catch (err) {
+            Loading.forceHide();
+
+            alert(
+                err?.message ||
+                "Não foi possível criar a arte do período."
+            );
         }
     }
 
@@ -7966,7 +8376,24 @@
             </div>
 
         </div>
-    `;
+
+                    ${individualRanking.length
+                    ? `
+                    <div class="cycle-share-actions">
+
+                        <button
+                            class="btnSharePeriodSummary"
+                            type="button"
+                        >
+                            📲 Compartilhar período
+                        </button>
+
+                    </div>
+                `
+                    : ""
+                }
+            `;
+
         }
 
         /*
@@ -13549,6 +13976,9 @@
         const sess = getCurrentSession() || getViewedSession();
         if (!sess) return alert("Sem sessão");
 
+        const groupName =
+            getCurrentGroupName();
+
         const table = computePairTableForSession(sess);
         if (!table.length) return alert("Sem dados");
 
@@ -13587,14 +14017,16 @@
             <!-- conteúdo -->
             <div style="position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;">
 
-                <div class="share-title">QUARTA CH</div>
+                <div class="share-title">
+                    ${escapeSummaryHtml(groupName)}
+                </div>
 
                 <div class="share-subtitle">
                 ${tipo === "best" ? "🏆 MELHOR DUPLA" : "🪵 PIOR DUPLA"}
                 </div>
 
                 <div class="share-name">
-                ${nome}
+                    ${escapeSummaryHtml(nome)}
                 </div>
 
                 <div class="share-stats">
@@ -13602,7 +14034,7 @@
                 </div>
 
                 <div class="share-msg">
-                "${frase}"
+                    "${escapeSummaryHtml(frase)}"
                 </div>
 
                 <div class="share-date">
@@ -13622,7 +14054,7 @@
         document.body.removeChild(el);
 
         const link = document.createElement("a");
-        link.download = `${tipo} -quarta.png`;
+        link.download = `${tipo}-ftv-hub.png`;
         link.href = canvas.toDataURL();
         link.click();
     }
@@ -16044,6 +16476,32 @@
 
         await prepareCycleSummaryImage(cycle);
     });
+
+    document.addEventListener(
+        "click",
+        async (ev) => {
+
+            const button =
+                ev.target.closest?.(
+                    ".btnSharePeriodSummary"
+                );
+
+            if (!button) return;
+
+            const period =
+                getViewedCycle();
+
+            if (!period) {
+                return alert(
+                    "Selecione um período para compartilhar."
+                );
+            }
+
+            await preparePeriodSummaryImage(
+                period
+            );
+        }
+    );
 
     document.addEventListener("click", async (ev) => {
         if (ev.target.closest?.("#btnSendSummaryImage")) {
