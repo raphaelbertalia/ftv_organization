@@ -22,7 +22,7 @@
 
   <meta name="apple-mobile-web-app-title" content="FTV Hub">
 
-  <link rel="stylesheet" href="css/style.css?v=32">
+  <link rel="stylesheet" href="css/style.css?v=33">
 </head>
 
 <body>
@@ -173,7 +173,7 @@
   <nav class="tabs">
     <button class="tab" data-tab="jogos">Jogos</button>
     <button class="tab" data-tab="sessoes">Sessões</button>
-    <button class="tab" data-tab="ciclo">Ciclo Mensal</button>
+    <button class="tab" data-tab="ciclo">Ciclo</button>
     <button class="tab" data-tab="ranking">Ranking</button>
     <button class="tab" data-tab="jogadores">Jogadores</button>
     <button class="tab" data-tab="admin-grupo">Administração</button>
@@ -199,7 +199,8 @@
             <div>
               <div class="muted">Senha</div>
               <input id="loginPassword" type="password" placeholder="Sua senha" />
-              <label class="password-visibility"><input type="checkbox" data-password-targets="loginPassword" /> Mostrar senha</label>
+              <label class="password-visibility"><input type="checkbox" data-password-targets="loginPassword" /> Mostrar
+                senha</label>
             </div>
 
             <div class="auth-actions">
@@ -277,7 +278,8 @@
 
             </div>
 
-            <label class="password-visibility"><input type="checkbox" data-password-targets="registerPassword registerPasswordConfirm" /> Mostrar senhas</label>
+            <label class="password-visibility"><input type="checkbox"
+                data-password-targets="registerPassword registerPasswordConfirm" /> Mostrar senhas</label>
             <div id="registerStatus" class="muted"></div>
 
             <div class="register-actions">
@@ -304,28 +306,29 @@
             <div class="reset-fields">
               <div>
                 <label for="resetEmail">E-mail cadastrado</label>
-                <input id="resetEmail" type="email" autocomplete="email" maxlength="254"
-                  placeholder="seu@email.com" required />
+                <input id="resetEmail" type="email" autocomplete="email" maxlength="254" placeholder="seu@email.com"
+                  required />
               </div>
               <div id="resetCodeFields" hidden>
                 <div class="reset-fields">
                   <div>
                     <label for="resetCode">Código recebido por e-mail</label>
-                    <input id="resetCode" type="text" inputmode="numeric" autocomplete="one-time-code"
-                      minlength="6" maxlength="6" pattern="[0-9]{6}" placeholder="000000" disabled />
+                    <input id="resetCode" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="6"
+                      maxlength="6" pattern="[0-9]{6}" placeholder="000000" disabled />
                   </div>
                   <div>
                     <label for="resetNewPassword">Nova senha</label>
-                    <input id="resetNewPassword" type="password" autocomplete="new-password"
-                      minlength="8" placeholder="Mínimo 8 caracteres" disabled />
+                    <input id="resetNewPassword" type="password" autocomplete="new-password" minlength="8"
+                      placeholder="Mínimo 8 caracteres" disabled />
                   </div>
                   <div>
                     <label for="resetConfirmPassword">Confirmar nova senha</label>
-                    <input id="resetConfirmPassword" type="password" autocomplete="new-password"
-                      minlength="8" placeholder="Repita sua nova senha" disabled />
+                    <input id="resetConfirmPassword" type="password" autocomplete="new-password" minlength="8"
+                      placeholder="Repita sua nova senha" disabled />
                   </div>
                 </div>
-                <label class="password-visibility"><input id="resetShowPasswords" type="checkbox" data-password-targets="resetNewPassword resetConfirmPassword" disabled /> Mostrar senhas</label>
+                <label class="password-visibility"><input id="resetShowPasswords" type="checkbox"
+                    data-password-targets="resetNewPassword resetConfirmPassword" disabled /> Mostrar senhas</label>
                 <p class="muted">O link e o código valem por 10 minutos. Ao reenviar, use o e-mail mais recente.</p>
               </div>
             </div>
@@ -336,7 +339,8 @@
               <button id="btnChangeResetEmail" class="secondary" type="button" hidden>Usar outro e-mail</button>
               <button id="btnCancelReset" class="secondary" type="button">Voltar para entrar</button>
             </div>
-            <p class="muted">Sem acesso ao e-mail cadastrado? Fale com o administrador do seu grupo para conferir sua conta.</p>
+            <p class="muted">Sem acesso ao e-mail cadastrado? Fale com o administrador do seu grupo para conferir sua
+              conta.</p>
           </form>
 
           <div id="guestLoginBox" style="display:none;">
@@ -1042,7 +1046,9 @@
 
             </div>
 
-            <label class="password-visibility"><input type="checkbox" data-password-targets="profileCurrentPassword profileNewPassword profileConfirmPassword" /> Mostrar senhas</label>
+            <label class="password-visibility"><input type="checkbox"
+                data-password-targets="profileCurrentPassword profileNewPassword profileConfirmPassword" /> Mostrar
+              senhas</label>
             <div id="passwordStatus" class="muted profile-status"></div>
 
             <div class="profile-actions">
@@ -1485,31 +1491,51 @@
       <section id="tab-ciclo" style="display:none;">
         <div class="card cycle-page-heading">
           <div>
-            <b>Ciclo Mensal</b>
+            <b>Ciclo</b>
+
             <div class="muted" style="margin-top:6px;">
-              Acompanhe a classificação individual e as rodadas do ciclo atual.
+              Consulte a classificação e os resultados de qualquer período.
             </div>
           </div>
         </div>
 
-        <div id="cycleListView">
-          <div class="card cycle-list-card">
-            <div class="cycle-section-header">
-              <div>
-                <b>Todos os ciclos</b>
-                <div class="muted" style="margin-top:4px;">
-                  Consulte o ciclo atual e o histórico dos ciclos encerrados.
-                </div>
+        <div class="card cycle-filter-card">
+
+          <div class="cycle-section-header">
+            <div>
+              <b>Período</b>
+
+              <div class="muted" style="margin-top:4px;">
+                Escolha as datas que deseja analisar.
               </div>
             </div>
-            <div id="cycleList" style="margin-top:12px;"></div>
           </div>
+
+          <div class="row" style="align-items:end; gap:12px; margin-top:12px;">
+
+            <div>
+              <div class="muted">De</div>
+
+              <input id="cycleFilterStart" type="date" />
+            </div>
+
+            <div>
+              <div class="muted">Até</div>
+
+              <input id="cycleFilterEnd" type="date" />
+            </div>
+
+            <div>
+              <button id="btnApplyCycleFilter" type="button">
+                Aplicar período
+              </button>
+            </div>
+
+          </div>
+
         </div>
 
         <div id="cycleDetailsView" style="display:none;">
-          <button id="btnBackCycles" class="secondary cycle-back-button" type="button">
-            ← Voltar para ciclos
-          </button>
 
           <div id="cycleOverviewCard" class="card cycle-overview-card">
             <div id="cycleInfo"></div>
@@ -1519,7 +1545,9 @@
             <div class="cycle-section-header">
               <div>
                 <b>Ranking individual</b>
-                <div class="muted" style="margin-top:4px;">Pontuação acumulada nas sessões do ciclo.</div>
+                <div class="muted" style="margin-top:4px;">
+                  Pontuação acumulada nas sessões do período.
+                </div>
               </div>
             </div>
             <div id="cycleIndividualRanking" style="margin-top:12px;"></div>
@@ -1528,7 +1556,7 @@
           <div class="card cycle-sessions-card">
             <div class="cycle-section-header">
               <div>
-                <b>Sessões do ciclo</b>
+                <b>Sessões do período</b>
                 <div class="muted" style="margin-top:4px;">Resumo das rodadas realizadas no período.</div>
               </div>
             </div>
@@ -1536,41 +1564,6 @@
           </div>
 
         </div>
-
-        <details id="cycleManagementDetails" class="card cycle-management-card">
-          <summary class="cycle-management-summary">
-            <span>⚙️ Gerenciar ciclo</span>
-            <span class="muted">Criar, finalizar, excluir e consultar ciclos</span>
-          </summary>
-
-          <div class="cycle-management-content">
-            <div id="cycleAdminCard" class="cycle-admin-panel">
-              <div class="cycle-admin-grid">
-                <div>
-                  <div class="muted">Nome do ciclo</div>
-                  <input id="cycleName" placeholder="Ex: Ciclo Agosto" />
-                </div>
-
-                <div>
-                  <div class="muted">Início</div>
-                  <input id="cycleStartDate" type="date" />
-                </div>
-
-                <div>
-                  <div class="muted">Fim</div>
-                  <input id="cycleEndDate" type="date" />
-                </div>
-
-                <button id="btnCreateCycle" type="button">Criar ciclo</button>
-              </div>
-
-              <div class="cycle-danger-actions">
-                <button id="btnEndCycle" class="secondary" type="button">Finalizar ciclo</button>
-                <button id="btnDeleteCycle" class="secondary" type="button">Excluir ciclo atual</button>
-              </div>
-            </div>
-          </div>
-        </details>
       </section>
 
       <!-- TAB: RANKING -->
@@ -1990,7 +1983,7 @@
   <script src="js/championship/sort.js"></script>
   <script src="js/championship/players.js"></script>
   <script src="js/championship-draws.js"></script>
-  <script src="js/app.js?v=51"></script>
+  <script src="js/app.js?v=52"></script>
 
   <script>
     if ("serviceWorker" in navigator) {

@@ -248,6 +248,7 @@
     let adminViewMode = "group";
     let groupCreationRequestToReject = null;
     let showAllGroupCreationRequests = false;
+    let cyclePeriodFilter = null;
 
     let profileCompletionRequired = false;
     let profileMissingFields = [];
@@ -7798,161 +7799,27 @@
         const info = $("cycleInfo");
         const rankingWrap = $("cycleIndividualRanking");
         const sessionsWrap = $("cycleSessionsList");
-        const listView = $("cycleListView");
         const detailsView = $("cycleDetailsView");
-        const listWrap = $("cycleList");
-
-        const managementDetails =
-            $("cycleManagementDetails");
-
-        if (managementDetails) {
-            managementDetails.style.display =
-                isAdmin()
-                    ? "block"
-                    : "none";
-
-            if (!isAdmin()) {
-                managementDetails.removeAttribute(
-                    "open"
-                );
-            }
-        }
 
         if (
             !info ||
             !rankingWrap ||
             !sessionsWrap ||
-            !listView ||
-            !detailsView ||
-            !listWrap
+            !detailsView
         ) {
             return;
         }
 
         const cycle = getViewedCycle();
-        const cycleIsActive = cycle?.status === "em_andamento";
 
-        const allCycles = (state.cycles || [])
-            .slice()
-            .sort((a, b) =>
-                String(b.startDate || "")
-                    .localeCompare(String(a.startDate || ""))
-            );
-
-        listView.style.display = cycle ? "none" : "block";
-        detailsView.style.display = cycle ? "block" : "none";
-
-        listWrap.innerHTML = allCycles.length
-            ? `
-                <div class="cycle-browser-list">
-                    ${allCycles.map(item => {
-                const itemSessions = getCycleSessions(item);
-                const itemMatches = itemSessions.reduce(
-                    (total, session) =>
-                        total + getSessionMatches(session).length,
-                    0
-                );
-                const itemRanking =
-                    computeIndividualCycleRanking(itemSessions);
-                const champion = itemRanking[0] || null;
-                const isActive =
-                    item.status === "em_andamento";
-
-                return `
-                            <article class="cycle-browser-item">
-                                <div class="cycle-browser-main">
-                                    <div class="cycle-browser-header">
-                                        <strong>${item.name || "Ciclo sem nome"}</strong>
-                                        <span class="pill ${isActive ? "is-active" : ""}">
-                                            ${isActive ? "em andamento" : "encerrado"}
-                                        </span>
-                                    </div>
-
-                                    <div class="cycle-browser-period">
-                                        📅 ${formatDateBR(item.startDate)}
-                                        → ${formatDateBR(item.endDate)}
-                                    </div>
-
-                                    <div class="cycle-browser-stats">
-                                        <span>🏐 ${itemSessions.length} sessão(ões)</span>
-                                        <span>🎮 ${itemMatches} jogo(s)</span>
-                                        <span>👥 ${itemRanking.length} jogador(es)</span>
-                                        <span>🏆 ${champion ? champion.name : "Em aberto"}</span>
-                                    </div>
-                                </div>
-
-                                <div class="cycle-browser-actions">
-                                    <button
-                                        class="secondary btnViewCycle"
-                                        data-id="${item.id}"
-                                        type="button"
-                                    >
-                                        ➜ Abrir
-                                    </button>
-
-                                    ${isAdmin()
-                        ? `
-                                            <button
-                                                class="secondary btnDeleteCycleItem"
-                                                data-id="${item.id}"
-                                                type="button"
-                                                aria-label="Excluir ciclo"
-                                            >
-                                                🗑️
-                                            </button>
-                                        `
-                        : ""
-                    }
-                                </div>
-                            </article>
-                        `;
-            }).join("")}
-                </div>
-            `
-            : `
-                <div class="cycle-empty-state">
-                    <div class="cycle-empty-icon">🏆</div>
-                    <div>
-                        <b>Nenhum ciclo cadastrado</b>
-                        <div class="muted" style="margin-top:4px;">
-                            Abra “Gerenciar ciclo” para criar o primeiro ciclo mensal.
-                        </div>
-                    </div>
-                </div>
-            `;
+        /*
+         * A aba Ciclo agora representa
+         * uma análise por intervalo de datas.
+         */
+        detailsView.style.display = "block";
 
         const cycleSessions =
             getCycleSessions(cycle);
-
-        const totalCycleRounds =
-            cycle
-                ? countCycleWednesdays(
-                    cycle.startDate,
-                    cycle.endDate
-                )
-                : 0;
-
-        const completedRoundDates = new Set(
-            cycleSessions
-                .map(session => session.dateISO)
-                .filter(Boolean)
-        );
-
-        const completedRounds =
-            Math.min(
-                completedRoundDates.size,
-                totalCycleRounds
-            );
-
-        const cycleProgress =
-            totalCycleRounds > 0
-                ? Math.min(
-                    100,
-                    Math.round(
-                        (completedRounds / totalCycleRounds) * 100
-                    )
-                )
-                : 0;
 
         const individualRanking =
             computeIndividualCycleRanking(cycleSessions);
@@ -7989,168 +7856,117 @@
                     : "Classificação em aberto";
 
         /*
-         * RESUMO DO CICLO
-         */
+* RESUMO DO PERÍODO
+*/
         if (!cycle) {
             info.innerHTML = `
-            <div class="cycle-empty-state">
+        <div class="cycle-empty-state">
 
-                <div class="cycle-empty-icon">
-                    🏆
-                </div>
-
-                <div>
-                    <b>Nenhum ciclo ativo</b>
-
-                    <div
-                        class="muted"
-                        style="margin-top:4px;"
-                    >
-                        Abra “Gerenciar ciclo” para criar
-                        o próximo ciclo mensal.
-                    </div>
-                </div>
-
+            <div class="cycle-empty-icon">
+                📅
             </div>
-        `;
+
+            <div>
+                <b>Selecione um período</b>
+
+                <div
+                    class="muted"
+                    style="margin-top:4px;"
+                >
+                    Informe as datas De e Até
+                    para gerar a análise.
+                </div>
+            </div>
+
+        </div>
+    `;
         } else {
             info.innerHTML = `
-            <div class="cycle-overview-main">
+        <div class="cycle-overview-main">
 
-                <div>
-                    <div class="cycle-overview-eyebrow">
-                        ${cycleIsActive ? "Ciclo atual" : "Ciclo encerrado"}
-                    </div>
-
-                    <div class="cycle-overview-title">
-                        ${cycle.name || "Ciclo mensal"}
-                    </div>
-
-                    <div class="cycle-overview-period">
-                        ${formatDateBR(cycle.startDate)}
-                        →
-                        ${formatDateBR(cycle.endDate)}
-                    </div>
+            <div>
+                <div class="cycle-overview-eyebrow">
+                    Período analisado
                 </div>
 
-                <span class="cycle-status-badge ${cycleIsActive ? "is-active" : "is-finished"}">
-                    ${cycleIsActive ? "Em andamento" : "Encerrado"}
+                <div class="cycle-overview-title">
+                    ${formatDateBR(cycle.startDate)}
+                    →
+                    ${formatDateBR(cycle.endDate)}
+                </div>
+
+                <div class="cycle-overview-period">
+                    Resultados acumulados no intervalo selecionado
+                </div>
+            </div>
+
+        </div>
+
+        <div class="cycle-overview-stats">
+
+            <div class="cycle-stat-item">
+                <strong>${cycleSessions.length}</strong>
+                <span>Sessões</span>
+            </div>
+
+            <div class="cycle-stat-item">
+                <strong>${totalMatches}</strong>
+                <span>Jogos</span>
+            </div>
+
+            <div class="cycle-stat-item">
+                <strong>${totalPlayers}</strong>
+                <span>Jogadores</span>
+            </div>
+
+        </div>
+
+        <div class="cycle-leadership-status">
+            ${leadershipStatus}
+        </div>
+
+        <div class="cycle-top-two">
+
+            <div class="cycle-top-player is-first">
+
+                <div class="cycle-top-player-position">
+                    🥇 1º colocado
+                </div>
+
+                <strong>
+                    ${firstPlace ? firstPlace.name : "—"}
+                </strong>
+
+                <span>
+                    ${firstPlace
+                    ? `${firstPlace.points} pts • ${firstPlace.wins} vitórias`
+                    : "Sem classificação"
+                }
                 </span>
 
             </div>
 
-            <div class="cycle-progress">
+            <div class="cycle-top-player is-second">
 
-                <div class="cycle-progress-header">
-
-                    <span>Progresso do ciclo</span>
-
-                    <strong>
-                        ${cycleProgress}%
-                    </strong>
-
+                <div class="cycle-top-player-position">
+                    🥈 2º colocado
                 </div>
 
-                <div
-                    class="cycle-progress-track"
-                    role="progressbar"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    aria-valuenow="${cycleProgress}"
-                >
-                    <div
-                        class="cycle-progress-fill"
-                        style="width:${cycleProgress}%;"
-                    ></div>
-                </div>
+                <strong>
+                    ${secondPlace ? secondPlace.name : "—"}
+                </strong>
 
-                <div class="cycle-progress-caption">
-                    ${completedRounds}
-                    de
-                    ${totalCycleRounds}
-                    ${totalCycleRounds === 1
-                    ? "quarta realizada"
-                    : "quartas realizadas"
-                }
-                </div>
-
-            </div>
-
-            <div class="cycle-overview-stats">
-
-                <div class="cycle-stat-item">
-                    <strong>${cycleSessions.length}</strong>
-                    <span>Sessões</span>
-                </div>
-
-                <div class="cycle-stat-item">
-                    <strong>${totalMatches}</strong>
-                    <span>Jogos</span>
-                </div>
-
-                <div class="cycle-stat-item">
-                    <strong>${totalPlayers}</strong>
-                    <span>Jogadores</span>
-                </div>
-
-            </div>
-
-            <div class="cycle-leadership-status">
-                ${leadershipStatus}
-            </div>
-
-            <div class="cycle-top-two">
-
-                <div class="cycle-top-player is-first">
-
-                    <div class="cycle-top-player-position">
-                        🥇 1º colocado
-                    </div>
-
-                    <strong>
-                        ${firstPlace ? firstPlace.name : "—"}
-                    </strong>
-
-                    <span>
-                        ${firstPlace
-                    ? `${firstPlace.points} pts • ${firstPlace.wins} vitórias`
-                    : "Sem classificação"
-                }
-                    </span>
-
-                </div>
-
-                <div class="cycle-top-player is-second">
-
-                    <div class="cycle-top-player-position">
-                        🥈 2º colocado
-                    </div>
-
-                    <strong>
-                        ${secondPlace ? secondPlace.name : "—"}
-                    </strong>
-
-                    <span>
-                        ${secondPlace
+                <span>
+                    ${secondPlace
                     ? `${secondPlace.points} pts • ${secondPlace.wins} vitórias`
                     : "Sem classificação"
                 }
-                    </span>
-
-                </div>
+                </span>
 
             </div>
 
-            <div class="cycle-share-actions">
-                <button
-                    class="btnShareCycleSummary"
-                    data-id="${cycle.id}"
-                    type="button"
-                >
-                    📲 Compartilhar resumo
-                </button>
-            </div>
-        `;
+        </div>
+    `;
         }
 
         /*
@@ -8159,7 +7975,7 @@
         if (!cycle) {
             rankingWrap.innerHTML = `
             <div class="muted">
-                Crie um ciclo para acompanhar
+                Selecione um período para visualizar
                 a classificação individual.
             </div>
         `;
@@ -8167,7 +7983,7 @@
             rankingWrap.innerHTML = `
             <div class="cycle-empty-inline">
                 Ainda não há jogos registrados
-                dentro deste ciclo.
+                dentro deste período.
             </div>
         `;
         } else {
@@ -8208,7 +8024,7 @@
 
                     ${index === 2
                         ? `
-                                <div class="cycle-ranking-divider"></div>>
+                                <div class="cycle-ranking-divider"></div>
                             `
                         : ""
                     }
@@ -8356,7 +8172,7 @@
         }
 
         /*
-         * SESSÕES DO CICLO
+         * SESSÕES DO PERÍODO
          */
         if (!cycle) {
             sessionsWrap.innerHTML = `
@@ -13655,35 +13471,47 @@
     });
 
     document.addEventListener("click", (ev) => {
-        const button = ev.target.closest?.(".btnViewCycle");
+
+        const button =
+            ev.target.closest?.(
+                "#btnApplyCycleFilter"
+            );
 
         if (!button) return;
 
-        state.viewCycleId = button.dataset.id;
+        const start =
+            $("cycleFilterStart")
+                ?.value || "";
 
-        saveState();
+        const end =
+            $("cycleFilterEnd")
+                ?.value || "";
+
+        if (!start || !end) {
+            return Toast.show(
+                "Informe as datas De e Até.",
+                "warning"
+            );
+        }
+
+        if (start > end) {
+            return Toast.show(
+                "A data inicial não pode ser maior que a data final.",
+                "warning"
+            );
+        }
+
+        cyclePeriodFilter = {
+            startDate: start,
+            endDate: end
+        };
+
         renderCycleTab();
 
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
-    });
-
-    document.addEventListener("click", (ev) => {
-        const button = ev.target.closest?.("#btnBackCycles");
-
-        if (!button) return;
-
-        state.viewCycleId = null;
-
-        saveState();
-        renderCycleTab();
-
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
+        Toast.show(
+            "Período aplicado.",
+            "success"
+        );
     });
 
     document.addEventListener("click", (ev) => {
@@ -14117,13 +13945,21 @@
     }
 
     function getViewedCycle() {
-        if (!state.viewCycleId) {
+        if (
+            !cyclePeriodFilter?.startDate ||
+            !cyclePeriodFilter?.endDate
+        ) {
             return null;
         }
 
-        return (state.cycles || []).find(
-            cycle => String(cycle.id) === String(state.viewCycleId)
-        ) || null;
+        return {
+            id: "period-filter",
+            name: "Período selecionado",
+            startDate: cyclePeriodFilter.startDate,
+            endDate: cyclePeriodFilter.endDate,
+            status: "periodo",
+            isPeriodFilter: true
+        };
     }
 
     function renderCycleGame1Selects() {

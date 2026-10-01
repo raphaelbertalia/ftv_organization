@@ -378,11 +378,29 @@ pre {
   gap: 12px;
 }
 
-.reset-fields > div { min-width: 0; }
-.reset-fields input { width: 100%; min-width: 0 !important; margin-top: 4px; }
-.reset-fields label { display: block; }
-.reset-status { min-height: 20px; margin-top: 12px; }
-.reset-status.is-error { color: #f87171; }
+.reset-fields>div {
+  min-width: 0;
+}
+
+.reset-fields input {
+  width: 100%;
+  min-width: 0 !important;
+  margin-top: 4px;
+}
+
+.reset-fields label {
+  display: block;
+}
+
+.reset-status {
+  min-height: 20px;
+  margin-top: 12px;
+}
+
+.reset-status.is-error {
+  color: #f87171;
+}
+
 .password-visibility {
   display: flex;
   align-items: center;
@@ -391,6 +409,7 @@ pre {
   font-size: 14px;
   cursor: pointer;
 }
+
 .password-visibility input[type="checkbox"] {
   width: 18px !important;
   min-width: 18px !important;
@@ -399,15 +418,28 @@ pre {
   padding: 0;
   flex: 0 0 18px;
 }
-body.password-reset-link-view > :not(main):not(#globalLoading):not(#appToast),
-body.password-reset-link-view main > :not(#loginScreen),
-body.password-reset-link-view #loginScreen > :not(#authBox),
-body.password-reset-link-view #authBox .row > div:first-child,
+
+body.password-reset-link-view> :not(main):not(#globalLoading):not(#appToast),
+body.password-reset-link-view main> :not(#loginScreen),
+body.password-reset-link-view #loginScreen> :not(#authBox),
+body.password-reset-link-view #authBox .row>div:first-child,
 body.password-reset-link-view #logoutBox,
-body.password-reset-link-view #guestLoginBox { display: none !important; }
-body.password-reset-link-view #loginScreen { display: block !important; }
-#resetCode { letter-spacing: .2em; font-variant-numeric: tabular-nums; }
-#passwordResetForm [hidden] { display: none !important; }
+body.password-reset-link-view #guestLoginBox {
+  display: none !important;
+}
+
+body.password-reset-link-view #loginScreen {
+  display: block !important;
+}
+
+#resetCode {
+  letter-spacing: .2em;
+  font-variant-numeric: tabular-nums;
+}
+
+#passwordResetForm [hidden] {
+  display: none !important;
+}
 
 .register-form {
   width: 100%;
@@ -2170,14 +2202,13 @@ body.password-reset-link-view #loginScreen { display: block !important; }
   }
 }
 
-/* ===== CICLO MENSAL — DASHBOARD INDIVIDUAL ===== */
+/* ===== CICLO — ANÁLISE POR PERÍODO ===== */
 
 .cycle-page-heading,
-.cycle-list-card,
+.cycle-filter-card,
 .cycle-overview-card,
 .cycle-ranking-card,
-.cycle-sessions-card,
-.cycle-management-card {
+.cycle-sessions-card {
   max-width: 860px;
   margin-left: auto;
   margin-right: auto;
@@ -2351,6 +2382,43 @@ body.password-reset-link-view #loginScreen { display: block !important; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+/* ===== FILTRO DE PERÍODO ===== */
+
+.cycle-filter-card {
+  background:
+    radial-gradient(420px 150px at 0% 0%,
+      rgba(34, 197, 94, .08),
+      transparent 72%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .05),
+      rgba(255, 255, 255, .02));
+}
+
+.cycle-filter-card .row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) minmax(0, 1fr) auto;
+
+  align-items: end;
+  gap: 12px;
+}
+
+.cycle-filter-card .row>div {
+  min-width: 0;
+}
+
+.cycle-filter-card input {
+  width: 100%;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+#btnApplyCycleFilter {
+  width: auto;
+  min-width: 160px;
+  white-space: nowrap;
 }
 
 .cycle-ranking-list {
@@ -2992,6 +3060,21 @@ body.password-reset-link-view #loginScreen { display: block !important; }
 
   .cycle-progress-track {
     height: 9px;
+  }
+
+  .cycle-filter-card .row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .cycle-filter-card .row>div {
+    width: 100%;
+  }
+
+  #btnApplyCycleFilter {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
   }
 }
 
@@ -6117,11 +6200,9 @@ button.match-flow-tooltip-button {
     border-radius: 16px;
 
     background:
-      linear-gradient(
-        180deg,
+      linear-gradient(180deg,
         rgba(16, 24, 39, .98),
-        rgba(10, 16, 28, .98)
-      );
+        rgba(10, 16, 28, .98));
 
     box-shadow:
       0 14px 32px rgba(0, 0, 0, .35);
