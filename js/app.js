@@ -7,6 +7,7 @@
     const $ = (id) => document.getElementById(id);
     const pendingPasswordResetLink = readPasswordResetLink();
     let authExpired = false;
+    let pendingReauth = null;
 
     const Loading = (() => {
         let activeOperations = 0;
@@ -1637,6 +1638,11 @@
             return;
         }
 
+        pendingReauth = {
+            userId: String(currentUser.id),
+            groupId: getCurrentGroupId()
+        };
+
         authExpired = true;
         authMode = "login";
 
@@ -2142,11 +2148,26 @@
             ? data.groups
             : [];
 
-        if (state.auth.groups.length === 1) {
+        const mesmoUsuario =
+            pendingReauth &&
+            String(data.user.id) === pendingReauth.userId;
+
+        const grupoAnterior = mesmoUsuario
+            ? state.auth.groups.find(
+                group =>
+                    String(group.id) === String(pendingReauth.groupId)
+            )
+            : null;
+
+        if (grupoAnterior) {
+            state.auth.currentGroupId = grupoAnterior.id;
+        } else if (state.auth.groups.length === 1) {
             state.auth.currentGroupId = state.auth.groups[0].id;
         } else {
             state.auth.currentGroupId = null;
         }
+
+        pendingReauth = null;
 
         clearGroupInviteSearch();
         clearPlayerUserSearch();
@@ -2354,6 +2375,7 @@
 
     async function doLogout() {
         authExpired = false;
+        pendingReauth = null;
         try {
             await apiJson("/api/auth?action=logout", {
                 method: "POST"
@@ -2435,6 +2457,7 @@
 
     function enterGuestMode() {
         authExpired = false;
+        pendingReauth = null;
         state.auth = state.auth || {};
         state.auth.user = { username: "visitante", role: "guest" };
 
