@@ -10224,7 +10224,9 @@
                     showTab("sorteios");
                     alert("Login feito ✅");
                 } else if (getCurrentGroupId()) {
-                    showTab("jogos");
+                    const ultimaAba = localStorage.getItem("quartaChLastTab");
+
+                    showTab(ultimaAba || "jogos");
                     alert("Login feito ✅");
                 } else if ((state.auth?.groups || []).length === 0) {
                     alert("Login feito ✅");
