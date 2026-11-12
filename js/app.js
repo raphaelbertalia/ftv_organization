@@ -6,6 +6,7 @@
 (function () {
     const $ = (id) => document.getElementById(id);
     const pendingPasswordResetLink = readPasswordResetLink();
+    let authExpired = false;
 
     const Loading = (() => {
         let activeOperations = 0;
@@ -1604,10 +1605,57 @@
         } catch (_) { }
 
         if (!res.ok) {
+            if (
+                res.status === 401 &&
+                data?.error === "Sessão inválida ou expirada"
+            ) {
+                requestLoginAgain();
+                throw new Error(
+                    "Seu acesso expirou. Entre novamente para continuar."
+                );
+            }
+
             throw new Error(data?.error || `HTTP ${res.status}`);
         }
 
         return data;
+    }
+
+    /*
+     * Quando o servidor rejeita a autenticação, não tratamos isso
+     * como uma sessão de jogos encerrada. Mantemos os dados locais
+     * e solicitamos um novo login com uma explicação clara.
+     */
+    function requestLoginAgain() {
+        const currentUser = getCurrentUser();
+
+        if (
+            authExpired ||
+            !currentUser ||
+            currentUser.role === "guest"
+        ) {
+            return;
+        }
+
+        authExpired = true;
+        authMode = "login";
+
+        state.auth.user = null;
+        state.auth.groups = [];
+        state.auth.currentGroupId = null;
+        noGroupChampionshipOpen = false;
+        adminViewMode = "group";
+
+        if ($("loginUsername")) {
+            $("loginUsername").value = currentUser.username || "";
+        }
+        if ($("loginPassword")) {
+            $("loginPassword").value = "";
+        }
+
+        saveState();
+        updateAuthUI();
+        $("loginUsername")?.focus();
     }
 
     async function hydrateStateFromDb() {
@@ -1912,6 +1960,14 @@
     function renderAuthForms() {
         const logged = !!state.auth?.user && !resetLinkView;
         if (logged) authMode = "login";
+
+        if ($("authExpiredNotice")) {
+            $("authExpiredNotice").hidden = !authExpired;
+        }
+        if ($("btnLogin")) {
+            $("btnLogin").textContent =
+                authExpired ? "Entrar novamente" : "Entrar";
+        }
         const displays = { loginForm: ["login", "flex"], registerForm: ["register", "block"], passwordResetForm: ["reset", "block"] };
         Object.entries(displays).forEach(([id, [mode, display]]) => {
             if ($(id)) $(id).style.display = !logged && authMode === mode ? display : "none";
@@ -2078,6 +2134,7 @@
             body: JSON.stringify({ username, password })
         });
 
+        authExpired = false;
         state.auth.user = data.user;
         noGroupChampionshipOpen = false;
 
@@ -2296,6 +2353,7 @@
     }
 
     async function doLogout() {
+        authExpired = false;
         try {
             await apiJson("/api/auth?action=logout", {
                 method: "POST"
@@ -2376,6 +2434,7 @@
     }
 
     function enterGuestMode() {
+        authExpired = false;
         state.auth = state.auth || {};
         state.auth.user = { username: "visitante", role: "guest" };
 
