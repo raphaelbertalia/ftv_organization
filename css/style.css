@@ -267,6 +267,32 @@ pre {
   margin-bottom: 16px;
 }
 
+/* Acesso expirado: separado das sessões de jogos */
+.auth-expired-notice {
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(245, 158, 11, .35);
+  border-radius: 12px;
+  background: rgba(245, 158, 11, .09);
+  color: var(--text);
+}
+
+.auth-expired-notice[hidden] {
+  display: none;
+}
+
+.auth-expired-notice strong {
+  display: block;
+  color: #fbbf24;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.auth-expired-notice p {
+  margin: 4px 0;
+  line-height: 1.45;
+}
+
 #loginForm {
   display: flex;
   gap: 12px;
